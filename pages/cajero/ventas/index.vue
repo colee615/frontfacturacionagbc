@@ -45,9 +45,7 @@
                                     </li>
                                  </ul>
                               </div>
-                              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clienteModal">
-                                 Seleccionar Cliente
-                              </button>
+
                            </div>
                         </div>
                      </div>
@@ -145,9 +143,11 @@
                               </tbody>
                            </table>
                         </div>
-                        <a href="javascript:void(0);" class="btn bg-gradient-dark w-100 mt-4 mb-0" @click="Save()">
-                           <i class="fas fa-save mx-2"></i> GUARDAR
+                        <a href="javascript:void(0);" class="btn bg-gradient-dark w-100 mt-4 mb-0"
+                           @click="CheckAndSave">
+                           <i class="fas fa-save mx-2"></i> GUARDAR VENTA
                         </a>
+
                      </div>
                   </div>
                </div>
@@ -194,7 +194,7 @@
                         <div class="modal-footer">
                            <button type="button" @click="modalEdit = false" class="btn bg-gradient-secondary w-100"
                               data-bs-dismiss="modal">
-                              Cerrar
+                              Confirmar
                            </button>
                         </div>
                      </div>
@@ -205,10 +205,7 @@
                   aria-hidden="true">
                   <div class="modal-dialog modal-lg">
                      <div class="modal-content">
-                        <div class="modal-header">
-                           <h5 class="modal-title" id="clienteModalLabel">Seleccionar Cliente</h5>
-                           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
+
                         <div class="modal-body">
                            <div class="input-group mb-3">
                               <input type="text" class="form-control" placeholder="Buscar cliente..."
@@ -311,8 +308,39 @@ export default {
       }
    },
    methods: {
+      CheckAndSave() {
+         if (this.carrito.length === 0) {
+            // Si el carrito está vacío, mostrar alerta
+            this.$swal.fire({
+               icon: 'error',
+               title: 'Carrito Vacío',
+               text: 'Debe agregar al menos un elemento al carrito para poder guardar.',
+               confirmButtonText: 'Entendido'
+            });
+         } else if (!this.cliente) {
+            // No client selected, prompt to select one
+            new bootstrap.Modal(document.getElementById('clienteModal')).show();
+         } else {
+            // Client is selected, ask for confirmation before saving
+            this.ConfirmAndSave();
+         }
+      },
+
+      ConfirmAndSave() {
+         this.$swal.fire({
+            title: '¿Estás seguro de realizar la venta?',
+            showDenyButton: true,
+            confirmButtonText: 'Sí, guardar',
+            denyButtonText: `No, cancelar`,
+         }).then((result) => {
+            if (result.isConfirmed) {
+               this.Save();
+            }
+         });
+      },
       selectCliente(id) {
          this.cliente = id;
+         this.ConfirmAndSave(); // Proceed to confirm and save after selecting the client
       },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
