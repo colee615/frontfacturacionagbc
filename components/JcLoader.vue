@@ -2,7 +2,7 @@
    <div class="vld-parent">
       <loading :active="load" />
 
-      hola
+
    </div>
 </template>
 
