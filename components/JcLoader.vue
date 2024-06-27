@@ -1,32 +1,31 @@
 <template>
-  <div class="vld-parent">
-      <loading :active="load"
-              />
+   <div class="vld-parent">
+      <loading :active="load" />
 
-
-  </div>
+      hola
+   </div>
 </template>
 
 <script>
-  import Loading from 'vue-loading-overlay';
-  import 'vue-loading-overlay/dist/vue-loading.css';
+import Loading from 'vue-loading-overlay';
+import 'vue-loading-overlay/dist/vue-loading.css';
 
-  export default {
-    props:{
-      load:{
-        type:Boolean,
-        default:true
+export default {
+   props: {
+      load: {
+         type: Boolean,
+         default: true
       }
-    },
-      data() {
-          return {
+   },
+   data() {
+      return {
 
 
-          }
-      },
-      components: {
-          Loading
-      },
+      }
+   },
+   components: {
+      Loading
+   },
 
-  }
+}
 </script>
