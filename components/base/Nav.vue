@@ -132,10 +132,7 @@ export default {
          }
       },
       Logout() {
-         // Eliminar la variable del almacenamiento local
-         localStorage.removeItem('variableInt');
-
-         // Redireccionar a la página de inicio de sesión u otra página según sea necesario
+         localStorage.removeItem('userAuth');
          this.$router.push('/auth/login');
       }
    },
