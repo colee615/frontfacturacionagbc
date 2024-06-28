@@ -7,6 +7,7 @@
          <div class="container-fluid py-4">
             <slot name="body" />
             <BaseFooter />
+
          </div>
       </main>
    </div>
@@ -24,6 +25,9 @@ export default {
          type: String,
          default: ''
       },
+      user: {
+
+      }
    },
    mounted() {
       let user = localStorage.getItem('userAuth');

@@ -1,14 +1,18 @@
 <template>
    <div>
       <JcLoader :load="load"></JcLoader>
+
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
+            {{ user }}
+
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
             <div v-if="showButton">
                <!-- Botón que se mostrará/ocultará según los permisos -->
                <button>Acción restringida</button>
+
             </div>
          </div>
       </AdminTemplate>
@@ -63,6 +67,6 @@ export default {
          this.checkPermissions();
       });
    },
- 
+
 };
 </script>
