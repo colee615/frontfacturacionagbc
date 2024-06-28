@@ -69,7 +69,7 @@ export default {
          const res = await this.$admin.$get(path);
          return res;
       },
-      
+
    },
    mounted() {
       this.$nextTick(async () => {
@@ -79,10 +79,10 @@ export default {
             ]).then((v) => {
                this.model = v[0];
                this.sucursales = v[1];
-               
+
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }

@@ -83,12 +83,12 @@ export default {
          this.load = true;
          try {
             const res = await this.$admin.$delete(this.apiUrl + "/" + id);
-            console.log(res);
+
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }
@@ -118,7 +118,7 @@ export default {
                this.list = v[0];
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }

@@ -33,8 +33,9 @@
                                        <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
                                           <i class="fas fa-pen"></i>
                                        </nuxt-link>
-                               
-                                       <button type="button" @click="Eliminar(m.id)" class="btn btn-danger btn-sm py-1 px-2">
+
+                                       <button type="button" @click="Eliminar(m.id)"
+                                          class="btn btn-danger btn-sm py-1 px-2">
                                           <i class="fas fa-trash"></i>
                                        </button>
                                     </div>
@@ -63,7 +64,7 @@ export default {
    data() {
       return {
          load: true,
-         list: 
+         list:
             []
          ,
          apiUrl: 'cajeros',
@@ -71,7 +72,7 @@ export default {
          modulo: 'Cajeros',
          url_nuevo: '/administrador/cajeros/nuevo',
          url_editar: '/administrador/cajeros/editar/',
-       
+
       };
    },
    methods: {
@@ -88,7 +89,7 @@ export default {
                this.list = v[0]
             })
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false
          }
@@ -115,7 +116,7 @@ export default {
                this.list = v[0]
             })
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false
          }

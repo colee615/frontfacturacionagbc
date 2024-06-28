@@ -1,5 +1,6 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
+  host: '0.0.0.0',
   head: {
     title: 'POS',
     htmlAttrs: {

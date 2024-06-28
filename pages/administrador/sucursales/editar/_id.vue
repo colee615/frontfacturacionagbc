@@ -18,7 +18,8 @@
                               </div>
                               <div class="form-group col-12">
                                  <label for="codigosucursal">Código de Sucursal</label>
-                                 <input type="text" v-model="model.codigosucursal" class="form-control" id="codigosucursal">
+                                 <input type="text" v-model="model.codigosucursal" class="form-control"
+                                    id="codigosucursal">
                               </div>
                            </div>
                         </CrudUpdate>
@@ -66,7 +67,7 @@ export default {
                this.model = v[0];
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }

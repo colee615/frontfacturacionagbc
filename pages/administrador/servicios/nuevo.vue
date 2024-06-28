@@ -79,7 +79,7 @@ export default {
          try {
             // Puedes agregar aquí alguna lógica adicional que necesites al cargar el componente
          } catch (e) {
-            console.log(e);
+
          } finally {
             // Y aquí cualquier acción de limpieza o finalización
          }

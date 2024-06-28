@@ -12,7 +12,7 @@
                         <table class="table">
                            <thead>
                               <tr>
-                       
+
                                  <th class="py-0 px-1">#</th>
                                  <th class="py-0 px-1">ESTADO</th>
                                  <th class="py-0 px-1">FUENTE</th>
@@ -25,17 +25,17 @@
                            <tbody>
                               <tr v-for="(m, i) in list" :key="m.id">
                                  <td class="py-0 px-1">{{ i + 1 }}</td>
-                                 <td class="py-0 px-1">{{ m.estado}}</td>
+                                 <td class="py-0 px-1">{{ m.estado }}</td>
                                  <td class="py-0 px-1">{{ m.fuente }}</td>
                                  <td class="py-0 px-1">{{ m.codigo_seguimiento }}</td>
-                                 <td class="py-0 px-1">{{ m.fecha}}</td>
+                                 <td class="py-0 px-1">{{ m.fecha }}</td>
                                  <td class="py-0 px-1">{{ m.mensaje }}</td>
                                  <td class="py-0 px-1">
                                     <div class="btn-group">
                                        <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-success btn-sm py-1 px-2"
-           v-if="m.estado === 'EXITO'">
-    <i class="fas fa-search"></i>
-</nuxt-link>
+                                          v-if="m.estado === 'EXITO'">
+                                          <i class="fas fa-search"></i>
+                                       </nuxt-link>
 
                                        <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-sm py-1 px-2 btn-danger"
                                           v-else-if="m.estado === 'OBSERVADO'">
@@ -66,14 +66,14 @@ export default {
 
    data() {
       return {
-         
+
          load: true,
          list: [],
          apiUrl: 'notificaciones',
          page: 'Administracion',
          modulo: 'Notificaciones',
          url_editar: '/administrador/notificaciones/detalle/',
-        
+
       };
    },
    methods: {
@@ -89,7 +89,7 @@ export default {
                this.list = v[0]
             })
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false
          }

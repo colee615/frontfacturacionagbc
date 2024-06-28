@@ -77,7 +77,7 @@ export default {
             });
 
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false
          }

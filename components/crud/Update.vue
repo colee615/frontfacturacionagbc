@@ -53,7 +53,7 @@ export default {
          this.load = true;
          try {
             const res = await this.$admin.$put(this.apiUrl + "/" + this.model.id, this.model);
-            console.log(res);
+
             this.$swal
                .fire({
                   title: "Actualizado!",
@@ -68,7 +68,7 @@ export default {
                   }
                });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }
@@ -78,7 +78,7 @@ export default {
       this.$nextTick(async () => {
          try {
          } catch (e) {
-            console.log(e);
+
          } finally {
          }
       });

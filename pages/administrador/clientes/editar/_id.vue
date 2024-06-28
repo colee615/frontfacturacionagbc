@@ -18,28 +18,30 @@
                               </div>
                               <div class="form-group col-12">
                                  <label for="documentoIdentidad">Documento de Identidad</label>
-                                 <input type="text" v-model="model.documentoIdentidad" class="form-control" id="documentoIdentidad">
+                                 <input type="text" v-model="model.documentoIdentidad" class="form-control"
+                                    id="documentoIdentidad">
                               </div>
                               <div class="form-group col-12">
                                  <label for="complemento">Complemento</label>
                                  <input type="text" v-model="model.complemento" class="form-control" id="complemento">
                               </div>
                               <div class="form-group col-12">
-                              <label for="tipoDocumentoIdentidad">Tipo Documento de Identidad</label>
-                              <select v-model="model.tipoDocumentoIdentidad" class="form-control" id="tipoDocumentoIdentidad">
-                                 <option value="1">CI - Cédula de identidad</option>
-                                 <option value="2">CEX - Cédula de identidad de extranjero</option>
-                                 <option value="3">PAS - Pasaporte</option>
-                                 <option value="4">OD - Otro Documento de Identidad</option>
-                                 <option value="5">NIT - Número de identificación Tributaria</option>
-                              </select>
+                                 <label for="tipoDocumentoIdentidad">Tipo Documento de Identidad</label>
+                                 <select v-model="model.tipoDocumentoIdentidad" class="form-control"
+                                    id="tipoDocumentoIdentidad">
+                                    <option value="1">CI - Cédula de identidad</option>
+                                    <option value="2">CEX - Cédula de identidad de extranjero</option>
+                                    <option value="3">PAS - Pasaporte</option>
+                                    <option value="4">OD - Otro Documento de Identidad</option>
+                                    <option value="5">NIT - Número de identificación Tributaria</option>
+                                 </select>
                               </div>
 
                               <div class="form-group col-12">
                                  <label for="correo">Correo</label>
                                  <input type="text" v-model="model.correo" class="form-control" id="correo">
                               </div>
-                      
+
                            </div>
                         </CrudUpdate>
                      </div>
@@ -90,7 +92,7 @@ export default {
                this.model = v[0];
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }

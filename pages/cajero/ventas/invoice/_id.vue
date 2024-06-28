@@ -129,7 +129,7 @@ export default {
                this.model = v[0];
             });
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }

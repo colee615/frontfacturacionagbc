@@ -208,11 +208,20 @@
 
                         <div class="modal-body">
                            <div class="input-group mb-3">
+                              <select class="form-control" v-model="filtroTipoDocumento">
+                                 <option value="">Todos</option>
+                                 <option value="1">CI - Cédula de identidad</option>
+                                 <option value="2">CEX - Cédula de identidad de extranjero</option>
+                                 <option value="3">PAS - Pasaporte</option>
+                                 <option value="4">OD - Otro Documento de Identidad</option>
+                                 <option value="5">NIT - Número de identificación Tributaria</option>
+                              </select>
                               <input type="text" class="form-control" placeholder="Buscar cliente..."
-                                 v-model="filtroCliente" autofocus>
+                                 v-model="filtroDocumentoIdentidad" autofocus>
 
                            </div>
-                           <table class="table">
+
+                           <table class="table" v-if="filteredClientes.length > 0">
                               <thead>
                                  <tr>
 
@@ -239,6 +248,55 @@
                                  </tr>
                               </tbody>
                            </table>
+
+                           <div v-else>
+                              <p>No se encontraron clientes. ¿Desea agregar uno nuevo?</p>
+                              <button class="btn btn-primary" @click="showAddClienteForm = true">Agregar
+                                 Cliente</button>
+                           </div>
+
+                           <div v-if="showAddClienteForm">
+
+                              <div slot="body" class="row">
+                                 <div class="form-group col-12">
+                                    <label for="razonSocial">Razon Social</label>
+                                    <input type="text" v-model="model.razonSocial" class="form-control"
+                                       id="razonSocial">
+                                 </div>
+                                 <div class="form-group col-12">
+                                    <label for="tipoDocumentoIdentidad">Tipo Documento de Identidad</label>
+                                    <select class="form-control" v-model="filtroTipoDocumento">
+                                       <option value="">Todos</option>
+                                       <option value="1">CI - Cédula de identidad</option>
+                                       <option value="2">CEX - Cédula de identidad de extranjero</option>
+                                       <option value="3">PAS - Pasaporte</option>
+                                       <option value="4">OD - Otro Documento de Identidad</option>
+                                       <option value="5">NIT - Número de identificación Tributaria</option>
+                                    </select>
+
+                                 </div>
+                                 <div class="form-group col-12">
+                                    <label for="documentoIdentidad">Documento de Identidad</label>
+                                    <input type="text" v-model="model.documentoIdentidad" class="form-control"
+                                       id="documentoIdentidad">
+                                 </div>
+                                 <div class="form-group col-12">
+                                    <label for="complemento">Complemento</label>
+                                    <input type="text" v-model="model.complemento" class="form-control"
+                                       id="complemento">
+                                 </div>
+
+                                 <div class="form-group col-12">
+                                    <label for="correo">Correo</label>
+                                    <input type="text" v-model="model.correo" class="form-control" id="correo">
+                                 </div>
+
+                                 <button class="btn btn-dark w-100" @click="Savecliente()">
+                                    Guardar
+                                 </button>
+                              </div>
+
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -263,6 +321,24 @@ export default {
 
    data() {
       return {
+         filtroTipoDocumento: '',
+         filtroDocumentoIdentidad: '',
+         model: {
+            razonSocial: '',
+            documentoIdentidad: '',
+            complemento: '',
+            tipoDocumentoIdentidad: '',
+            correo: '',
+            codigoCliente: '',
+         },
+
+         apiUrl: 'clientes',
+         showAddClienteForm: false,
+         nuevoCliente: {
+            nombre: '',
+            documentoIdentidad: '',
+            // Otros campos necesarios
+         },
          tipoDocumentoMap: {
             1: 'CI - Cédula de identidad',
             2: 'CEX - Cédula de identidad de extranjero',
@@ -279,6 +355,7 @@ export default {
          carrito: [],
          clientes: [],
          cliente: null,
+
          sucursals: [],
          filtroCliente: '',
          sucursal: {
@@ -298,16 +375,41 @@ export default {
 
    computed: {
       totalCarrito() {
-         console.log("Calculando total del carrito...");
          return this.carrito.reduce((a, b) => a + (b.cantidad * b.precio), 0);
       },
       filteredClientes() {
+         // Verifica que this.clientes esté definido y sea un arreglo
+         if (!this.clientes || !Array.isArray(this.clientes)) {
+            return [];
+         }
          return this.clientes.filter(cliente => {
-            return cliente.documentoIdentidad && cliente.documentoIdentidad.toLowerCase().includes(this.filtroCliente.toLowerCase());
+            // Comprueba si el tipo de documento es válido
+            const tipoValido = this.filtroTipoDocumento ?
+               parseInt(cliente.tipoDocumentoIdentidad) === parseInt(this.filtroTipoDocumento) : true;
+
+            // Comprueba si el documento de identidad es válido
+            const docValido = this.filtroDocumentoIdentidad ?
+               cliente.documentoIdentidad.toLowerCase().includes(this.filtroDocumentoIdentidad.toLowerCase()) : true;
+
+            return tipoValido && docValido;
          });
-      }
+      },
+
    },
    methods: {
+      async guardarCliente() {
+
+         const res = await this.$admin.$post('clientes', this.nuevoCliente);
+         if (res.success) {
+            this.clientes.push(res.cliente);
+            this.showAddClienteForm = false;
+            this.filtroCliente = '';
+            new bootstrap.Modal(document.getElementById('clienteModal')).hide();
+         } else {
+
+            alert("Error al guardar el cliente.");
+         }
+      },
       CheckAndSave() {
          if (this.carrito.length === 0) {
             // Si el carrito está vacío, mostrar alerta
@@ -318,10 +420,10 @@ export default {
                confirmButtonText: 'Entendido'
             });
          } else if (!this.cliente) {
-            // No client selected, prompt to select one
+
             new bootstrap.Modal(document.getElementById('clienteModal')).show();
          } else {
-            // Client is selected, ask for confirmation before saving
+
             this.ConfirmAndSave();
          }
       },
@@ -340,11 +442,44 @@ export default {
       },
       selectCliente(id) {
          this.cliente = id;
-         this.ConfirmAndSave(); // Proceed to confirm and save after selecting the client
+         this.ConfirmAndSave();
       },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res;
+      },
+      cerrarModalCliente() {
+
+         this.nuevoCliente = {
+            nombre: '',
+            documentoIdentidad: '',
+         };
+         this.showAddClienteForm = false; l
+
+      },
+      async Savecliente() {
+         this.load = true;
+         try {
+            const res = await this.$admin.$post(this.apiUrl, this.model);
+
+            this.$swal
+               .fire({
+                  title: "Guardado!",
+                  showDenyButton: false,
+                  showCancelButton: false,
+                  confirmButtonText: "Ok",
+               })
+               .then(async (result) => {
+                  if (result.isConfirmed) {
+                     this.cerrarModalCliente();
+                     await this.Datos();
+                  }
+               });
+         } catch (e) {
+
+         } finally {
+            this.load = false;
+         }
       },
       async Datos() {
          try {
@@ -354,7 +489,7 @@ export default {
 
             });
          } catch (e) {
-            console.log(e);
+
          }
       },
 
@@ -408,7 +543,7 @@ export default {
                }))
             };
             const res = await this.$admin.$post('ventas', operacion);
-            console.log(res);
+
             this.$swal
                .fire({
                   title: "Venta Guardada !",
@@ -446,7 +581,7 @@ export default {
          try {
             await this.Datos()
          } catch (e) {
-            console.log(e);
+
          } finally {
             this.load = false;
          }
