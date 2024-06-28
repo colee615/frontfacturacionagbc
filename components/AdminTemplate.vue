@@ -30,7 +30,11 @@ export default {
       },
    },
    mounted() {
-
+      let user = localStorage.getItem('userAuth');
+      console.log(user); // Verifica la información del usuario en la consola
+      if (user == null) {
+         this.$router.push('/auth/login');
+      }
    },
 
 }
