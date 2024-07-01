@@ -1,46 +1,38 @@
 <template>
    <div>
-      <JcLoader :load="load"></JcLoader>
-
+      <JcLoader :load="load" />
       <AdminTemplate :page="page" :modulo="modulo">
-         <div slot="body">
+         <template v-slot:body>
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
             <div v-if="showButton">
-               <!-- Botón que se mostrará/ocultará según los permisos -->
                <button>Acción restringida</button>
-
             </div>
-         </div>
+         </template>
       </AdminTemplate>
    </div>
 </template>
 
-<<script>
+<script>
 import Swal from 'sweetalert2';
 
 export default {
    name: "IndexPage",
-   head() {
-      return {
-         title: "Index",
-      };
-   },
    data() {
       return {
-         user: {},
          page: "Dashboard",
          modulo: "Dashboard",
          load: false,
-         role: '',
-         ubicacion: '',
          showButton: false,
       };
    },
    computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
       sucursalUbicacion() {
-         return this.user.cajero && this.user.cajero.sucursale ? this.user.cajero.sucursale.ubicacion : null;
+         return this.user && this.user.cajero && this.user.cajero.sucursale ? this.user.cajero.sucursale.ubicacion : null;
       }
    },
    methods: {
@@ -53,7 +45,7 @@ export default {
          }
       },
       checkPermissions() {
-         if (this.role === 'cajero' && this.ubicacion === 'Oruro') {
+         if (this.user.role === 'cajero' && this.sucursalUbicacion === 'Oruro') {
             this.showButton = true;
          } else {
             this.showButton = false;
@@ -61,12 +53,13 @@ export default {
       }
    },
    mounted() {
-      this.$nextTick(async () => {
-         let user = localStorage.getItem('userAuth');
-         this.user = JSON.parse(user);
-         this.load = false;
-
-
+      this.$nextTick(() => {
+         if (process.client && this.user) {
+            this.checkPermissions();
+            this.load = false;
+         } else {
+            this.$router.push('/auth/login');
+         }
       });
    }
 };

@@ -1,13 +1,11 @@
 <template>
    <div>
       <BaseAside />
-
       <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
          <BaseNav :page="page" :modulo="modulo" />
          <div class="container-fluid py-4">
             <slot name="body" />
             <BaseFooter />
-
          </div>
       </main>
    </div>
@@ -24,17 +22,17 @@ export default {
       modulo: {
          type: String,
          default: ''
-      },
-      user: {
-
+      }
+   },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
       }
    },
    mounted() {
-      let user = localStorage.getItem('userAuth');
-      console.log(user);
-      if (user === null) {
+      if (process.client && !this.user) {
          this.$router.push('/auth/login');
       }
-   },
+   }
 }
 </script>

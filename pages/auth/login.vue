@@ -246,6 +246,7 @@
 
 <script>
 import Swal from 'sweetalert2';
+import Cookies from 'js-cookie';
 
 export default {
    data() {
@@ -346,36 +347,15 @@ export default {
             return;
          }
          try {
-            const res = await this.$admin.$post('login', this.model);
-            console.log('Response from backend:', res); // Añadido para depuración
-
-            let user = res;
-            if (user.hasOwnProperty('error')) {
-               let errorMessage = '';
-               switch (user.error) {
-                  case 'El correo electronico que ingreso no esta registrado en el sistema':
-                     errorMessage = 'El correo electronico que ingreso no esta registrado en el sistema.';
-                     break;
-                  case 'Falta verificar su cuenta':
-                     errorMessage = 'Falta verificar su cuenta, por favor revise su bandeja de entrada.';
-                     break;
-                  case 'Cuenta inhabilitada':
-                     errorMessage = 'Cuenta inhabilitada';
-                     break;
-                  case 'Credenciales incorrectas':
-                     errorMessage = 'Credenciales incorrectas, verifique e intente de nuevo.';
-                     break;
-                  default:
-                     errorMessage = 'Informe al área de sistemas.';
-               }
+            const res = await this.$admin.post('login', this.model);
+            console.log('Response from backend:', res);
+            if (res.data.error) {
                this.$swal.fire({
                   toast: true,
                   position: 'top-end',
                   showConfirmButton: false,
                   icon: 'error',
-                  title: errorMessage,
-                  allowOutsideClick: false,
-                  confirmButtonText: "Ok"
+                  title: res.data.error,
                });
             } else {
                this.$swal.fire({
@@ -385,29 +365,33 @@ export default {
                   timer: 2000,
                   timerProgressBar: true,
                   icon: 'success',
-                  title: 'Espere un momento por favor, verificando datos',
-                  allowOutsideClick: false,
+                  title: 'Inicio de sesión exitoso',
                   didOpen: () => {
                      Swal.showLoading();
                   }
                });
-               localStorage.setItem('userAuth', JSON.stringify(user));
+               if (process.client) {
+                  this.$store.commit('auth/setToken', res.data.token);
+                  this.$store.commit('auth/setUser', res.data.cajero);
+                  localStorage.setItem('token', res.data.token);
+                  localStorage.setItem('user', JSON.stringify(res.data.cajero));
+               }
                setTimeout(() => {
                   this.$swal.close();
-                  this.$router.push('/')
+                  this.$router.push('/');
                }, 2000);
             }
          } catch (e) {
-            console.log(e);
+            console.error('Error during login:', e);
             this.$swal.fire({
-               title: "Informe al área de sistemas.",
-               showDenyButton: false,
-               showCancelButton: false,
-               confirmButtonText: "Ok",
-               allowOutsideClick: false
+               title: "Error",
+               text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
+               icon: 'error',
             });
          }
-      },
+      }
+      ,
+
       async submitForgotPassword() {
          if (!this.forgotPasswordEmail) {
             this.$swal.fire({
