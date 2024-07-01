@@ -4,8 +4,6 @@
 
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-            {{ user }}
-
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
@@ -19,7 +17,9 @@
    </div>
 </template>
 
-<script>
+<<script>
+import Swal from 'sweetalert2';
+
 export default {
    name: "IndexPage",
    head() {
@@ -60,13 +60,14 @@ export default {
          }
       }
    },
-   async mounted() {
+   mounted() {
       this.$nextTick(async () => {
-         let user = localStorage.getItem('userAuth')
+         let user = localStorage.getItem('userAuth');
          this.user = JSON.parse(user);
-         this.checkPermissions();
-      });
-   },
+         this.load = false;
 
+
+      });
+   }
 };
 </script>

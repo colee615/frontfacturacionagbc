@@ -9,7 +9,7 @@ export default function ({ $axios }, inject) {
   })
 
 
- let url ='http://172.65.10.36:10001/admin/'
+  let url ='http://localhost/laravel11/api11fact/apifacturacionagbc/public/admin/'
   admin.url = url
   admin.setBaseURL(url)
 
