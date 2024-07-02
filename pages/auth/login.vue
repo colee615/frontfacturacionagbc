@@ -347,7 +347,7 @@ export default {
             return;
          }
          try {
-            const res = await this.$admin.post('login', this.model);
+            const res = await this.$login.post('login', this.model);
             console.log('Response from backend:', res);
             if (res.data.error) {
                this.$swal.fire({
