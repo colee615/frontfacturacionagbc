@@ -70,6 +70,7 @@ export default {
          sucursal: {
 
          },
+
          url_editar: "/cajero/ventas/invoice/",
       };
    },

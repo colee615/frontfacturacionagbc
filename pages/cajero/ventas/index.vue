@@ -347,7 +347,6 @@ export default {
             4: 'OD - Otro Documento de Identidad',
             5: 'NIT - Número de identificación Tributaria',
          },
-         user: {},
          modulo: "Nueva venta",
          page: "ventas",
          load: false,
@@ -369,12 +368,15 @@ export default {
             cantidad: 0,
             precio: 0,
          },
-         user: {},
+
       };
 
    },
 
    computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
       totalCarrito() {
          return this.carrito.reduce((a, b) => a + (b.cantidad * b.precio), 0);
       },
@@ -536,7 +538,7 @@ export default {
                pago: 0,
                cambio: 0,
                tipo: '1',
-               cajero_id: this.user.cajero.id,
+               cajero_id: this.user.id,
                carrito: this.carrito.map(item => ({
                   servicio_id: item.servicio.id,
                   cantidad: item.cantidad,
@@ -576,8 +578,6 @@ export default {
    },
 
    mounted() {
-      let user = localStorage.getItem('userAuth')
-      this.user = JSON.parse(user)
       this.$nextTick(async () => {
          try {
             await this.Datos()

@@ -6,6 +6,7 @@
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
+
             <div v-if="showButton">
                <button>Acción restringida</button>
             </div>
@@ -32,7 +33,7 @@ export default {
          return this.$store.state.auth.user;
       },
       sucursalUbicacion() {
-         return this.user && this.user.cajero && this.user.cajero.sucursale ? this.user.cajero.sucursale.ubicacion : null;
+         return this.user && this.user.sucursale ? this.user.sucursale.ubicacion : null;
       }
    },
    methods: {

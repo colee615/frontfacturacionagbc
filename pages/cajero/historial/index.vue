@@ -7,7 +7,7 @@
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
-                        <h5 class="mb-4 ">Tus ventas, Cajero: {{ user.cajero.name }}</h5>
+                        <h5 class="mb-4 ">Tus ventas, Cajero: {{ user.name }}</h5>
                         <table class="table">
                            <thead>
                               <th class="py-0 px-1">#</th>
@@ -68,9 +68,7 @@ export default {
          page: "Ventas",
          modulo: "Lista de ventas",
          sucursal: {},
-         user: {
-            cajero: {}
-         },
+
          url_editar: "/cajero/ventas/invoice/",
       };
    },
@@ -117,13 +115,14 @@ export default {
    computed: {
       filteredList() {
          // Filtrar la lista de ventas por el id del cajero actual
-         return this.list.filter(m => m.cajero.id === this.user.cajero.id);
-      }
+         return this.list.filter(m => m.cajero.id === this.user.id);
+      },
+      user() {
+         return this.$store.state.auth.user;
+      },
    },
    mounted() {
       this.$nextTick(async () => {
-         let user = localStorage.getItem('userAuth')
-         this.user = JSON.parse(user);
          try {
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
