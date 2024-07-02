@@ -132,7 +132,7 @@ export default {
          }
       },
       Logout() {
-         localStorage.removeItem('userAuth');
+         this.$store.dispatch('auth/logout');
          this.$router.push('/auth/login');
       }
    },

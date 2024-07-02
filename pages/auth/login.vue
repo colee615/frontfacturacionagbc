@@ -348,7 +348,6 @@ export default {
          }
          try {
             const res = await this.$admin.post('login', this.model);
-            console.log('Response from backend:', res);
             if (res.data.error) {
                this.$swal.fire({
                   toast: true,
@@ -370,12 +369,7 @@ export default {
                      Swal.showLoading();
                   }
                });
-               if (process.client) {
-                  this.$store.commit('auth/setToken', res.data.token);
-                  this.$store.commit('auth/setUser', res.data.cajero);
-                  localStorage.setItem('token', res.data.token);
-                  localStorage.setItem('user', JSON.stringify(res.data.cajero));
-               }
+               this.$store.dispatch('auth/login', { token: res.data.token, user: res.data.cajero });
                setTimeout(() => {
                   this.$swal.close();
                   this.$router.push('/');
@@ -390,6 +384,7 @@ export default {
             });
          }
       }
+
       ,
 
       async submitForgotPassword() {

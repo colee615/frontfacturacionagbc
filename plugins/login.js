@@ -16,3 +16,4 @@ export default function ({ $axios }, inject) {
   // Inyectar en el contexto como $login
   inject('login', login)
 }
+ 

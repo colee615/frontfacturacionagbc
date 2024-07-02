@@ -1,3 +1,4 @@
+// plugins/admin.js
 export default function ({ $axios, store, redirect }, inject) {
   const admin = $axios.create({
     headers: {
@@ -5,30 +6,30 @@ export default function ({ $axios, store, redirect }, inject) {
         Accept: 'text/plain, */*'
       }
     }
-  })
+  });
 
-  const url = 'http://localhost/laravel11/api11fact/apifacturacionagbc/public/admin/'
-  admin.setBaseURL(url)
+  const url = 'http://localhost/laravel11/api11fact/apifacturacionagbc/public/admin/';
+  admin.setBaseURL(url);
 
   admin.interceptors.request.use(config => {
     if (process.client) {
-      const token = store.state.auth.token
+      const token = store.state.auth.token;
       if (token) {
-        config.headers.common['Authorization'] = `Bearer ${token}`
+        config.headers.common['Authorization'] = `Bearer ${token}`;
       }
     }
-    return config
-  })
+    return config;
+  });
 
   admin.interceptors.response.use(
     response => response,
     error => {
       if (error.response.status === 401) {
-        redirect('/auth/login')
+        redirect('/auth/login');
       }
-      return Promise.reject(error)
+      return Promise.reject(error);
     }
-  )
+  );
 
-  inject('admin', admin)
+  inject('admin', admin);
 }

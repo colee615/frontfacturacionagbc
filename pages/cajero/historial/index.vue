@@ -7,7 +7,7 @@
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
-                        <h5 class="mb-4 ">Tus ventas, Cajero: {{ user.name }}</h5>
+                        <h5 class="mb-4 ">Tus ventas, Cajero: {{ user ? user.name : 'N/A' }}</h5>
                         <table class="table">
                            <thead>
                               <th class="py-0 px-1">#</th>
@@ -53,6 +53,7 @@
 
 <script>
 export default {
+
    head() {
       return {
          title: this.modulo,
@@ -120,6 +121,7 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+
    },
    mounted() {
       this.$nextTick(async () => {
