@@ -1,33 +1,41 @@
-import Cookies from 'js-cookie';
-
 export const state = () => ({
   token: null,
-  cajero: null
+  user: null,
 })
 
 export const mutations = {
   setToken(state, token) {
+    console.log('Setting token:', token);
     state.token = token;
-    Cookies.set('token', token); // Guardar el token en una cookie
-  },
-  setCajero(state, cajero) {
-    state.cajero = cajero;
   },
   clearToken(state) {
     state.token = null;
-    state.cajero = null;
-    Cookies.remove('token'); // Eliminar el token de la cookie
+  },
+  setUser(state, user) {
+    console.log('Setting user:', user);
+    state.user = user;
+  },
+  clearUser(state) {
+    state.user = null;
   }
 }
 
 export const actions = {
-  nuxtServerInit({ commit }, { req }) {
-    let token = null;
-    // Obtener el token de la cookie si existe
-    if (req.headers.cookie) {
-      const parsedCookies = cookieparser.parse(req.headers.cookie);
-      token = parsedCookies.token;
+  nuxtServerInit({ dispatch }) {
+    dispatch('loadAuthFromStorage');
+  },
+  loadAuthFromStorage({ commit }) {
+    if (process.client) {
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+
+      if (token) {
+        commit('setToken', token);
+      }
+
+      if (user) {
+        commit('setUser', JSON.parse(user));
+      }
     }
-    commit('setToken', token);
   }
 }
