@@ -46,6 +46,23 @@
                                        </p>
                                     </div>
                                  </form>
+
+                                 <div v-if="codigoEnviado">
+                                    <p>Se ha enviado un código de confirmación a su correo. Por favor, ingréselo a
+                                       continuación:</p>
+                                    <form @submit.prevent="verificarCodigo">
+                                       <div class="mb-3">
+                                          <label for="codigo_confirmacion" class="form-label">Código de
+                                             Confirmación</label>
+                                          <input type="text" v-model="model.codigo_confirmacion" class="form-control"
+                                             id="codigo_confirmacion" required>
+                                       </div>
+                                       <div class="text-center">
+                                          <button type="submit" class="btn bg-gradient-info w-100 mt-4">Verificar
+                                             Código</button>
+                                       </div>
+                                    </form>
+                                 </div>
                               </div>
                            </div>
                         </div>
@@ -252,8 +269,10 @@ export default {
    data() {
       return {
          apiUrl2: 'reset-password',
+         codigoEnviado: false,
          isLogin: true,
          forgotPasswordEmail: '',
+         codigo_confirmacion: '',
          model: {
             email: '',
             password: ''
@@ -348,7 +367,16 @@ export default {
          }
          try {
             const res = await this.$admin.post('login', this.model);
-            if (res.data.error) {
+            if (res.data.message) {
+               this.$swal.fire({
+                  toast: true,
+                  position: 'center',
+                  showConfirmButton: false,
+                  icon: 'success',
+                  title: res.data.message,
+               });
+               this.codigoEnviado = true;
+            } else if (res.data.error) {
                this.$swal.fire({
                   toast: true,
                   position: 'top-end',
@@ -356,7 +384,31 @@ export default {
                   icon: 'error',
                   title: res.data.error,
                });
-            } else {
+            }
+         } catch (e) {
+            console.error('Error during login:', e);
+            this.$swal.fire({
+               title: "Error",
+               text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
+               icon: 'error',
+            });
+         }
+      },
+      async verificarCodigo() {
+         if (!this.model.codigo_confirmacion) {
+            this.$swal.fire({
+               toast: true,
+               position: 'center',
+               showConfirmButton: false,
+               icon: 'error',
+               title: 'Oops...',
+               text: 'El código de confirmación es obligatorio. Por favor, ingréselo.',
+            });
+            return;
+         }
+         try {
+            const res = await this.$admin.post('verificar-codigo-confirmacion', this.model);
+            if (res.data.token) {
                this.$swal.fire({
                   toast: true,
                   position: 'center',
@@ -374,9 +426,17 @@ export default {
                   this.$swal.close();
                   this.$router.push('/');
                }, 2000);
+            } else if (res.data.error) {
+               this.$swal.fire({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  icon: 'error',
+                  title: res.data.error,
+               });
             }
          } catch (e) {
-            console.error('Error during login:', e);
+            console.error('Error during verification:', e);
             this.$swal.fire({
                title: "Error",
                text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
