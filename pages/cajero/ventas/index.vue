@@ -19,17 +19,14 @@
                                           placeholder="Buscar..." />
                                     </div>
                                  </div>
-
                               </div>
                            </div>
                         </div>
                      </div>
-                     <div class="col-12 py-2"
-                        style="min-height: 60vh;max-height: 60vh;overflow-y: scroll;overflow-x: none;">
+                     <div class="col-12 py-2" style="min-height: 60vh; max-height: 60vh; overflow-y: scroll;">
                         <div class="row">
-                           <div class="col-3" v-for="m in servicios">
+                           <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in servicios" :key="m.id">
                               <PostServicio :servicio="m" @AddCarrito="AddCarrito"></PostServicio>
-
                            </div>
                         </div>
                      </div>
@@ -45,18 +42,16 @@
                                     </li>
                                  </ul>
                               </div>
-
                            </div>
                         </div>
                      </div>
                   </div>
                </div>
-               <div class="col-sm-5">
+               <div class="col-12 col-sm-5">
                   <div class="card card-pricing">
                      <div class="card-header bg-gradient-dark text-center pt-4 pb-5 position-relative">
                         <div class="z-index-1 position-relative">
                            <h1 class="text-white mt-2 mb-0"><small></small>{{ totalCarrito }}</h1>
-
                            <h6 class="text-white">Total</h6>
                         </div>
                      </div>
@@ -70,7 +65,7 @@
                                     d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z"></path>
                               </defs>
                               <g class="moving-waves">
-                                 <use xlink:href="#card-wave" x="48" y="-1" fill="rgba(255,255,255,0.30"></use>
+                                 <use xlink:href="#card-wave" x="48" y="-1" fill="rgba(255,255,255,0.30)"></use>
                                  <use xlink:href="#card-wave" x="48" y="3" fill="rgba(255,255,255,0.35)"></use>
                                  <use xlink:href="#card-wave" x="48" y="5" fill="rgba(255,255,255,0.25)"></use>
                                  <use xlink:href="#card-wave" x="48" y="8" fill="rgba(255,255,255,0.20)"></use>
@@ -111,7 +106,7 @@
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-for="(m, i) in carrito">
+                                 <tr v-for="(m, i) in carrito" :key="i">
                                     <td class="text-start">
                                        <p class="text-xxs font-weight-bold mb-0 text-start">
                                           {{ m.servicio.descripcion }}
@@ -147,7 +142,6 @@
                            @click="CheckAndSave">
                            <i class="fas fa-save mx-2"></i> GUARDAR VENTA
                         </a>
-
                      </div>
                   </div>
                </div>
@@ -173,8 +167,6 @@
                                        :value="item.servicio.nombre" />
                                  </div>
                               </div>
-
-
                               <div class="col-6">
                                  <div class="form-group has-success">
                                     <label for="">Precio</label>
@@ -200,12 +192,10 @@
                      </div>
                   </div>
                </div>
-
                <div class="modal fade" id="clienteModal" tabindex="-1" aria-labelledby="clienteModalLabel"
                   aria-hidden="true">
                   <div class="modal-dialog modal-lg">
                      <div class="modal-content">
-
                         <div class="modal-body">
                            <div class="input-group mb-3">
                               <select class="form-control" v-model="filtroTipoDocumento">
@@ -218,13 +208,10 @@
                               </select>
                               <input type="text" class="form-control" placeholder="Buscar cliente..."
                                  v-model="filtroDocumentoIdentidad" autofocus>
-
                            </div>
-
                            <table class="table" v-if="filteredClientes.length > 0">
                               <thead>
                                  <tr>
-
                                     <th class="py-0 px-1">CLIENTE - NOMBRE</th>
                                     <th class="py-0 px-1">DOCUMENTO ID</th>
                                     <th class="py-0 px-1">TIPO DOCUMENTO</th>
@@ -233,7 +220,6 @@
                               </thead>
                               <tbody>
                                  <tr v-for="m in filteredClientes" :key="m.id">
-
                                     <td>{{ m.codigoCliente }} - {{ m.razonSocial }}</td>
                                     <td>{{ m.documentoIdentidad }} </td>
                                     <td>{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }} </td>
@@ -248,15 +234,12 @@
                                  </tr>
                               </tbody>
                            </table>
-
                            <div v-else>
                               <p>No se encontraron clientes. ¿Desea agregar uno nuevo?</p>
                               <button class="btn btn-primary" @click="showAddClienteForm = true">Agregar
                                  Cliente</button>
                            </div>
-
                            <div v-if="showAddClienteForm">
-
                               <div slot="body" class="row">
                                  <div class="form-group col-12">
                                     <label for="razonSocial">Razon Social</label>
@@ -273,7 +256,6 @@
                                        <option value="4">OD - Otro Documento de Identidad</option>
                                        <option value="5">NIT - Número de identificación Tributaria</option>
                                     </select>
-
                                  </div>
                                  <div class="form-group col-12">
                                     <label for="documentoIdentidad">Documento de Identidad</label>
@@ -285,29 +267,24 @@
                                     <input type="text" v-model="model.complemento" class="form-control"
                                        id="complemento">
                                  </div>
-
                                  <div class="form-group col-12">
                                     <label for="correo">Correo</label>
                                     <input type="text" v-model="model.correo" class="form-control" id="correo">
                                  </div>
-
                                  <button class="btn btn-dark w-100" @click="Savecliente()">
                                     Guardar
                                  </button>
                               </div>
-
                            </div>
                         </div>
                      </div>
                   </div>
                </div>
-
             </div>
          </div>
       </AdminTemplate>
    </div>
 </template>
-
 <script>
 
 import Swal from 'sweetalert2';

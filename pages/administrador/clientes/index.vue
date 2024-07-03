@@ -3,52 +3,55 @@
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-            <div class="row justify-content-end">
-               <div class="col-2">
+            <div class="row justify-content-end mb-2">
+               <div class="col-auto">
                   <nuxtLink :to="url_nuevo" class="btn btn-dark btn-sm w-100">
                      <i class="fas fa-plus"></i> Agregar
                   </nuxtLink>
                </div>
+            </div>
+            <div class="row">
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
-                        <table class="table">
-                           <thead>
-                              <tr>
-
-                                 <th class="py-0 px-1">#</th>
-                                 <th class="py-0 px-1">NOMBRE</th>
-                                 <th class="py-0 px-1">DOCUMENTO ID</th>
-                                 <th class="py-0 px-1">COMPLEMENTO</th>
-                                 <th class="py-0 px-1">TIPO DOCUMENTO</th>
-                                 <th class="py-0 px-1">CORREO</th>
-                                 <th class="py-0 px-1">CODIGO CLIENTE</th>
-                                 <th class="py-0 px-1"></th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                              <tr v-for="(m, i) in list" :key="m.id">
-                                 <td class="py-0 px-1">{{ i + 1 }}</td>
-                                 <td class="py-0 px-1">{{ m.razonSocial }}</td>
-                                 <td class="py-0 px-1">{{ m.documentoIdentidad }}</td>
-                                 <td class="py-0 px-1">{{ m.complemento }}</td>
-                                 <td class="py-0 px-1">{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }}</td>
-                                 <td class="py-0 px-1">{{ m.correo }}</td>
-                                 <td class="py-0 px-1">{{ m.codigoCliente }}</td>
-                                 <td class="py-0 px-1">
-                                    <div class="btn-group">
-                                       <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
-                                          <i class="fas fa-pen"></i>
-                                       </nuxt-link>
-                                       <button type="button" @click="Eliminar(m.id)"
-                                          class="btn btn-danger btn-sm py-1 px-2">
-                                          <i class="fas fa-trash"></i>
-                                       </button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           </tbody>
-                        </table>
+                        <div class="table-responsive">
+                           <table class="table table-striped table-bordered">
+                              <thead>
+                                 <tr>
+                                    <th class="py-0 px-1">#</th>
+                                    <th class="py-0 px-1">NOMBRE</th>
+                                    <th class="py-0 px-1">DOCUMENTO ID</th>
+                                    <th class="py-0 px-1">COMPLEMENTO</th>
+                                    <th class="py-0 px-1">TIPO DOCUMENTO</th>
+                                    <th class="py-0 px-1">CORREO</th>
+                                    <th class="py-0 px-1">CODIGO CLIENTE</th>
+                                    <th class="py-0 px-1"></th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-for="(m, i) in list" :key="m.id">
+                                    <td class="py-0 px-1">{{ i + 1 }}</td>
+                                    <td class="py-0 px-1">{{ m.razonSocial }}</td>
+                                    <td class="py-0 px-1">{{ m.documentoIdentidad }}</td>
+                                    <td class="py-0 px-1">{{ m.complemento }}</td>
+                                    <td class="py-0 px-1">{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }}</td>
+                                    <td class="py-0 px-1">{{ m.correo }}</td>
+                                    <td class="py-0 px-1">{{ m.codigoCliente }}</td>
+                                    <td class="py-0 px-1">
+                                       <div class="btn-group">
+                                          <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
+                                             <i class="fas fa-pen"></i>
+                                          </nuxt-link>
+                                          <button type="button" @click="Eliminar(m.id)"
+                                             class="btn btn-danger btn-sm py-1 px-2">
+                                             <i class="fas fa-trash"></i>
+                                          </button>
+                                       </div>
+                                    </td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
                      </div>
                   </div>
                </div>
@@ -57,7 +60,6 @@
       </AdminTemplate>
    </div>
 </template>
-
 <script>
 export default {
    name: "IndexPage",
