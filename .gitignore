@@ -129,5 +129,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-plugins/admin.js
+
 nuxt.config.js
+package-lock.json
+package.json
