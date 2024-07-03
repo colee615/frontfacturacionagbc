@@ -263,7 +263,6 @@
 
 <script>
 import Swal from 'sweetalert2';
-import Cookies from 'js-cookie';
 
 export default {
    data() {
