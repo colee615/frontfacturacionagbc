@@ -31,10 +31,7 @@
                                        <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
                                           <i class="fas fa-pen"></i>
                                        </nuxt-link>
-                                       <nuxt-link :to="`${url_permisos}${m.id}`"
-                                          class="btn btn-warning btn-sm py-1 px-2">
-                                          <i class="fas fa-key"></i>
-                                       </nuxt-link>
+
                                        <button type="button" @click="Eliminar(m.id)"
                                           class="btn btn-danger btn-sm py-1 px-2">
                                           <i class="fas fa-trash"></i>
@@ -71,7 +68,6 @@ export default {
          modulo: 'Sucursales',
          url_nuevo: '/administrador/sucursales/nuevo',
          url_editar: '/administrador/sucursales/editar/',
-         url_permisos: '/administrador/sucursales/permisos/',
       };
    },
    methods: {

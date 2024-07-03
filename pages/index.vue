@@ -6,7 +6,6 @@
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
-
             <div v-if="showButton">
                <button>Acción restringida</button>
             </div>
@@ -46,7 +45,7 @@ export default {
          }
       },
       checkPermissions() {
-         if (this.user.role === 'cajero' && this.sucursalUbicacion === 'Oruro') {
+         if (this.user && this.user.role === 'cajero' && this.sucursalUbicacion === 'Oruro') {
             this.showButton = true;
          } else {
             this.showButton = false;
@@ -54,14 +53,20 @@ export default {
       }
    },
    mounted() {
-      this.$nextTick(() => {
-         if (process.client && this.user) {
+      this.load = true;
+      if (this.user) {
+         this.checkPermissions();
+         this.load = false;
+      } else {
+         this.$router.push('/auth/login');
+      }
+   },
+   watch: {
+      user(newUser) {
+         if (newUser) {
             this.checkPermissions();
-            this.load = false;
-         } else {
-            this.$router.push('/auth/login');
          }
-      });
+      }
    }
 };
 </script>
