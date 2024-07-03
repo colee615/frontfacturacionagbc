@@ -74,14 +74,23 @@ export default {
    methods: {
 
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    mounted() {
       this.$nextTick(async () => {
-         try {
-            // Puedes agregar aquí alguna lógica adicional que necesites al cargar el componente
-         } catch (e) {
+         if (this.user.role !== 'administrador') {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               // Puedes agregar aquí alguna lógica adicional que necesites al cargar el componente
+            } catch (e) {
 
-         } finally {
-            // Y aquí cualquier acción de limpieza o finalización
+            } finally {
+               // Y aquí cualquier acción de limpieza o finalización
+            }
          }
       });
    },

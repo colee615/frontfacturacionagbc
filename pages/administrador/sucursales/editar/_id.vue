@@ -58,18 +58,27 @@ export default {
          return res;
       },
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    mounted() {
       this.$nextTick(async () => {
-         try {
-            await Promise.all([
-               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id),
-            ]).then((v) => {
-               this.model = v[0];
-            });
-         } catch (e) {
+         if (this.user.role !== 'administrador') {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               await Promise.all([
+                  this.GET_DATA(this.apiUrl + "/" + this.$route.params.id),
+               ]).then((v) => {
+                  this.model = v[0];
+               });
+            } catch (e) {
 
-         } finally {
-            this.load = false;
+            } finally {
+               this.load = false;
+            }
          }
       });
    },

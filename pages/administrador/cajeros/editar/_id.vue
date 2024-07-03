@@ -71,20 +71,29 @@ export default {
       },
 
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    mounted() {
       this.$nextTick(async () => {
-         try {
-            await Promise.all([
-               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id), this.GET_DATA('sucursales'),
-            ]).then((v) => {
-               this.model = v[0];
-               this.sucursales = v[1];
+         if (this.user.role !== 'administrador') {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               await Promise.all([
+                  this.GET_DATA(this.apiUrl + "/" + this.$route.params.id), this.GET_DATA('sucursales'),
+               ]).then((v) => {
+                  this.model = v[0];
+                  this.sucursales = v[1];
 
-            });
-         } catch (e) {
+               });
+            } catch (e) {
 
-         } finally {
-            this.load = false;
+            } finally {
+               this.load = false;
+            }
          }
       });
    },

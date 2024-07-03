@@ -75,6 +75,11 @@ export default {
 
       };
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    methods: {
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
@@ -110,17 +115,24 @@ export default {
       }
    },
    mounted() {
-      this.$nextTick(async () => {
-         try {
-            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0]
-            })
-         } catch (e) {
 
-         } finally {
-            this.load = false
+      this.$nextTick(async () => {
+         if (this.user.role !== 'administrador') {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
+                  this.list = v[0]
+               })
+            } catch (e) {
+
+            } finally {
+               this.load = false
+
+            }
          }
       });
+
    },
 };
 </script>

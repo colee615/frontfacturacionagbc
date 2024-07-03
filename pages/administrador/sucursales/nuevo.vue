@@ -17,7 +17,8 @@
                               </div>
                               <div class="form-group col-12">
                                  <label for="codigosucursal">Código de Sucursal</label>
-                                 <input type="text" v-model="model.codigosucursal" class="form-control" id="codigosucursal">
+                                 <input type="text" v-model="model.codigosucursal" class="form-control"
+                                    id="codigosucursal">
                               </div>
                            </div>
                         </CrudCreate>
@@ -48,8 +49,15 @@ export default {
    methods: {
 
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    mounted() {
-
+      if (this.user.role !== 'administrador') {
+         this.$router.push('/'); // Redirige a la página principal
+      }
    },
 
 }

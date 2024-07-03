@@ -68,12 +68,18 @@ export default {
          load: true,
       }
    },
-
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    methods: {
 
    },
    mounted() {
-
+      if (this.user.role !== 'administrador') {
+         this.$router.push('/');
+      }
    },
 
 }

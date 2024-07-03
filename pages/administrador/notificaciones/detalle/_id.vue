@@ -98,14 +98,23 @@ export default {
          }
       },
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
    mounted() {
       this.$nextTick(async () => {
-         try {
-            await this.GET_DATA('notificaciones/' + this.$route.params.id);
-         } catch (e) {
-            console.log(e);
-         } finally {
-            this.load = false;
+         if (this.user.role !== 'administrador') {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               await this.GET_DATA('notificaciones/' + this.$route.params.id);
+            } catch (e) {
+               console.log(e);
+            } finally {
+               this.load = false;
+            }
          }
       });
    },
