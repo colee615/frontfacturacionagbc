@@ -10,20 +10,31 @@
                         <h3>Actualizar</h3>
                      </div>
                      <div class="card-body">
-                        <div slot="body" class="row">
+                        <div class="row">
+                           <!-- Icono de pregunta con eventos de mouse -->
+                           <div class="mb-3 position-relative info-container">
+                              <label for="info" class="form-label">
+                                 <i class="fas fa-question-circle" @mouseover="showInfoTooltip = true"
+                                    @mouseleave="showInfoTooltip = false"></i> Información
+                              </label>
+                              <div class="info-tooltip" :class="{ 'd-block': showInfoTooltip }">
+                                 <span>Los campos marcados con * son obligatorios.</span>
+                                 <div class="arrow"></div>
+                              </div>
+                           </div>
                            <div class="form-group col-12">
-                              <label for="ubicacion">Nombre Cajero</label>
+                              <label for="ubicacion">* Nombre del Cajero</label>
                               <input type="text" v-model="model.name" class="form-control" id="name" required>
                            </div>
                            <div class="form-group col-6">
-                              <label for="">Sucursal del Cajero</label>
+                              <label for="">* Sucursal del Cajero</label>
                               <select name="" id="" class="form-control" v-model="model.sucursale_id" required>
                                  <option value="" disabled selected>Seleccione una sucursal</option>
                                  <option v-for="m in sucursales" :value="m.id">{{ m.ubicacion }}</option>
                               </select>
                            </div>
                            <div class="form-group col-12">
-                              <label for="email">Email del Cajero</label>
+                              <label for="email">* Email del Cajero</label>
                               <input type="email" v-model="model.email" class="form-control" id="email" required>
                            </div>
                            <div class="form-group col-12">
@@ -75,6 +86,7 @@ export default {
          page: 'Administracion',
          modulo: 'Cajeros',
          load: true,
+         showInfoTooltip: false, // Variable para controlar la visibilidad del tooltip de información
       }
    },
    methods: {
@@ -165,3 +177,57 @@ export default {
    },
 };
 </script>
+<style scoped>
+.info-container {
+   display: inline-block;
+   position: relative;
+}
+
+.info-tooltip {
+   position: absolute;
+   top: 100%;
+   /* Posicionar debajo del icono */
+   left: 0;
+   margin-top: 5px;
+   /* Espacio entre el icono y el tooltip */
+   background-color: rgba(0, 0, 0, 0.85);
+   /* Fondo oscuro semitransparente */
+   color: #fff;
+   /* Texto blanco */
+   border: 1px solid rgba(255, 255, 255, 0.3);
+   /* Borde blanco semitransparente */
+   padding: 10px;
+   /* Espacio interno más amplio */
+   border-radius: 8px;
+   /* Bordes redondeados */
+   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+   /* Sombra más pronunciada */
+   display: none;
+   font-size: 0.875rem;
+   /* Tamaño de fuente ligeramente mayor */
+   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+   /* Fuente más formal */
+   max-width: 250px;
+   /* Ancho máximo del tooltip */
+   text-align: left;
+   z-index: 1000;
+   /* Asegurar que esté por encima de otros elementos */
+}
+
+.info-tooltip::after {
+   content: "";
+   position: absolute;
+   top: -5px;
+   /* Ajustar la posición de la flecha */
+   left: 20px;
+   /* Posicionar la flecha */
+   border-width: 5px;
+   border-style: solid;
+   border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
+}
+
+.info-container:hover .info-tooltip,
+.info-container .info-tooltip.d-block {
+   display: block;
+}
+</style>

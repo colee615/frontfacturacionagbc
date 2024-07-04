@@ -23,7 +23,7 @@
                            </div>
 
                            <div class="form-group col-12">
-                              <label for="ubicacion">* Nombre Cajero</label>
+                              <label for="ubicacion">* Nombre del Cajero</label>
                               <input type="text" v-model="model.name" class="form-control" id="name" required>
                            </div>
                            <div class="form-group col-6">
@@ -92,11 +92,11 @@ export default {
       },
       validateFields() {
          const errors = [];
-         if (!this.model.name || typeof this.model.name !== 'string' || this.model.name.length > 255) {
+         if (!this.model.name || typeof this.model.name !== 'string') {
             errors.push('El Nombre Cajero es obligatorio.');
          }
          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-         if (!this.model.email || !emailPattern.test(this.model.email) || this.model.email.length > 255) {
+         if (!this.model.email || !emailPattern.test(this.model.email)) {
             errors.push('El Email del Cajero es obligatorio.');
          }
          if (!this.model.sucursale_id || typeof this.model.sucursale_id !== 'number') {
