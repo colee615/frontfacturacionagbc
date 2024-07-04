@@ -209,35 +209,50 @@
                               <input type="text" class="form-control" placeholder="Buscar cliente..."
                                  v-model="filtroDocumentoIdentidad" autofocus>
                            </div>
-                           <table class="table" v-if="filteredClientes.length > 0">
-                              <thead>
-                                 <tr>
-                                    <th class="py-0 px-1">CLIENTE - NOMBRE</th>
-                                    <th class="py-0 px-1">DOCUMENTO ID</th>
-                                    <th class="py-0 px-1">TIPO DOCUMENTO</th>
-                                    <th class="py-0 px-1"></th>
-                                 </tr>
-                              </thead>
-                              <tbody>
-                                 <tr v-for="m in filteredClientes" :key="m.id">
-                                    <td>{{ m.codigoCliente }} - {{ m.razonSocial }}</td>
-                                    <td>{{ m.documentoIdentidad }} </td>
-                                    <td>{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }} </td>
-                                    <td>
-                                       <button type="button" class="btn btn-success"
-                                          style="font-size: 8px; padding: 10px 20px; border-radius: 5px; background-color: #4CAF50; color: white;"
-                                          data-bs-dismiss="modal" aria-label="Seleccionar Cliente"
-                                          @click="selectCliente(m.id)">
-                                          <i class="fa fa-user-plus" aria-hidden="true"></i> Seleccionar cliente
-                                       </button>
-                                    </td>
-                                 </tr>
-                              </tbody>
-                           </table>
-                           <div v-else>
-                              <p>No se encontraron clientes. ¿Desea agregar uno nuevo?</p>
-                              <button class="btn btn-primary" @click="showAddClienteForm = true">Agregar
-                                 Cliente</button>
+
+                           <div class="row justify-content-end mb-2">
+                              <div class="col-12">
+                                 <div class="card">
+                                    <div class="card-body">
+                                       <div class="table-responsive">
+
+                                          <table class="table table-striped table-bordered"
+                                             v-if="filteredClientes.length > 0">
+                                             <thead>
+                                                <tr>
+                                                   <th class="py-0 px-1">CLIENTE - NOMBRE</th>
+                                                   <th class="py-0 px-1">DOCUMENTO ID</th>
+                                                   <th class="py-0 px-1">TIPO DOCUMENTO</th>
+                                                   <th class="py-0 px-1"></th>
+                                                </tr>
+                                             </thead>
+                                             <tbody>
+                                                <tr v-for="m in filteredClientes" :key="m.id">
+                                                   <td>{{ m.codigoCliente }} - {{ m.razonSocial }}</td>
+                                                   <td>{{ m.documentoIdentidad }} </td>
+                                                   <td>{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }} </td>
+                                                   <td>
+                                                      <button type="button" class="btn btn-success"
+                                                         style="font-size: 8px; padding: 10px 20px; border-radius: 5px; background-color: #4CAF50; color: white;"
+                                                         data-bs-dismiss="modal" aria-label="Seleccionar Cliente"
+                                                         @click="selectCliente(m.id)">
+                                                         <i class="fa fa-user-plus" aria-hidden="true"></i> Seleccionar
+                                                         cliente
+                                                      </button>
+                                                   </td>
+                                                </tr>
+                                             </tbody>
+                                          </table>
+                                          <div v-else>
+                                             <p>No se encontraron clientes. ¿Desea agregar uno nuevo?</p>
+                                             <button class="btn btn-primary" @click="showAddClienteForm = true">Agregar
+                                                Cliente</button>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+
                            </div>
                            <div v-if="showAddClienteForm">
                               <div slot="body" class="row">
@@ -572,5 +587,10 @@ export default {
    visibility: visible;
    display: block;
    opacity: 1 !important;
+}
+
+.table-responsive {
+   max-height: 300px;
+   overflow-y: auto;
 }
 </style>
