@@ -1,19 +1,16 @@
 <template>
    <div>
       <JcLoader :load="load"></JcLoader>
-      <AdminTemplate :page="page" :modulo="modulo">
+      <AdminTemplate :page="page" :modulo="modulo" class="dark-bg">
          <div slot="body">
-            <div class="row justify-content-end mb-2">
-               <div class="col-auto">
-                  <nuxt-link :to="url_nuevo" class="btn btn-dark btn-sm w-100">
-                     <i class="fas fa-plus"></i> Agregar
-                  </nuxt-link>
-               </div>
-            </div>
+
             <div class="row">
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
+                        <nuxtLink :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
+                           <i class="fas fa-plus"></i> Agregar
+                        </nuxtLink>
                         <div class="table-responsive">
                            <table class="table table-striped table-bordered">
                               <thead>
@@ -91,28 +88,49 @@ export default {
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
             });
-         } catch (e) {
 
+            this.$swal.fire({
+               toast: true,
+               position: 'center',
+               showConfirmButton: false,
+               icon: 'success',
+               title: 'Cajero eliminado exitosamente',
+               timer: 2000, // Mostrar la alerta de éxito por 2 segundos
+               timerProgressBar: true,
+            });
+         } catch (e) {
+            // Manejo de errores si es necesario
+            this.$swal.fire({
+               toast: true,
+               position: 'center',
+               showConfirmButton: false,
+               icon: 'error',
+               title: 'Hubo un problema al eliminar al cajero. Intente nuevamente.',
+               timer: 2000, // Mostrar la alerta de error por 2 segundos
+               timerProgressBar: true,
+            });
          } finally {
             this.load = false;
          }
       },
       Eliminar(id) {
          let self = this;
-         this.$swal
-            .fire({
-               title: "Deseas Eliminar?",
-               showDenyButton: false,
-               showCancelButton: true,
-               confirmButtonText: "Eliminar",
-               cancelarButtonText: `Cancelar`,
-            })
-            .then(async (result) => {
-               /* Read more about isConfirmed, isDenied below */
-               if (result.isConfirmed) {
-                  await self.EliminarItem(id);
-               }
-            });
+         this.$swal.fire({
+            toast: false, // Cambiado a modal (toast: false)
+            position: 'center',
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: '<span style="font-weight: bold;">Sí, Eliminar</span>',
+            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
+            title: "",
+            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas eliminar al Cajero?</div></div>',
+            icon: 'warning',
+            dangerMode: true,
+         }).then(async (result) => {
+            if (result.isConfirmed) {
+               await self.EliminarItem(id);
+            }
+         });
       },
 
    },
@@ -135,3 +153,8 @@ export default {
    },
 };
 </script>
+<style scoped>
+.dark-bg {
+   background-color: #f2f2f2;
+   /* Ajusta este color según tus necesidades */
+}
