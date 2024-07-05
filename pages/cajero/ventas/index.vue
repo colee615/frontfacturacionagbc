@@ -341,7 +341,7 @@ export default {
          },
          modulo: "Nueva venta",
          page: "ventas",
-         load: false,
+         load: true,
          modalEdit: false,
          servicios: [],
          carrito: [],
@@ -432,6 +432,8 @@ export default {
          }).then((result) => {
             if (result.isConfirmed) {
                this.Save();
+            } else if (result.isDenied) {
+               window.location.reload();
             }
          });
       },
