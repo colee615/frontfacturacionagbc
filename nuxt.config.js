@@ -4,7 +4,6 @@ export default {
     port: 3000, // default: 3000
     host: '0.0.0.0' // default: localhost
   },
-  
   head: {
     title: 'POS',
     htmlAttrs: {
@@ -43,8 +42,8 @@ export default {
   // Plugins to run before rendering page: https://go.nuxtjs.dev/config-plugins
   plugins: [
     '~/plugins/admin',
-     '~/plugins/auth.js'
-
+     '~/plugins/auth.js',
+  '~/plugins/casilla.js'
   ],
   // Auto import components: https://go.nuxtjs.dev/config-components
   components: true,
