@@ -1,5 +1,6 @@
 <template>
    <div>
+      <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
             <div class="row justify-content-center">

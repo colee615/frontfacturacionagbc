@@ -1,9 +1,8 @@
 <template>
    <div>
       <JcLoader :load="load"></JcLoader>
-      <AdminTemplate :page="page" :modulo="modulo" class="dark-bg">
+      <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-
             <div class="row">
                <div class="col-12">
                   <div class="card">
@@ -51,7 +50,10 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
+import axios from 'axios';
+
 export default {
    name: "IndexPage",
    head() {
@@ -132,7 +134,6 @@ export default {
             }
          });
       },
-
    },
    mounted() {
       this.$nextTick(async () => {
@@ -153,8 +154,3 @@ export default {
    },
 };
 </script>
-<style scoped>
-.dark-bg {
-   background-color: #f2f2f2;
-   /* Ajusta este color según tus necesidades */
-}
