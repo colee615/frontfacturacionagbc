@@ -9,13 +9,14 @@
                         <h3>Agregar Sucursal</h3>
                      </div>
                      <div class="card-body">
-                        <div slot="body" class="row">
+                        <div class="row">
+                           <!-- Icono de pregunta con eventos de mouse -->
                            <div class="mb-3 position-relative info-container">
                               <label for="info" class="form-label">
                                  <i class="fas fa-question-circle" @mouseover="showInfoTooltip = true"
                                     @mouseleave="showInfoTooltip = false"></i> Información
                               </label>
-                              <div class="info-tooltip" :class="{ 'd-block': showInfoTooltip }">
+                              <div v-if="showInfoTooltip" class="info-tooltip">
                                  <span>Los campos marcados con * son obligatorios.</span>
                                  <div class="arrow"></div>
                               </div>
