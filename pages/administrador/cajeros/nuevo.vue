@@ -17,7 +17,7 @@
                                  <i class="fas fa-question-circle" @mouseover="showInfoTooltip = true"
                                     @mouseleave="showInfoTooltip = false"></i> Información
                               </label>
-                              <div class="info-tooltip" :class="{ 'd-block': showInfoTooltip }">
+                              <div v-if="showInfoTooltip" class="info-tooltip">
                                  <span>Los campos marcados con * son obligatorios.</span>
                                  <div class="arrow"></div>
                               </div>
@@ -186,8 +186,8 @@ export default {
       });
    },
 }
-</script>
 
+</script>
 <style scoped>
 .info-container {
    display: inline-block;
@@ -213,7 +213,6 @@ export default {
    /* Bordes redondeados */
    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
    /* Sombra más pronunciada */
-   display: none;
    font-size: 0.875rem;
    /* Tamaño de fuente ligeramente mayor */
    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
