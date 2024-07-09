@@ -1,3 +1,4 @@
+// store/auth.js
 export const state = () => ({
   token: null,
   user: null,
@@ -64,5 +65,5 @@ export const actions = {
       commit('clearUser');
       commit('clearRole');
     }
-  }
+  },
 };
