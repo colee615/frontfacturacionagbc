@@ -3,12 +3,7 @@
       <JcLoader :load="load" />
       <AdminTemplate :page="page" :modulo="modulo">
          <template v-slot:body>
-            <div v-if="sucursalUbicacion">
-               Sucursal Ubicación: {{ sucursalUbicacion }}
-            </div>
-            <div v-if="showButton">
-               <button>Acción restringida</button>
-            </div>
+
          </template>
       </AdminTemplate>
    </div>
@@ -28,12 +23,6 @@ export default {
       };
    },
    computed: {
-      user() {
-         return this.$store.state.auth.user;
-      },
-      sucursalUbicacion() {
-         return this.user && this.user.sucursale ? this.user.sucursale.ubicacion : null;
-      }
    },
    methods: {
       async GET_DATA(path) {
@@ -44,29 +33,15 @@ export default {
             console.error(error);
          }
       },
-      checkPermissions() {
-         if (this.user && this.user.role === 'cajero' && this.sucursalUbicacion === 'Oruro') {
-            this.showButton = true;
-         } else {
-            this.showButton = false;
-         }
-      }
    },
    mounted() {
       this.load = true;
       if (this.user) {
-         this.checkPermissions();
          this.load = false;
       } else {
          this.$router.push('/auth/login');
       }
    },
-   watch: {
-      user(newUser) {
-         if (newUser) {
-            this.checkPermissions();
-         }
-      }
-   }
+
 };
 </script>
