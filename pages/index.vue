@@ -6,12 +6,10 @@
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
-
+            {{ user }}
             <div v-if="showButton">
                <button>Acción restringida</button>
             </div>
-
-
          </template>
       </AdminTemplate>
    </div>
@@ -28,9 +26,6 @@ export default {
          modulo: "Dashboard",
          load: false,
          showButton: false,
-         datos: {
-            casillas: [] // Inicializar el arreglo para almacenar las casillas
-         }
       };
    },
    computed: {
@@ -39,8 +34,7 @@ export default {
       },
       sucursalUbicacion() {
          return this.user && this.user.sucursale ? this.user.sucursale.ubicacion : null;
-      },
-
+      }
    },
    methods: {
       async GET_DATA(path) {
@@ -51,7 +45,6 @@ export default {
             console.error(error);
          }
       },
-
       checkPermissions() {
          if (this.user.role === 'cajero' && this.sucursalUbicacion === 'Oruro') {
             this.showButton = true;
@@ -61,7 +54,7 @@ export default {
       }
    },
    mounted() {
-      this.$nextTick(async () => {
+      this.$nextTick(() => {
          this.load = true;
          if (process.client && this.user) {
             this.checkPermissions();
@@ -69,7 +62,6 @@ export default {
          } else {
             this.$router.push('/auth/login');
          }
-
       });
    }
 };
