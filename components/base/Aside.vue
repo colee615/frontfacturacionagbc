@@ -18,12 +18,11 @@
       <div class="collapse navbar-collapse w-auto h-auto" id="sidenav-collapse-main">
          <ul class="navbar-nav">
 
-
             <!-- Sección de Administración -->
-            <li class="nav-item mt-3">
+            <li v-if="user && user.role === 'administrador'" class="nav-item mt-3">
                <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">ADMINISTRACIÓN</h6>
             </li>
-            <li class="nav-item">
+            <li v-if="user && user.role === 'administrador'" class="nav-item">
                <a data-bs-toggle="collapse" href="#usuarios" class="nav-link" aria-controls="usuarios" role="button"
                   aria-expanded="false">
                   <div
@@ -142,3 +141,13 @@
       </div>
    </aside>
 </template>
+
+<script>
+export default {
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+   },
+}
+</script>
