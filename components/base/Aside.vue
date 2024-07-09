@@ -5,11 +5,13 @@
          <i class="fas fa-times p-3 cursor-pointer text-secondary opacity-5 position-absolute end-0 top-0 d-none d-xl-none"
             aria-hidden="true" id="iconSidenav"></i>
          <a class="navbar-brand m-0"
-            href="https://demos.creative-tim.com/soft-ui-dashboard-pro/pages/dashboards/default.html" target="_blank">
+            href=" https://demos.creative-tim.com/soft-ui-dashboard-pro/pages/dashboards/default.html " target="_blank">
+
             <div class="col-lg-4 text-center mt-3 mt-lg-0">
                <img src="/assets/img/logo.png" alt="Logo de la Empresa" style="width: 50px; height: auto;">
                <span class="ms-2 align-middle">AGBC</span>
             </div>
+
          </a>
       </div>
       <hr class="horizontal dark mt-0" />
@@ -29,7 +31,9 @@
                         xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
                         <title>office</title>
                         <!-- Contenido del icono de oficina -->
+
                      </svg>
+
                   </div>
                   <span class="nav-link-text ms-1">Configuración</span>
                </a>
@@ -88,6 +92,7 @@
                </a>
                <div class="collapse" id="caja">
                   <ul class="nav ms-4 ps-3">
+
                      <li class="nav-item">
                         <nuxt-link class="nav-link" to="/cajero/historial/">
                            <span class="sidenav-mini-icon"> H </span>
@@ -144,10 +149,5 @@ export default {
          return this.$store.state.auth.user;
       },
    },
-   watch: {
-      user(newValue) {
-         console.log('Role updated to:', newValue.role);
-      }
-   }
 }
 </script>
