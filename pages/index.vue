@@ -7,7 +7,11 @@
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
 <<<<<<< HEAD
+<<<<<<< HEAD
             {{ user }}
+=======
+
+>>>>>>> parent of cffddc1 (04:03)
 =======
 
 >>>>>>> parent of cffddc1 (04:03)
@@ -60,7 +64,10 @@ export default {
    mounted() {
       this.$nextTick(() => {
 <<<<<<< HEAD
+<<<<<<< HEAD
          this.load = true;
+=======
+>>>>>>> parent of cffddc1 (04:03)
 =======
 >>>>>>> parent of cffddc1 (04:03)
          if (process.client && this.user) {
