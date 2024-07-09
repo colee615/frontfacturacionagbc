@@ -6,11 +6,9 @@
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
-<<<<<<< HEAD
-            {{ user }}
-=======
 
->>>>>>> parent of cffddc1 (04:03)
+            {{ user }}
+
             <div v-if="showButton">
                <button>Acción restringida</button>
             </div>
@@ -59,10 +57,9 @@ export default {
    },
    mounted() {
       this.$nextTick(() => {
-<<<<<<< HEAD
+
          this.load = true;
-=======
->>>>>>> parent of cffddc1 (04:03)
+
          if (process.client && this.user) {
             this.checkPermissions();
             this.load = false;
