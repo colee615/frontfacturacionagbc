@@ -19,6 +19,9 @@ export const mutations = {
 };
 
 export const actions = {
+  async nuxtServerInit({ dispatch }) {
+    await dispatch('auth/loadAuthFromStorage');
+  },
   loadAuthFromStorage({ commit }) {
     if (process.client) {
       const token = localStorage.getItem('token');
