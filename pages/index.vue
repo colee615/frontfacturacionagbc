@@ -6,9 +6,6 @@
             <div v-if="sucursalUbicacion">
                Sucursal Ubicación: {{ sucursalUbicacion }}
             </div>
-
-            {{ user }}
-
             <div v-if="showButton">
                <button>Acción restringida</button>
             </div>
@@ -57,9 +54,7 @@ export default {
    },
    mounted() {
       this.$nextTick(() => {
-
          this.load = true;
-
          if (process.client && this.user) {
             this.checkPermissions();
             this.load = false;
