@@ -38,7 +38,11 @@
                                  <input type="number" name="" v-model="model.precioUnitario" class="form-control"
                                     id="" />
                               </div>
-
+                              <div class="form-group col-12">
+                                 <label for="">* Actividad Economica del Servicio</label>
+                                 <input type="text" name="" v-model="model.actividadEconomica" class="form-control"
+                                    id="" />
+                              </div>
                               <div class="form-group col-12">
                                  <label for="">* Unidad de Medida del Servicio</label>
                                  <input type="text" name="" v-model="model.unidadMedida" class="form-control" id="" />
@@ -90,6 +94,7 @@ export default {
             nombre: '',
             unidadMedida: '',
             codigoSin: '',
+            actividadEconomica: '',
          },
          apiUrl: 'servicios',
          page: 'Servicios',

@@ -39,6 +39,12 @@
                            </div>
 
                         </div>
+                        <div class="d-flex justify-content-between mt-4">
+                           <span class="mb-2 text-lg"> Monto descuento: </span>
+                           <span class="text-dark text-lg ms-2 font-weight-bold">{{
+                              Number(model.monto_descuento_adicional).toFixed(2)
+                              }}Bs</span>
+                        </div>
                         <hr class="horizontal dark mt-4 mb-4" />
                         <div class="row">
 

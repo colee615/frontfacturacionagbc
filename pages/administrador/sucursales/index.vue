@@ -3,29 +3,36 @@
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-
             <div class="row">
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
-                        <nuxtLink :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
+                        <nuxt-link :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
                            <i class="fas fa-plus"></i> Agregar
-                        </nuxtLink>
+                        </nuxt-link>
                         <div class="table-responsive">
                            <table class="table table-striped table-bordered">
                               <thead>
                                  <tr>
                                     <th class="py-0 px-1">#</th>
-                                    <th class="py-0 px-1">UBICACION</th>
+                                    <th class="py-0 px-1">NOMBRE</th>
+                                    <th class="py-0 px-1">MUNICIPIO</th>
+                                    <th class="py-0 px-1">DEPARTAMENTO</th>
                                     <th class="py-0 px-1">CODIGO SUCURSAL</th>
+                                    <th class="py-0 px-1">DIRECCION</th>
+                                    <th class="py-0 px-1">TELEFONO</th>
                                     <th class="py-0 px-1"></th>
                                  </tr>
                               </thead>
                               <tbody>
                                  <tr v-for="(m, i) in list" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
-                                    <td class="py-0 px-1">{{ m.ubicacion }}</td>
+                                    <td class="py-0 px-1">{{ m.nombre }}</td>
+                                    <td class="py-0 px-1">{{ m.municipio }}</td>
+                                    <td class="py-0 px-1">{{ m.departamento }}</td>
                                     <td class="py-0 px-1">{{ m.codigosucursal }}</td>
+                                    <td class="py-0 px-1">{{ m.direcccion }}</td>
+                                    <td class="py-0 px-1">{{ m.telefono }}</td>
                                     <td class="py-0 px-1">
                                        <div class="btn-group">
                                           <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
@@ -49,6 +56,7 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
 export default {
    name: "IndexPage",

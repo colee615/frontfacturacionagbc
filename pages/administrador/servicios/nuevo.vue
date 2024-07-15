@@ -39,7 +39,11 @@
                                  <input type="number" name="" v-model="model.precioUnitario" class="form-control"
                                     id="" />
                               </div>
-
+                              <div class="form-group col-12">
+                                 <label for="">* Actividad Economica del Servicio</label>
+                                 <input type="text" name="" v-model="model.actividadEconomica" class="form-control"
+                                    id="" />
+                              </div>
                               <div class="form-group col-12">
                                  <label for="">* Unidad de Medida del Servicio</label>
                                  <input type="text" name="" v-model="model.unidadMedida" class="form-control" id="" />
@@ -87,6 +91,7 @@ export default {
             codigo: '',
             descripcion: '',
             precioUnitario: '',
+            actividadEconomica: '',
             nombre: '',
             unidadMedida: '',
             codigoSin: '',
@@ -119,7 +124,10 @@ export default {
          }
 
          if (!this.model.unidadMedida) {
-            errors.push('La Unidad de Medida del Servicio');
+            errors.push('La Unidad de Medida del Servicio es obligatorio');
+         }
+         if (!this.model.unidadMedida) {
+            errors.push('La Actividad economica del Servicio es obligatorio');
          }
 
          if (!this.model.codigoSin) {

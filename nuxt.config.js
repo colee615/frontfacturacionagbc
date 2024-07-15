@@ -1,10 +1,10 @@
 export default {
   // Global page headers: https://go.nuxtjs.dev/config-head
-  target: 'server',
-server: {
-    port: 3000, // Cambia el puerto a uno que no esté en uso
-    //host: '0.0.0.0' // Asegúrate de que el servidor escuche en todas las interfaces de red
-  },
+//   target: 'server',
+// server: {
+//     port: 3000, // Cambia el puerto a uno que no esté en uso
+//     //host: '0.0.0.0' // Asegúrate de que el servidor escuche en todas las interfaces de red
+//   },
 
   head: {
     title: 'POS',

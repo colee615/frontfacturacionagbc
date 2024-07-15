@@ -9,27 +9,48 @@
                         <h3>Agregar Sucursal</h3>
                      </div>
                      <div class="card-body">
-                        <div slot="body" class="row">
+                        <div class="row">
+                           <!-- Icono de pregunta con eventos de mouse -->
                            <div class="mb-3 position-relative info-container">
                               <label for="info" class="form-label">
                                  <i class="fas fa-question-circle" @mouseover="showInfoTooltip = true"
                                     @mouseleave="showInfoTooltip = false"></i> Información
                               </label>
-                              <div class="info-tooltip" :class="{ 'd-block': showInfoTooltip }">
+                              <div v-if="showInfoTooltip" class="info-tooltip">
                                  <span>Los campos marcados con * son obligatorios.</span>
                                  <div class="arrow"></div>
                               </div>
                            </div>
-                           <div slot="body" class="row">
+                           <div class="row">
                               <div class="form-group col-12">
-                                 <label for="ubicacion">Ubicación de la Sucursal</label>
-                                 <input type="text" name="ubicacion" v-model="model.ubicacion" class="form-control"
-                                    id="ubicacion" />
+                                 <label for="nombre">* Nombre de la Sucursal</label>
+                                 <input type="text" name="nombre" v-model="model.nombre" class="form-control"
+                                    id="nombre" />
                               </div>
                               <div class="form-group col-12">
-                                 <label for="codigosucursal">Código Sucursal</label>
+                                 <label for="municipio">* Municipio</label>
+                                 <input type="text" name="municipio" v-model="model.municipio" class="form-control"
+                                    id="municipio" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="departamento">* Departamento</label>
+                                 <input type="text" name="departamento" v-model="model.departamento"
+                                    class="form-control" id="departamento" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="codigosucursal">* Código Sucursal</label>
                                  <input type="text" name="codigosucursal" v-model="model.codigosucursal"
                                     class="form-control" id="codigosucursal" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="direcccion">* Dirección</label>
+                                 <input type="text" name="direcccion" v-model="model.direcccion" class="form-control"
+                                    id="direcccion" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="telefono">* Teléfono</label>
+                                 <input type="text" name="telefono" v-model="model.telefono" class="form-control"
+                                    id="telefono" />
                               </div>
                            </div>
                         </div>
@@ -68,8 +89,12 @@ export default {
    data() {
       return {
          model: {
-            ubicacion: '',
-            codigosucursal: ''
+            nombre: '',
+            municipio: '',
+            departamento: '',
+            codigosucursal: '',
+            direcccion: '',
+            telefono: '',
          },
          apiUrl: 'sucursales',
          page: 'Administracion',
@@ -86,14 +111,29 @@ export default {
       validateFields() {
          const errors = [];
 
-         if (!this.model.ubicacion) {
-            errors.push('La Ubicación es obligatoria.');
+         if (!this.model.nombre) {
+            errors.push('El Nombre es obligatorio.');
+         }
+
+         if (!this.model.municipio) {
+            errors.push('El Municipio es obligatorio.');
+         }
+
+         if (!this.model.departamento) {
+            errors.push('El Departamento es obligatorio.');
          }
 
          if (!this.model.codigosucursal) {
             errors.push('El Código de Sucursal es obligatorio.');
          }
 
+         if (!this.model.direcccion) {
+            errors.push('La Dirección es obligatoria.');
+         }
+
+         if (!this.model.telefono) {
+            errors.push('El Teléfono es obligatorio.');
+         }
          return errors;
       },
       async Save() {

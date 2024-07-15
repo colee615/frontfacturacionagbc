@@ -48,6 +48,15 @@
                   </div>
                </div>
                <div class="col-12 col-sm-5">
+                  <div class="form-group">
+                     <label for="montoDescuentoAdicional">Monto Descuento Adicional:</label>
+                     <div class="input-group mb-3">
+                        <input type="number" v-model.number="montoDescuentoAdicionalTemp" class="form-control"
+                           id="montoDescuentoAdicional">
+                        <button class="btn btn-primary" @click="AplicarDescuento">Aplicar Descuento</button>
+                     </div>
+
+                  </div>
                   <div class="card card-pricing">
                      <div class="card-header bg-gradient-dark text-center pt-4 pb-5 position-relative">
                         <div class="z-index-1 position-relative">
@@ -135,6 +144,24 @@
                                        </div>
                                     </td>
                                  </tr>
+                                 <tr v-if="montoDescuentoAdicional > 0">
+                                    <td colspan="2" class="text-start">
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">
+                                          Descuento Adicional
+                                       </p>
+                                    </td>
+                                    <td class="text-start">
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">
+                                          -{{ Number(montoDescuentoAdicional).toFixed(2) }}
+                                       </p>
+                                    </td>
+                                    <td>
+                                       <button class="btn btn-outline-danger mb-0 btn-sm" type="button"
+                                          @click="QuitarDescuento">
+                                          <i class="fas fa-times"></i>
+                                       </button>
+                                    </td>
+                                 </tr>
                               </tbody>
                            </table>
                         </div>
@@ -197,18 +224,7 @@
                   <div class="modal-dialog modal-lg">
                      <div class="modal-content">
                         <div class="modal-body">
-                           <div class="input-group mb-3">
-                              <select class="form-control" v-model="filtroTipoDocumento">
-                                 <option value="">Todos</option>
-                                 <option value="1">CI - Cédula de identidad</option>
-                                 <option value="2">CEX - Cédula de identidad de extranjero</option>
-                                 <option value="3">PAS - Pasaporte</option>
-                                 <option value="4">OD - Otro Documento de Identidad</option>
-                                 <option value="5">NIT - Número de identificación Tributaria</option>
-                              </select>
-                              <input type="text" class="form-control" placeholder="Buscar cliente..."
-                                 v-model="filtroDocumentoIdentidad" autofocus>
-                           </div>
+
 
                            <div class="row justify-content-end mb-2">
                               <div class="col-12">
@@ -235,7 +251,7 @@
                                                       <button type="button" class="btn btn-success"
                                                          style="font-size: 8px; padding: 10px 20px; border-radius: 5px; background-color: #4CAF50; color: white;"
                                                          data-bs-dismiss="modal" aria-label="Seleccionar Cliente"
-                                                         @click="selectCliente(m.id)">
+                                                         @click="selectCliente(m)">
                                                          <i class="fa fa-user-plus" aria-hidden="true"></i> Seleccionar
                                                          cliente
                                                       </button>
@@ -314,7 +330,8 @@ export default {
 
    data() {
       return {
-         filtroTipoDocumento: '',
+         montoDescuentoAdicional: 0,
+         montoDescuentoAdicionalTemp: 0,
          filtroDocumentoIdentidad: '',
          model: {
             razonSocial: '',
@@ -360,7 +377,6 @@ export default {
             cantidad: 0,
             precio: 0,
          },
-
       };
 
    },
@@ -370,7 +386,8 @@ export default {
          return this.$store.state.auth.user;
       },
       totalCarrito() {
-         return this.carrito.reduce((a, b) => a + (b.cantidad * b.precio), 0);
+         let subtotal = this.carrito.reduce((a, b) => a + ((b.cantidad * b.precio) - (b.descuento || 0)), 0);
+         return subtotal - this.montoDescuentoAdicional;
       },
       filteredClientes() {
          // Verifica que this.clientes esté definido y sea un arreglo
@@ -392,6 +409,17 @@ export default {
 
    },
    methods: {
+      selectCliente(cliente) {
+         this.cliente = cliente;
+         this.ConfirmAndSave();
+      },
+      AplicarDescuento() {
+         this.montoDescuentoAdicional = this.montoDescuentoAdicionalTemp;
+      },
+      QuitarDescuento() {
+         this.montoDescuentoAdicional = 0;
+         this.montoDescuentoAdicionalTemp = 0;
+      },
       async guardarCliente() {
 
          const res = await this.$admin.$post('clientes', this.nuevoCliente);
@@ -506,7 +534,7 @@ export default {
                servicio: servicio,
                cantidad: 1,
                precio: servicio.precioUnitario,
-
+               descuento: servicio.descuento || 0 // Asegurarte de agregar el descuento aquí
             }
             this.carrito.push(item)
             this.item = item;
@@ -526,12 +554,13 @@ export default {
          this.load = true;
          try {
             const operacion = {
-               cliente_id: this.cliente,
+               cliente_id: this.cliente.id,
                motivo: 'Venta',
                total: this.totalCarrito,
                pago: 0,
                cambio: 0,
                tipo: '1',
+               monto_descuento_adicional: this.montoDescuentoAdicional, // Incluir el descuento adicional aquí
                cajero_id: this.user.id,
                carrito: this.carrito.map(item => ({
                   servicio_id: item.servicio.id,
@@ -539,6 +568,7 @@ export default {
                   precio: item.precio
                }))
             };
+            console.log('Datos a enviar:', operacion);
             const res = await this.$admin.$post('ventas', operacion);
 
             this.$swal
