@@ -555,15 +555,25 @@ export default {
          try {
             const operacion = {
                cliente_id: this.cliente.id,
+               cajero_id: this.user.id,
+               codigoSucursal: this.user.sucursale.codigosucursal,
+               puntoVenta: this.user.sucursale.codigosucursal,
+               documentoSector: 1,
+               municipio: this.user.sucursale.municipio,
+               departamento: this.user.sucursale.departamento,
+               telefono: this.user.sucursale.telefono,
+               metodoPago: 1,
+               formatoFactura: 'rollo',
+               monto_descuento_adicional: this.montoDescuentoAdicional,
                motivo: 'Venta',
                total: this.totalCarrito,
-               pago: 0,
-               cambio: 0,
-               tipo: '1',
-               monto_descuento_adicional: this.montoDescuentoAdicional, // Incluir el descuento adicional aquí
-               cajero_id: this.user.id,
                carrito: this.carrito.map(item => ({
                   servicio_id: item.servicio.id,
+                  actividadEconomica: item.servicio.actividadEconomica,
+                  codigoSin: item.servicio.codigoSin,
+                  codigo: item.servicio.codigo,
+                  descripcion: item.servicio.descripcion,
+                  unidadMedida: item.servicio.unidadMedida,
                   cantidad: item.cantidad,
                   precio: item.precio
                }))
