@@ -27,15 +27,6 @@
                               <input type="text" v-model="model.razonSocial" class="form-control" id="razonSocial">
                            </div>
                            <div class="form-group col-12">
-                              <label for="documentoIdentidad">* Documento de Identidad del Cliente</label>
-                              <input type="text" v-model="model.documentoIdentidad" class="form-control"
-                                 id="documentoIdentidad">
-                           </div>
-                           <div class="form-group col-12">
-                              <label for="complemento">Complemento del Documento de Identidad</label>
-                              <input type="text" v-model="model.complemento" class="form-control" id="complemento">
-                           </div>
-                           <div class="form-group col-12">
                               <label for="tipoDocumentoIdentidad">* Tipo Documento de Identidad del Cliente</label>
                               <select v-model="model.tipoDocumentoIdentidad" class="form-control"
                                  id="tipoDocumentoIdentidad">
@@ -46,6 +37,17 @@
                                  <option value="5">NIT - Número de identificación Tributaria</option>
                               </select>
                            </div>
+                           <div class="form-group col-12">
+                              <label for="documentoIdentidad">* Numero Documento del
+                                 Cliente</label>
+                              <input type="text" v-model="model.documentoIdentidad" class="form-control"
+                                 id="documentoIdentidad">
+                           </div>
+                           <div class="form-group col-12">
+                              <label for="complemento">Complemento del Documento de Identidad</label>
+                              <input type="text" v-model="model.complemento" class="form-control" id="complemento">
+                           </div>
+
                            <div class="form-group col-12">
                               <label for="correo">* Email del Cajero</label>
                               <input type="text" v-model="model.correo" class="form-control" id="correo">
@@ -110,15 +112,12 @@ export default {
          if (!this.model.razonSocial || typeof this.model.razonSocial !== 'string') {
             errors.push('El Nombre del Cliente es obligatorio.');
          }
-
          if (!this.model.documentoIdentidad) {
-            errors.push('El documento de Identidad del Cliente es obligatorio.');
+            errors.push('El Numero de Identidad es obligatorio.');
          }
-
-         if (this.model.complemento && typeof this.model.complemento !== 'string') {
-            errors.push('El Complemento debe ser una cadena de texto.');
+         if (!this.model.tipoDocumentoIdentidad) {
+            errors.push('El Tipo de Documento de Identidad es obligatorio.');
          }
-
          return errors;
       },
       async Save() {
