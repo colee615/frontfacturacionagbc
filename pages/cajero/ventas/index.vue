@@ -1,6 +1,6 @@
 <template>
    <div>
-      <JcLoader :load="load"></JcLoader>
+      <JcLoader :load="load" />
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
             <div class="row justify-content-end">
@@ -26,7 +26,7 @@
                      <div class="col-12 py-2" style="min-height: 60vh; max-height: 60vh; overflow-y: scroll;">
                         <div class="row">
                            <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in servicios" :key="m.id">
-                              <PostServicio :servicio="m" @AddCarrito="AddCarrito"></PostServicio>
+                              <PostServicio :servicio="m" @AddCarrito="AddCarrito" />
                            </div>
                         </div>
                      </div>
@@ -37,8 +37,7 @@
                                  <ul class="nav nav-pills nav-fill p-1" role="tablist">
                                     <li class="nav-item active" role="presentation">
                                        <a class="nav-link mb-0 px-0 py-1" data-bs-toggle="tab" href="#cam1" role="tab"
-                                          aria-controls="cam1" aria-selected="true">
-                                       </a>
+                                          aria-controls="cam1" aria-selected="true"></a>
                                     </li>
                                  </ul>
                               </div>
@@ -48,7 +47,6 @@
                   </div>
                </div>
                <div class="col-12 col-sm-5">
-
                   <div class="card card-pricing">
                      <div class="card-header bg-gradient-dark text-center pt-4 pb-5 position-relative">
                         <div class="z-index-1 position-relative">
@@ -91,16 +89,13 @@
                                  <tr>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Artículo
-                                    </th>
+                                       Artículo</th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Cantidad
-                                    </th>
+                                       Cantidad</th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Total
-                                    </th>
+                                       Total</th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">
                                     </th>
@@ -109,19 +104,15 @@
                               <tbody>
                                  <tr v-for="(m, i) in carrito" :key="i">
                                     <td class="text-start">
-                                       <p class="text-xxs font-weight-bold mb-0 text-start">
-                                          {{ m.servicio.descripcion }}
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">{{ m.servicio.descripcion }}
                                        </p>
                                     </td>
                                     <td class="text-start">
-                                       <p class="text-xxs font-weight-bold mb-0 text-start">
-                                          {{ m.cantidad }}
-                                       </p>
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">{{ m.cantidad }}</p>
                                     </td>
                                     <td class="text-start">
-                                       <p class="text-xxs font-weight-bold mb-0 text-start">
-                                          {{ Number(m.cantidad * m.precio).toFixed(2) }}
-                                       </p>
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">{{ Number(m.cantidad *
+                                          m.precio).toFixed(2) }}</p>
                                     </td>
                                     <td>
                                        <div class="input-group input-group-sm">
@@ -151,9 +142,7 @@
                   <div class="modal-dialog modal-dialog-centered" role="document">
                      <div class="modal-content">
                         <div class="modal-header">
-                           <h5 class="modal-title" id="exampleModalLabel">
-                              Editar servicio
-                           </h5>
+                           <h5 class="modal-title" id="exampleModalLabel">Editar servicio</h5>
                            <button type="button" class="btn-close text-dark" @click="modalEdit = false"
                               data-bs-dismiss="modal" aria-label="Close">
                               <span aria-hidden="true">&times;</span>
@@ -186,9 +175,7 @@
                         </div>
                         <div class="modal-footer">
                            <button type="button" @click="modalEdit = false" class="btn bg-gradient-secondary w-100"
-                              data-bs-dismiss="modal">
-                              Confirmar
-                           </button>
+                              data-bs-dismiss="modal">Confirmar</button>
                         </div>
                      </div>
                   </div>
@@ -198,14 +185,16 @@
                   <div class="modal-dialog modal-lg">
                      <div class="modal-content">
                         <div class="modal-body">
-
+                           <div class="input-group mb-3">
+                              <input type="text" class="form-control" placeholder="Buscar cliente..."
+                                 v-model="filtroDocumentoIdentidad" autofocus />
+                           </div>
 
                            <div class="row justify-content-end mb-2">
                               <div class="col-12">
                                  <div class="card">
                                     <div class="card-body">
                                        <div class="table-responsive">
-
                                           <table class="table table-striped table-bordered"
                                              v-if="filteredClientes.length > 0">
                                              <thead>
@@ -219,8 +208,8 @@
                                              <tbody>
                                                 <tr v-for="m in filteredClientes" :key="m.id">
                                                    <td>{{ m.codigoCliente }} - {{ m.razonSocial }}</td>
-                                                   <td>{{ m.documentoIdentidad }} </td>
-                                                   <td>{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }} </td>
+                                                   <td>{{ m.documentoIdentidad }}</td>
+                                                   <td>{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }}</td>
                                                    <td>
                                                       <button type="button" class="btn btn-success"
                                                          style="font-size: 8px; padding: 10px 20px; border-radius: 5px; background-color: #4CAF50; color: white;"
@@ -242,19 +231,20 @@
                                     </div>
                                  </div>
                               </div>
-
                            </div>
+
                            <div v-if="showAddClienteForm">
                               <div slot="body" class="row">
                                  <div class="form-group col-12">
-                                    <label for="razonSocial">Razon Social</label>
+                                    <label for="razonSocial">* Nombre del Cliente</label>
                                     <input type="text" v-model="model.razonSocial" class="form-control"
-                                       id="razonSocial">
+                                       id="razonSocial" />
                                  </div>
                                  <div class="form-group col-12">
-                                    <label for="tipoDocumentoIdentidad">Tipo Documento de Identidad</label>
-                                    <select class="form-control" v-model="filtroTipoDocumento">
-                                       <option value="">Todos</option>
+                                    <label for="tipoDocumentoIdentidad">* Tipo Documento de Identidad del
+                                       Cliente</label>
+                                    <select v-model="model.tipoDocumentoIdentidad" class="form-control"
+                                       id="tipoDocumentoIdentidad">
                                        <option value="1">CI - Cédula de identidad</option>
                                        <option value="2">CEX - Cédula de identidad de extranjero</option>
                                        <option value="3">PAS - Pasaporte</option>
@@ -263,22 +253,22 @@
                                     </select>
                                  </div>
                                  <div class="form-group col-12">
-                                    <label for="documentoIdentidad">Documento de Identidad</label>
+                                    <label for="documentoIdentidad">* Numero Documento del Cliente</label>
                                     <input type="text" v-model="model.documentoIdentidad" class="form-control"
-                                       id="documentoIdentidad">
+                                       id="documentoIdentidad" />
                                  </div>
-                                 <div class="form-group col-12">
-                                    <label for="complemento">Complemento</label>
+                                 <div class="form-group col-12" v-if="isCISelected">
+                                    <label for="complemento">Complemento del Documento de Identidad</label>
                                     <input type="text" v-model="model.complemento" class="form-control"
-                                       id="complemento">
+                                       id="complemento" />
                                  </div>
                                  <div class="form-group col-12">
-                                    <label for="correo">Correo</label>
-                                    <input type="text" v-model="model.correo" class="form-control" id="correo">
+                                    <label for="correo">* Email del Cajero</label>
+                                    <input type="text" v-model="model.correo" class="form-control" id="correo" />
                                  </div>
-                                 <button class="btn btn-dark w-100" @click="Savecliente()">
-                                    Guardar
-                                 </button>
+                                 <button class="btn btn-dark w-100" @click="Savecliente()">Guardar</button>
+                                 <button class="btn btn-secondary w-100 mt-2"
+                                    @click="cancelCreateCliente">Cancelar</button>
                               </div>
                            </div>
                         </div>
@@ -290,10 +280,9 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
-
-import Swal from 'sweetalert2';
-
+import Swal from "sweetalert2";
 
 export default {
    head() {
@@ -304,29 +293,22 @@ export default {
 
    data() {
       return {
-         filtroDocumentoIdentidad: '',
+         filtroDocumentoIdentidad: "",
          model: {
-            razonSocial: '',
-            documentoIdentidad: '',
-            complemento: '',
-            tipoDocumentoIdentidad: '',
-            correo: '',
-            codigoCliente: '',
+            razonSocial: "",
+            documentoIdentidad: "",
+            complemento: "",
+            tipoDocumentoIdentidad: "",
+            correo: "",
          },
-
-         apiUrl: 'clientes',
+         apiUrl: "clientes",
          showAddClienteForm: false,
-         nuevoCliente: {
-            nombre: '',
-            documentoIdentidad: '',
-            // Otros campos necesarios
-         },
          tipoDocumentoMap: {
-            1: 'CI - Cédula de identidad',
-            2: 'CEX - Cédula de identidad de extranjero',
-            3: 'PAS - Pasaporte',
-            4: 'OD - Otro Documento de Identidad',
-            5: 'NIT - Número de identificación Tributaria',
+            1: "CI - Cédula de identidad",
+            2: "CEX - Cédula de identidad de extranjero",
+            3: "PAS - Pasaporte",
+            4: "OD - Otro Documento de Identidad",
+            5: "NIT - Número de identificación Tributaria",
          },
          modulo: "Nueva venta",
          page: "ventas",
@@ -336,184 +318,157 @@ export default {
          carrito: [],
          clientes: [],
          cliente: null,
-
          sucursals: [],
-         filtroCliente: '',
-         sucursal: {
-
-         },
+         filtroCliente: "",
+         sucursal: {},
          item: {
             servicio: {
-               nombre: ''
+               nombre: "",
             },
             cantidad: 0,
             precio: 0,
          },
       };
-
    },
 
    computed: {
+      isCISelected() {
+         return this.model.tipoDocumentoIdentidad === "1";
+      },
       user() {
          return this.$store.state.auth.user;
       },
       totalCarrito() {
-         let subtotal = this.carrito.reduce((a, b) => a + ((b.cantidad * b.precio)), 0);
+         let subtotal = this.carrito.reduce((a, b) => a + b.cantidad * b.precio, 0);
          return subtotal;
       },
       filteredClientes() {
-         // Verifica que this.clientes esté definido y sea un arreglo
          if (!this.clientes || !Array.isArray(this.clientes)) {
             return [];
          }
-         return this.clientes.filter(cliente => {
-            // Comprueba si el tipo de documento es válido
-            const tipoValido = this.filtroTipoDocumento ?
-               parseInt(cliente.tipoDocumentoIdentidad) === parseInt(this.filtroTipoDocumento) : true;
-
-            // Comprueba si el documento de identidad es válido
-            const docValido = this.filtroDocumentoIdentidad ?
-               cliente.documentoIdentidad.toLowerCase().includes(this.filtroDocumentoIdentidad.toLowerCase()) : true;
-
-            return tipoValido && docValido;
+         return this.clientes.filter((cliente) => {
+            if (!cliente || !cliente.documentoIdentidad) return false; // Add this check
+            const docValido = this.filtroDocumentoIdentidad ? cliente.documentoIdentidad.toLowerCase().includes(this.filtroDocumentoIdentidad.toLowerCase()) : false;
+            return docValido;
          });
       },
-
    },
    methods: {
       selectCliente(cliente) {
          this.cliente = cliente;
          this.ConfirmAndSave();
       },
-
       async guardarCliente() {
-
-         const res = await this.$admin.$post('clientes', this.nuevoCliente);
+         const res = await this.$admin.$post("clientes", this.nuevoCliente);
          if (res.success) {
             this.clientes.push(res.cliente);
             this.showAddClienteForm = false;
-            this.filtroCliente = '';
-            new bootstrap.Modal(document.getElementById('clienteModal')).hide();
+            this.filtroCliente = "";
+            new bootstrap.Modal(document.getElementById("clienteModal")).hide();
          } else {
-
             alert("Error al guardar el cliente.");
          }
       },
       CheckAndSave() {
          if (this.carrito.length === 0) {
-            // Si el carrito está vacío, mostrar alerta
             this.$swal.fire({
-               icon: 'error',
-               title: 'Carrito Vacío',
-               text: 'Debe agregar al menos un elemento al carrito para poder guardar.',
-               confirmButtonText: 'Entendido'
+               icon: "error",
+               title: "Carrito Vacío",
+               text: "Debe agregar al menos un elemento al carrito para poder guardar.",
+               confirmButtonText: "Entendido",
             });
          } else if (!this.cliente) {
-
-            new bootstrap.Modal(document.getElementById('clienteModal')).show();
+            new bootstrap.Modal(document.getElementById("clienteModal")).show();
          } else {
-
             this.ConfirmAndSave();
          }
       },
-
       ConfirmAndSave() {
-         this.$swal.fire({
-            title: '¿Estás seguro de realizar la venta?',
-            showDenyButton: true,
-            confirmButtonText: 'Sí, guardar',
-            denyButtonText: `No, cancelar`,
-         }).then((result) => {
-            if (result.isConfirmed) {
-               this.Save();
-            } else if (result.isDenied) {
-               window.location.reload();
-            }
-         });
-      },
-      selectCliente(id) {
-         this.cliente = id;
-         this.ConfirmAndSave();
+         this.$swal
+            .fire({
+               title: "¿Estás seguro de realizar la venta?",
+               showDenyButton: true,
+               confirmButtonText: "Sí, guardar",
+               denyButtonText: `No, cancelar`,
+            })
+            .then((result) => {
+               if (result.isConfirmed) {
+                  this.Save();
+               } else if (result.isDenied) {
+                  window.location.reload();
+               }
+            });
       },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res;
       },
       cerrarModalCliente() {
-
          this.nuevoCliente = {
-            nombre: '',
-            documentoIdentidad: '',
+            nombre: "",
+            documentoIdentidad: "",
          };
-         this.showAddClienteForm = false; l
-
+         this.showAddClienteForm = false;
       },
       async Savecliente() {
          this.load = true;
          try {
             const res = await this.$admin.$post(this.apiUrl, this.model);
-
-            this.$swal
-               .fire({
-                  title: "Guardado!",
-                  showDenyButton: false,
-                  showCancelButton: false,
-                  confirmButtonText: "Ok",
-               })
-               .then(async (result) => {
-                  if (result.isConfirmed) {
-                     this.cerrarModalCliente();
-                     await this.Datos();
-                  }
-               });
+            this.clientes.push(res.data);
+            this.$swal.fire({
+               title: "Guardado!",
+               showDenyButton: false,
+               showCancelButton: false,
+               confirmButtonText: "Ok",
+            }).then(async (result) => {
+               if (result.isConfirmed) {
+                  this.cerrarModalCliente();
+                  await this.Datos();
+               }
+            });
          } catch (e) {
-
          } finally {
             this.load = false;
          }
       },
       async Datos() {
          try {
-            await Promise.all([this.GET_DATA('servicios'), this.GET_DATA('clientes'),]).then((v) => {
+            await Promise.all([this.GET_DATA("servicios"), this.GET_DATA("clientes")]).then((v) => {
                this.servicios = v[0];
                this.clientes = v[1];
-
             });
          } catch (e) {
-
          }
       },
-
       AddCarrito(servicio) {
-         let id = servicio.id
-         let buscarRegistro = this.carrito.filter((i) => i.servicio.id == id)
+         let id = servicio.id;
+         let buscarRegistro = this.carrito.filter((i) => i.servicio.id == id);
          if (buscarRegistro.length > 0) {
-            let indice = this.carrito.findIndex((i) => i.servicio.id == id)
+            let indice = this.carrito.findIndex((i) => i.servicio.id == id);
             if (this.carrito[indice].cantidad + 1 > this.carrito[indice].stock) {
                return false;
             } else {
-               this.carrito[indice].cantidad += 1
-
+               this.carrito[indice].cantidad += 1;
             }
          } else {
             const item = {
                servicio: servicio,
                cantidad: 1,
                precio: servicio.precioUnitario,
-            }
-            this.carrito.push(item)
+            };
+            this.carrito.push(item);
             this.item = item;
             this.modalEdit = true;
          }
-
-
       },
-
       EliminarItem(i) {
-         this.carrito.splice(i, 1)
+         this.carrito.splice(i, 1);
+      },
+      cancelCreateCliente() {
+         this.showAddClienteForm = false;
       },
       Clean() {
-         this.carrito = []
+         this.carrito = [];
       },
       async Save() {
          this.load = true;
@@ -528,11 +483,11 @@ export default {
                departamento: this.user.sucursale.departamento,
                telefono: this.user.sucursale.telefono,
                metodoPago: 1,
-               formatoFactura: 'rollo',
+               formatoFactura: "rollo",
                monto_descuento_adicional: this.montoDescuentoAdicional,
-               motivo: 'Venta',
+               motivo: "Venta",
                total: this.totalCarrito,
-               carrito: this.carrito.map(item => ({
+               carrito: this.carrito.map((item) => ({
                   servicio_id: item.servicio.id,
                   actividadEconomica: item.servicio.actividadEconomica,
                   codigoSin: item.servicio.codigoSin,
@@ -540,12 +495,11 @@ export default {
                   descripcion: item.servicio.descripcion,
                   unidadMedida: item.servicio.unidadMedida,
                   cantidad: item.cantidad,
-                  precio: item.precio
-               }))
+                  precio: item.precio,
+               })),
             };
-            console.log('Datos a enviar:', operacion);
-            const res = await this.$admin.$post('ventas', operacion);
-
+            console.log("Datos a enviar:", operacion);
+            const res = await this.$admin.$post("ventas", operacion);
             this.$swal
                .fire({
                   title: "Venta Guardada !",
@@ -560,8 +514,8 @@ export default {
                      await this.Datos();
                      this.load = false;
                      this.cliente = null;
-                     // Abrir el PDF en una nueva ventana
-                     // const printWindow = window.open(res.pdf_url, '_blank');
+                     const pdfResponse = await this.$admin.$get(`venta/pdf/${res.codigoSeguimiento}`);
+                     const printWindow = window.open(pdfResponse.pdf_url, "_blank");
                      printWindow.onload = () => {
                         printWindow.print();
                      };
@@ -573,15 +527,13 @@ export default {
             this.load = false;
          }
       },
-
    },
 
    mounted() {
       this.$nextTick(async () => {
          try {
-            await this.Datos()
+            await this.Datos();
          } catch (e) {
-
          } finally {
             this.load = false;
          }
@@ -589,6 +541,19 @@ export default {
    },
 };
 </script>
+
+<style>
+.showModal {
+   visibility: visible;
+   display: block;
+   opacity: 1 !important;
+}
+
+.table-responsive {
+   max-height: 300px;
+   overflow-y: auto;
+}
+</style>
 <style>
 .showModal {
    visibility: visible;
