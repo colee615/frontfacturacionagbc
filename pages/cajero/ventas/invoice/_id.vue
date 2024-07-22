@@ -39,12 +39,7 @@
                            </div>
 
                         </div>
-                        <div class="d-flex justify-content-between mt-4">
-                           <span class="mb-2 text-lg"> Monto descuento: </span>
-                           <span class="text-dark text-lg ms-2 font-weight-bold">{{
-                              Number(model.monto_descuento_adicional).toFixed(2)
-                              }}Bs</span>
-                        </div>
+
                         <hr class="horizontal dark mt-4 mb-4" />
                         <div class="row">
 
@@ -55,6 +50,11 @@
                                  <li class="list-group-item border-0 d-flex p-4 mb-2 bg-gray-100 border-radius-lg">
                                     <div class="d-flex flex-column">
                                        <h6 class="mb-3 text-sm">Detalle de venta</h6>
+                                       <span class="mb-2 text-xs">Codigo de Segumiento:
+                                          <span class="text-dark font-weight-bold ms-2">{{
+                                             model.codigoSeguimiento }}</span>
+
+                                       </span>
                                        <span class="mb-2 text-xs">Cliente:
                                           <span class="text-dark font-weight-bold ms-2">{{
                                              model.cliente.codigoCliente }} - {{

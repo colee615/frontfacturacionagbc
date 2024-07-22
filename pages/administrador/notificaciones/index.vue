@@ -16,7 +16,8 @@
                               <thead>
                                  <tr>
                                     <th class="py-0 px-1">#</th>
-                                    <th class="py-0 px-1">ESTADO</th>
+                                    <th class="py-0 px-1">TIPO DE LA SOLICITUD</th>
+                                    <th class="py-0 px-1">ESTADO DE LA SOLICITUD</th>
                                     <th class="py-0 px-1">FUENTE</th>
                                     <th class="py-0 px-1">CODIGO SEGUIMIENTO</th>
                                     <th class="py-0 px-1">FECHA</th>
@@ -27,6 +28,10 @@
                               <tbody>
                                  <tr v-for="(m, i) in list" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
+                                    <td class="py-0 px-1"
+                                       :class="{ 'emision': m.detalle.tipoEmision === 'EMISION', 'anulacion': m.detalle.tipoEmision === 'ANULACION' }">
+                                       {{ m.detalle.tipoEmision }}
+                                    </td>
                                     <td class="py-0 px-1">{{ m.estado }}</td>
                                     <td class="py-0 px-1">{{ m.fuente }}</td>
                                     <td class="py-0 px-1">{{ m.codigo_seguimiento }}</td>
@@ -57,6 +62,7 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
 export default {
    name: "IndexPage",
@@ -68,21 +74,22 @@ export default {
 
    data() {
       return {
-
          load: true,
          list: [],
          apiUrl: 'notificaciones',
          page: 'Administracion',
          modulo: 'Notificaciones',
          url_editar: '/administrador/notificaciones/detalle/',
-
       };
    },
    methods: {
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
-         return res
-      },
+         res.forEach(notification => {
+            notification.detalle = JSON.parse(notification.detalle);
+         });
+         return res;
+      }
    },
    computed: {
       user() {
@@ -108,3 +115,19 @@ export default {
    },
 };
 </script>
+
+<style scoped>
+.emision {
+   background-color: #e0f7fa;
+   /* color de fondo para EMISION */
+   color: #00796b;
+   /* color de texto para EMISION */
+}
+
+.anulacion {
+   background-color: #ffebee;
+   /* color de fondo para ANULACION */
+   color: #c62828;
+   /* color de texto para ANULACION */
+}
+</style>

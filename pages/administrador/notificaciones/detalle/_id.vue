@@ -9,7 +9,10 @@
                      <div>
                         <h4 class="mb-0">Reporte de Notificación</h4>
                         <p class="text-sm mb-0">
-                           Notificación número <b>{{ model.id }}</b> del <b>{{ model.fecha }}</b>
+                           Tipo Emision: <b>{{ parsedDetalle.tipoEmision }}</b>
+                        </p>
+                        <p class="text-sm mb-0">
+                           Notificación número: <b>{{ model.id }}</b> del <b>{{ model.fecha }}</b>
                         </p>
                         <p class="text-sm mb-0">
                            Mensaje:<b>{{ model.mensaje }}</b>
@@ -75,6 +78,7 @@ export default {
             detalle: {}
          },
          parsedDetalle: {
+            tipoEmision: '',
             cuf: '',
             nroFactura: '',
             urlPdf: '',
