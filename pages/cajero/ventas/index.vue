@@ -293,6 +293,7 @@ export default {
 
    data() {
       return {
+         formatoFactura: 'rollo', // Valor predeterminado
          filtroDocumentoIdentidad: "",
          model: {
             razonSocial: "",
@@ -387,18 +388,30 @@ export default {
          this.$swal
             .fire({
                title: "¿Estás seguro de realizar la venta?",
+               input: 'select',
+               inputOptions: {
+                  'rollo': 'Formato Rollo',
+                  'pagina': 'Formato Página'
+               },
+               inputValue: 'rollo', // Valor por defecto
                showDenyButton: true,
-               confirmButtonText: "Sí, guardar",
+               confirmButtonText: "Sí, facturar",
                denyButtonText: `No, cancelar`,
+               inputPlaceholder: 'Seleccionar formato de factura',
+               inputAttributes: {
+                  'aria-label': 'Seleccionar formato de factura'
+               }
             })
             .then((result) => {
                if (result.isConfirmed) {
+                  this.formatoFactura = result.value; // Actualiza el formato de factura
                   this.Save();
                } else if (result.isDenied) {
                   window.location.reload();
                }
             });
       },
+
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res;
@@ -483,7 +496,7 @@ export default {
                departamento: this.user.sucursale.departamento,
                telefono: this.user.sucursale.telefono,
                metodoPago: 1,
-               formatoFactura: "rollo",
+               formatoFactura: this.formatoFactura,
                monto_descuento_adicional: this.montoDescuentoAdicional,
                motivo: "Venta",
                total: this.totalCarrito,

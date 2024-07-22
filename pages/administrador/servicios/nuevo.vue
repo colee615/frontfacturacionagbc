@@ -42,15 +42,21 @@
                               <div class="form-group col-12">
                                  <label for="">* Actividad Economica del Servicio</label>
                                  <input type="text" name="" v-model="model.actividadEconomica" class="form-control"
-                                    id="" />
+                                    id="" readonly />
                               </div>
                               <div class="form-group col-12">
                                  <label for="">* Unidad de Medida del Servicio</label>
-                                 <input type="text" name="" v-model="model.unidadMedida" class="form-control" id="" />
+                                 <select v-model="model.unidadMedida" class="form-control">
+                                    <option v-for="unidad in unidadesMedida" :key="unidad.codigo"
+                                       :value="unidad.codigo">
+                                       {{ unidad.descripcion }}
+                                    </option>
+                                 </select>
                               </div>
                               <div class="form-group col-12">
                                  <label for="">* Código SIN del Servicio</label>
-                                 <input type="text" name="" v-model="model.codigoSin" class="form-control" id="" />
+                                 <input type="text" name="" v-model="model.codigoSin" class="form-control" id=""
+                                    readonly />
                               </div>
                               <div class="col-12">
                                  <div class="row">
@@ -91,16 +97,20 @@ export default {
             codigo: '',
             descripcion: '',
             precioUnitario: '',
-            actividadEconomica: '',
+            actividadEconomica: '841001', // Valor predeterminado
             nombre: '',
             unidadMedida: '',
-            codigoSin: '',
+            codigoSin: '99100',
          },
          showInfoTooltip: false, // Variable para controlar la visibilidad del tooltip de información
          apiUrl: 'servicios',
          page: 'Servicios',
          modulo: 'Servicios',
-
+         unidadesMedida: [
+            { codigo: '111', descripcion: 'SOBRES' },
+            { codigo: '42', descripcion: 'PAQUETE' },
+            { codigo: '58', descripcion: 'UNIDAD (SERVICIOS)' }
+         ],
       };
    },
    methods: {
@@ -126,8 +136,9 @@ export default {
          if (!this.model.unidadMedida) {
             errors.push('La Unidad de Medida del Servicio es obligatorio');
          }
-         if (!this.model.unidadMedida) {
-            errors.push('La Actividad economica del Servicio es obligatorio');
+
+         if (!this.model.actividadEconomica) {
+            errors.push('La Actividad Economica del Servicio es obligatorio');
          }
 
          if (!this.model.codigoSin) {
@@ -206,6 +217,7 @@ export default {
    },
 };
 </script>
+
 <style scoped>
 .info-container {
    display: inline-block;

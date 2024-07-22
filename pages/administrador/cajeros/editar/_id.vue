@@ -30,7 +30,7 @@
                               <label for="">* Sucursal del Cajero</label>
                               <select name="" id="" class="form-control" v-model="model.sucursale_id" required>
                                  <option value="" disabled selected>Seleccione una sucursal</option>
-                                 <option v-for="m in sucursales" :value="m.id">{{ m.ubicacion }}</option>
+                                 <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
                               </select>
                            </div>
                            <div class="form-group col-12">
