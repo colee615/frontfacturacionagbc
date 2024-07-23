@@ -7,11 +7,12 @@
       </div>
       <div class="card-body pt-0 p-1 text-center">
          <h6 class="text-center mb-0 text-xxs">
-            <i class="fas fa-barcode"></i> {{ servicio.codigo }}
+            <i class="fas fa-barcode"></i>{{ Number(servicio.precioUnitario).toFixed(2) }}
          </h6>
          <span class="text-xs">{{ servicio.descripcion }}</span>
          <hr class="horizontal dark my-2" />
-         <h5 class="mb-0 text-sm">{{ Number(servicio.compra).toFixed(2) }}</h5>
+         <h5 class="mb-0 text-sm">
+            {{ servicio.codigo }}</h5>
       </div>
    </div>
 </template>

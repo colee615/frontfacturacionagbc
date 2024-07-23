@@ -25,27 +25,23 @@
                      </div>
                      <div class="col-12 py-2" style="min-height: 60vh; max-height: 60vh; overflow-y: scroll;">
                         <div class="row">
-                           <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in servicios" :key="m.id">
-                              <PostServicio :servicio="m" @AddCarrito="AddCarrito" />
+                           <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in serviciosServicio" :key="m.id">
+                              <PostServicio :servicio="m" @AddCarrito="AddCarritoPrimeraSeccion" />
                            </div>
                         </div>
-                     </div>
-                     <div class="col-xl-12">
-                        <div class="card">
-                           <div class="card-body d-flex p-3">
-                              <div class="nav-wrapper position-relative ms-auto w-50">
-                                 <ul class="nav nav-pills nav-fill p-1" role="tablist">
-                                    <li class="nav-item active" role="presentation">
-                                       <a class="nav-link mb-0 px-0 py-1" data-bs-toggle="tab" href="#cam1" role="tab"
-                                          aria-controls="cam1" aria-selected="true"></a>
-                                    </li>
-                                 </ul>
-                              </div>
+                        <div class="my-4 border-top"></div>
+                        <h4 class="text-center my-4">Segunda Sección</h4>
+                        <div class="row">
+                           <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in serviciosPrevalorada" :key="m.id">
+                              <PostServicio :servicio="m" @AddCarrito="AddCarritoSegundaSeccion" />
                            </div>
                         </div>
                      </div>
                   </div>
+
+
                </div>
+
                <div class="col-12 col-sm-5">
                   <div class="card card-pricing">
                      <div class="card-header bg-gradient-dark text-center pt-4 pb-5 position-relative">
@@ -136,6 +132,7 @@
                         </a>
                      </div>
                   </div>
+
                </div>
                <div class="modal fade" :class="modalEdit ? 'showModal' : ''" id="AjusteModal" tabindex="-1"
                   role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -333,6 +330,12 @@ export default {
    },
 
    computed: {
+      serviciosServicio() {
+         return this.servicios.filter(servicio => servicio.tipo === 'servicio');
+      },
+      serviciosPrevalorada() {
+         return this.servicios.filter(servicio => servicio.tipo === 'prevalorada');
+      },
       isCISelected() {
          return this.model.tipoDocumentoIdentidad === "1";
       },
@@ -355,6 +358,30 @@ export default {
       },
    },
    methods: {
+      AddCarritoPrimeraSeccion(servicio) {
+         if (this.carrito.some(item => item.servicio.tipo === 'prevalorada')) {
+            this.$swal.fire({
+               icon: "error",
+               title: "Restricción",
+               text: "No puedes agregar productos de la primera sección si ya tienes productos de la segunda sección en el carrito.",
+               confirmButtonText: "Entendido",
+            });
+            return;
+         }
+         this.AddCarrito(servicio, 'servicio');
+      },
+      AddCarritoSegundaSeccion(servicio) {
+         if (this.carrito.some(item => item.servicio.tipo === 'servicio')) {
+            this.$swal.fire({
+               icon: "error",
+               title: "Restricción",
+               text: "No puedes agregar productos de la segunda sección si ya tienes productos de la primera sección en el carrito.",
+               confirmButtonText: "Entendido",
+            });
+            return;
+         }
+         this.AddCarrito(servicio, 'prevalorada');
+      },
       selectCliente(cliente) {
          this.cliente = cliente;
          this.ConfirmAndSave();
@@ -378,7 +405,7 @@ export default {
                text: "Debe agregar al menos un elemento al carrito para poder guardar.",
                confirmButtonText: "Entendido",
             });
-         } else if (!this.cliente) {
+         } else if (this.carrito[0].tipo === 'servicio' && !this.cliente) {
             new bootstrap.Modal(document.getElementById("clienteModal")).show();
          } else {
             this.ConfirmAndSave();
@@ -393,7 +420,7 @@ export default {
                   'rollo': 'Formato Rollo',
                   'pagina': 'Formato Página'
                },
-               inputValue: 'rollo', // Valor por defecto
+               inputValue: 'rollo',
                showDenyButton: true,
                confirmButtonText: "Sí, facturar",
                denyButtonText: `No, cancelar`,
@@ -404,8 +431,12 @@ export default {
             })
             .then((result) => {
                if (result.isConfirmed) {
-                  this.formatoFactura = result.value; // Actualiza el formato de factura
-                  this.Save();
+                  this.formatoFactura = result.value;
+                  if (this.carrito[0].tipo === 'prevalorada') {
+                     this.SaveSegundaSeccion();
+                  } else {
+                     this.Save();
+                  }
                } else if (result.isDenied) {
                   window.location.reload();
                }
@@ -453,7 +484,7 @@ export default {
          } catch (e) {
          }
       },
-      AddCarrito(servicio) {
+      AddCarrito(servicio, tipo) {
          let id = servicio.id;
          let buscarRegistro = this.carrito.filter((i) => i.servicio.id == id);
          if (buscarRegistro.length > 0) {
@@ -468,6 +499,7 @@ export default {
                servicio: servicio,
                cantidad: 1,
                precio: servicio.precioUnitario,
+               tipo: tipo
             };
             this.carrito.push(item);
             this.item = item;
@@ -490,7 +522,7 @@ export default {
                cliente_id: this.cliente.id,
                cajero_id: this.user.id,
                codigoSucursal: this.user.sucursale.codigosucursal,
-               puntoVenta: this.user.sucursale.codigosucursal,
+               puntoVenta: 0,
                documentoSector: 1,
                municipio: this.user.sucursale.municipio,
                departamento: this.user.sucursale.departamento,
@@ -540,6 +572,64 @@ export default {
             this.load = false;
          }
       },
+      async SaveSegundaSeccion() {
+         this.load = true;
+         try {
+            const operacion = {
+               cajero_id: this.user.id,
+               codigoSucursal: this.user.sucursale.codigosucursal,
+               puntoVenta: 0,
+               documentoSector: 23,
+               municipio: this.user.sucursale.municipio,
+               departamento: this.user.sucursale.departamento,
+               telefono: this.user.sucursale.telefono,
+               metodoPago: 1,
+               formatoFactura: this.formatoFactura,
+               monto_descuento_adicional: this.montoDescuentoAdicional,
+               motivo: "Venta",
+               total: this.totalCarrito,
+               carrito: this.carrito.map((item) => ({
+                  servicio_id: item.servicio.id,
+                  actividadEconomica: item.servicio.actividadEconomica,
+                  codigoSin: item.servicio.codigoSin,
+                  codigo: item.servicio.codigo,
+                  descripcion: item.servicio.descripcion,
+                  unidadMedida: item.servicio.unidadMedida,
+                  cantidad: item.cantidad,
+                  precio: item.precio,
+               })),
+            };
+            console.log("Datos a enviar:", operacion);
+            const res = await this.$admin.$post("venta2", operacion);
+            this.$swal
+               .fire({
+                  title: "Venta Guardada !",
+                  showDenyButton: false,
+                  showCancelButton: false,
+                  confirmButtonText: "Ok",
+               })
+               .then(async (result) => {
+                  if (result.isConfirmed) {
+                     this.Clean();
+                     this.load = true;
+                     await this.Datos();
+                     this.load = false;
+                     this.cliente = null;
+                     const pdfResponse = await this.$admin.$get(`venta/pdf/${res.codigoSeguimiento}`);
+                     const printWindow = window.open(pdfResponse.pdf_url, "_blank");
+                     printWindow.onload = () => {
+                        printWindow.print();
+                     };
+                  }
+               });
+         } catch (e) {
+            console.error(e);
+         } finally {
+            this.load = false;
+         }
+      },
+
+
    },
 
    mounted() {

@@ -152,10 +152,15 @@
                                  <tr v-for="(m, i) in list" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
                                     <td class="py-0 px-1">{{ m.fecha }}</td>
-                                    <td class="py-0 px-1">{{ m.cliente.codigoCliente }} - {{ m.cliente.razonSocial }}
+                                    <td class="py-0 px-1">
+                                       {{ m.cliente && m.cliente.codigoCliente ? m.cliente.codigoCliente : 'N/A' }} -
+                                       {{ m.cliente && m.cliente.razonSocial ? m.cliente.razonSocial : 'N/A' }}
+
                                     </td>
                                     <td class="py-0 px-1">{{ m.codigoSeguimiento }}</td>
-                                    <td class="py-0 px-1">{{ m.cliente.documentoIdentidad }}</td>
+                                    <td class="py-0 px-1">
+                                       {{ m.cliente ? m.cliente.documentoIdentidad : 'N/A' }}
+                                    </td>
                                     <td class="py-0 px-1">{{ m.total }}</td>
                                     <td class="py-0 px-1">
                                        <div class="btn-group">

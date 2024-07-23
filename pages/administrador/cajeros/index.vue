@@ -26,7 +26,7 @@
                                     <td class="py-1 px-2">{{ i + 1 }}</td>
                                     <td class="py-1 px-2">{{ m.name }}</td>
                                     <td class="py-1 px-2">{{ m.email }}</td>
-                                    <td class="py-1 px-2">{{ m.sucursale.ubicacion }}</td>
+                                    <td class="py-1 px-2">{{ m.sucursale.departamento }}</td>
                                     <td class="py-1 px-2">
                                        <div class="btn-group">
                                           <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">

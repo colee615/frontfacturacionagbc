@@ -58,6 +58,13 @@
                                  <input type="text" name="" v-model="model.codigoSin" class="form-control" id=""
                                     readonly />
                               </div>
+                              <div class="form-group col-12">
+                                 <label for="">* Tipo</label>
+                                 <select v-model="model.tipo" class="form-control">
+                                    <option value="prevalorada">Prevalorada</option>
+                                    <option value="servicio">Servicio</option>
+                                 </select>
+                              </div>
                               <div class="col-12">
                                  <div class="row">
                                     <div class="col-6">
@@ -101,6 +108,7 @@ export default {
             nombre: '',
             unidadMedida: '',
             codigoSin: '99100',
+            tipo: '',
          },
          showInfoTooltip: false, // Variable para controlar la visibilidad del tooltip de información
          apiUrl: 'servicios',
@@ -143,6 +151,9 @@ export default {
 
          if (!this.model.codigoSin) {
             errors.push('El Código SIN del Servicio es obligatorio');
+         }
+         if (!this.model.tipo) {
+            errors.push('El Tipo es obligatorio');
          }
 
          return errors;
