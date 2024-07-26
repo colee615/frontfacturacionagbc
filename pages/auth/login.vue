@@ -202,7 +202,7 @@ export default {
       renderRecaptcha() {
          if (window.grecaptcha) {
             window.grecaptcha.render('recaptcha', {
-               sitekey: '6Le-WgsqAAAAAKYucBNfMWdrYAHbha6aapIQTb7J'
+               sitekey: '6LeZRRkqAAAAAFkhwa0KlenJXafRgu9Yl7Nr41NC'
             });
          }
       },
