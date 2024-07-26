@@ -16,7 +16,7 @@
                                  <i class="fas fa-question-circle" @mouseover="showInfoTooltip = true"
                                     @mouseleave="showInfoTooltip = false"></i> Información
                               </label>
-                              <div class="info-tooltip" :class="{ 'd-block': showInfoTooltip }">
+                              <div v-if="showInfoTooltip" class="info-tooltip">
                                  <span>Los campos marcados con * son obligatorios, el campo de email es obligatorio, si
                                     absolutamente no tiene email el cliente, guardelo vacio.</span>
                                  <div class="arrow"></div>
@@ -168,22 +168,20 @@ export default {
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
-         } else {
-            try {
-               await Promise.all([
-                  this.GET_DATA(this.apiUrl + "/" + this.$route.params.id),
-               ]).then((v) => {
-                  this.model = v[0];
-               });
-            } catch (e) {
 
-            } finally {
-               this.load = false;
+         try {
+            await Promise.all([
+               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id),
+            ]).then((v) => {
+               this.model = v[0];
+            });
+         } catch (e) {
 
-            }
+         } finally {
+            this.load = false;
+
          }
+
       });
    },
 };

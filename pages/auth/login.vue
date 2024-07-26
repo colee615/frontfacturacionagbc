@@ -1,65 +1,111 @@
 <template>
    <div>
-
-
       <main class="main-content main-content-bg mt-0 ps">
          <transition name="fade" mode="out-in">
             <section v-if="isLogin" key="login" class="form-section">
-               <div class="page-header min-vh-75">
-                  <div class="container">
-                     <div class="row justify-content-center">
-                        <div class="col-md-6">
-                           <div class="card custom-card">
-                              <div class="card-header pb-3 text-center">
-                                 <h3 class="font-weight-bold text-info">
-                                    Iniciar sesión <i class="fas fa-sign-in-alt"></i>
-                                 </h3>
-                              </div>
-                              <div class="card-body">
-                                 <form @submit.prevent="submit">
-                                    <div class="mb-3">
-                                       <label for="email" class="form-label"><i class="far fa-envelope"></i> Correo
-                                          Electrónico</label>
-                                       <input type="email" v-model.trim="model.email" class="form-control" id="email"
-                                          placeholder="Correo Electrónico" required>
-                                    </div>
-                                    <div class="mb-3 position-relative">
-                                       <label for="password" class="form-label"><i class="fas fa-lock"></i>
-                                          Contraseña</label>
-                                       <input type="password" v-model.trim="model.password" class="form-control"
-                                          id="password" placeholder="Contraseña" required>
-                                       <button type="button" class="btn btn-outline-secondary btn-sm align-self-center"
-                                          style="position: absolute; right: 10px; top: 70%; transform: translateY(-50%); border: none; z-index: 100;"
-                                          @click="togglePasswordVisibility">
-                                          <i class="fas" :class="showPassword ? 'fa-eye' : 'fa-eye-slash'"
-                                             style="color: black;"></i>
-                                       </button>
-                                    </div>
-                                    <div class="text-center">
-                                       <button type="submit" class="btn bg-gradient-info w-100 mt-4">
-                                          Ingresar
-                                       </button>
-
-                                       <p class="mt-1">
-                                          <a href="#" @click="toggleMode('forgotPassword')">¿Olvidaste tu
-                                             contraseña?</a>
-                                       </p>
-                                    </div>
-                                 </form>
-
-                                 <div v-if="codigoEnviado">
-                                    <p>Se ha enviado un código de confirmación a su correo. Por favor, ingréselo a
-                                       continuación:</p>
-                                    <form @submit.prevent="verificarCodigo">
+               <div class="page-header min-vh-75 d-flex">
+                  <div class="image-section">
+                     <img src="/assets/imagenes/login1.jpg" class="img-fluid full-height" alt="Imagen">
+                  </div>
+                  <div class="form-container">
+                     <div class="container">
+                        <div class="row justify-content-center">
+                           <div class="col-md-8">
+                              <div class="card custom-card">
+                                 <div class="card-header pb-3 text-center">
+                                    <h3 class="font-weight-bold text-info">
+                                       Iniciar sesión <i class="fas fa-sign-in-alt"></i>
+                                    </h3>
+                                 </div>
+                                 <div class="card-body">
+                                    <form @submit.prevent="submit">
                                        <div class="mb-3">
-                                          <label for="codigo_confirmacion" class="form-label">Código de
-                                             Confirmación</label>
-                                          <input type="text" v-model="model.codigo_confirmacion" class="form-control"
-                                             id="codigo_confirmacion" required>
+                                          <label for="email" class="form-label"><i class="far fa-envelope"></i> Correo
+                                             Electrónico</label>
+                                          <input type="email" v-model.trim="model.email" class="form-control" id="email"
+                                             placeholder="Correo Electrónico" required>
+                                       </div>
+                                       <div class="mb-3 position-relative">
+                                          <label for="password" class="form-label"><i class="fas fa-lock"></i>
+                                             Contraseña</label>
+                                          <input type="password" v-model.trim="model.password" class="form-control"
+                                             id="password" placeholder="Contraseña" required>
+
+                                          <button type="button"
+                                             class="btn btn-outline-secondary btn-sm align-self-center"
+                                             style="position: absolute; right: 10px; top: 50%; transform: translateY(-10%); border: none; z-index: 100;"
+                                             @click="togglePasswordVisibility">
+                                             <i class="fas" :class="showPassword ? 'fa-eye' : 'fa-eye-slash'"
+                                                style="color: black;"></i>
+                                          </button>
+
+                                       </div>
+                                       <div class="mb-3">
+                                          <div id="recaptcha" class="g-recaptcha"></div>
                                        </div>
                                        <div class="text-center">
-                                          <button type="submit" class="btn bg-gradient-info w-100 mt-4">Verificar
-                                             Código</button>
+                                          <button type="submit"
+                                             class="btn bg-gradient-info w-100 mt-4">Ingresar</button>
+                                          <p class="mt-1">
+                                             <a href="#" @click="toggleMode('forgotPassword')">¿Olvidaste tu
+                                                contraseña?</a>
+                                          </p>
+                                       </div>
+                                    </form>
+                                    <div v-if="codigoEnviado">
+                                       <p>Se ha enviado un código de confirmación a su correo. Por favor, ingréselo a
+                                          continuación:</p>
+                                       <form @submit.prevent="verificarCodigo">
+                                          <div class="mb-3">
+                                             <label for="codigo_confirmacion" class="form-label">Código de
+                                                Confirmación</label>
+                                             <input type="text" v-model="model.codigo_confirmacion" class="form-control"
+                                                id="codigo_confirmacion" required>
+                                          </div>
+                                          <div class="text-center">
+                                             <button type="submit" class="btn bg-gradient-info w-100 mt-4">Verificar
+                                                Código</button>
+                                          </div>
+                                       </form>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </section>
+
+            <section v-else key="forgotPassword" class="form-section">
+               <div class="page-header min-vh-75 d-flex">
+                  <div class="image-section">
+                     <img src="/assets/imagenes/login1.jpg" class="img-fluid full-height" alt="Imagen">
+                  </div>
+                  <div class="form-container">
+                     <div class="container">
+                        <div class="row justify-content-center">
+                           <div class="col-md-8">
+                              <div class="card custom-card">
+                                 <div class="card-header pb-3 text-center">
+                                    <h3 class="font-weight-bold text-info">
+                                       Recuperar Contraseña <i class="fas fa-key"></i>
+                                    </h3>
+                                 </div>
+                                 <div class="card-body">
+                                    <form @submit.prevent="submitForgotPassword">
+                                       <div class="mb-3">
+                                          <label for="forgot-email" class="form-label"><i class="far fa-envelope"></i>
+                                             Correo Electrónico</label>
+                                          <input type="email" v-model.trim="forgotPasswordEmail" class="form-control"
+                                             id="forgot-email" placeholder="Correo Electrónico" required>
+                                       </div>
+                                       <div class="text-center">
+                                          <button type="submit" class="btn bg-gradient-info w-100 mt-4">Enviar Correo de
+                                             Recuperación</button>
+                                          <p class="mt-3">
+                                             <a href="#" @click="toggleMode('login')">Volver al inicio de sesión</a>
+                                          </p>
                                        </div>
                                     </form>
                                  </div>
@@ -69,44 +115,6 @@
                      </div>
                   </div>
                </div>
-
-            </section>
-
-            <section v-else key="forgotPassword" class="form-section">
-               <div class="page-header min-vh-75">
-                  <div class="container">
-                     <div class="row justify-content-center">
-                        <div class="col-md-6">
-                           <div class="card custom-card">
-                              <div class="card-header pb-3 text-center">
-                                 <h3 class="font-weight-bold text-info">
-                                    Recuperar Contraseña <i class="fas fa-key"></i>
-                                 </h3>
-                              </div>
-                              <div class="card-body">
-                                 <form @submit.prevent="submitForgotPassword">
-                                    <div class="mb-3">
-                                       <label for="forgot-email" class="form-label"><i class="far fa-envelope"></i>
-                                          Correo Electrónico</label>
-                                       <input type="email" v-model.trim="forgotPasswordEmail" class="form-control"
-                                          id="forgot-email" placeholder="Correo Electrónico" required>
-                                    </div>
-                                    <div class="text-center">
-                                       <button type="submit" class="btn bg-gradient-info w-100 mt-4">Enviar Correo de
-                                          Recuperación</button>
-                                       <p class="mt-3">
-                                          <a href="#" @click="toggleMode('login')">Volver al inicio de sesión</a>
-                                       </p>
-                                    </div>
-                                 </form>
-
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
             </section>
          </transition>
       </main>
@@ -147,7 +155,6 @@
             </div>
          </div>
       </div>
-
    </div>
 </template>
 
@@ -171,12 +178,34 @@ export default {
          model3: {
             password: ''
          },
-         isRegister: false, // Define isRegister here
-         resetToken: '',  // Añadir esta línea
-         newPassword: ''  // Añadir esta línea
+         isRegister: false,
+         resetToken: '',
+         newPassword: ''
       }
    },
+   mounted() {
+      this.loadRecaptcha();
+   },
    methods: {
+      loadRecaptcha() {
+         if (!document.querySelector('script[src="https://www.google.com/recaptcha/api.js"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
+            script.async = true;
+            script.defer = true;
+            window.onloadCallback = this.renderRecaptcha;
+            document.head.appendChild(script);
+         } else {
+            this.renderRecaptcha();
+         }
+      },
+      renderRecaptcha() {
+         if (window.grecaptcha) {
+            window.grecaptcha.render('recaptcha', {
+               sitekey: '6Le-WgsqAAAAAKYucBNfMWdrYAHbha6aapIQTb7J'
+            });
+         }
+      },
       async enviarDatosCita() {
          if (!this.resetToken || !this.newPassword) {
             await this.$swal.fire({
@@ -227,7 +256,7 @@ export default {
             });
          }
       },
-      abrirModalCita() { // Modificar esta línea
+      abrirModalCita() {
          this.modalCitas = true;
       },
       cerrarModalCi() {
@@ -252,8 +281,20 @@ export default {
             });
             return;
          }
+         const recaptchaResponse = grecaptcha.getResponse();
+         if (!recaptchaResponse) {
+            this.$swal.fire({
+               toast: true,
+               position: 'center',
+               showConfirmButton: false,
+               icon: 'error',
+               title: 'Oops...',
+               text: 'Por favor, complete el reCAPTCHA.',
+            });
+            return;
+         }
          try {
-            const res = await this.$admin.post('login', this.model);
+            const res = await this.$admin.post('login', { ...this.model, 'g-recaptcha-response': recaptchaResponse });
             if (res.data.message) {
                this.$swal.fire({
                   toast: true,
@@ -330,10 +371,7 @@ export default {
                icon: 'error',
             });
          }
-      }
-
-      ,
-
+      },
       async submitForgotPassword() {
          if (!this.forgotPasswordEmail) {
             this.$swal.fire({
@@ -356,7 +394,7 @@ export default {
                   icon: 'success',
                   title: response.data.message,
                });
-               this.abrirModalCita(); // Abrir modal para ingresar token y nueva contraseña
+               this.abrirModalCita();
             } else if (response.data.error) {
                this.$swal.fire({
                   toast: true,
@@ -375,14 +413,6 @@ export default {
             });
          }
       },
-      togglePasswordVisibility() {
-         const passwordInput = document.getElementById('password');
-         if (passwordInput) {
-            passwordInput.type = this.showPassword ? 'text' : 'password';
-            this.showPassword = !this.showPassword;
-         }
-      },
-
       toggleMode(mode) {
          this.isLogin = mode === 'login';
          this.isRegister = mode === 'register';
@@ -437,6 +467,31 @@ i {
 
 .form-section {
    position: relative;
+   display: flex;
+   align-items: center;
+}
+
+.page-header {
+   display: flex;
+   width: 100%;
+}
+
+.image-section {
+   flex: 1;
+   overflow: hidden;
+}
+
+.image-section img {
+   width: 100%;
+   height: 100%;
+   object-fit: cover;
+}
+
+.form-container {
+   flex: 1;
+   display: flex;
+   justify-content: center;
+   align-items: center;
 }
 
 .card.custom-card {
@@ -472,19 +527,5 @@ i {
 
 .position-relative:hover .info-tooltip {
    display: block;
-}
-
-.background-image-container {
-   position: absolute;
-   top: 0;
-   left: 0;
-   width: 100%;
-   height: 100%;
-   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/assets/imagenes/login1.jpg') center center / cover no-repeat;
-   z-index: 0;
-}
-
-.oblique-image {
-   filter: blur(8px) brightness(0.7);
 }
 </style>

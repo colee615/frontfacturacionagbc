@@ -1,5 +1,5 @@
 <template>
-   <div>
+   <div v-if="user">
       <BaseAside />
       <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg">
          <BaseNav :page="page" :modulo="modulo" />
@@ -8,6 +8,9 @@
             <BaseFooter />
          </div>
       </main>
+   </div>
+   <div v-else>
+      <!-- Puedes añadir un mensaje o componente de carga aquí si lo deseas -->
    </div>
 </template>
 
@@ -24,14 +27,20 @@ export default {
          default: ''
       }
    },
+   async asyncData({ store, redirect }) {
+      await store.dispatch('auth/loadAuthFromStorage');
+
+      // Verifica si el usuario está autenticado
+      if (!store.state.auth.token) {
+         // Si no está autenticado, redirige a la página de login
+         redirect('/auth/login');
+      }
+
+      return {};
+   },
    computed: {
       user() {
          return this.$store.state.auth.user;
-      }
-   },
-   mounted() {
-      if (process.client && !this.user) {
-         this.$router.push('/auth/login');
       }
    }
 }

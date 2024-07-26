@@ -101,7 +101,7 @@ export default {
    methods: {
       SideToggle() {
          let body = document.body
-         body.classList.add("g-sidenav-show", "bg-gray-100");
+         body.classList.add("g-sidenav-show", "bg-gray-50");
          body.classList.contains("g-sidenav-hidden") ? body.classList.remove("g-sidenav-hidden") : body.classList.add("g-sidenav-hidden");
       },
       hideSideNav() {

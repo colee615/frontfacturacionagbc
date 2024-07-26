@@ -3,11 +3,13 @@
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-            <div class="row justify-content-end mb-2">
-               <div class="col-auto">
-               </div>
-            </div>
+
             <div class="row">
+               <div class="col-12 mb-2">
+                  <input v-model="searchQuery" type="text" class="form-control mb-2"
+                     placeholder="Buscar por codigo seguimiento">
+
+               </div>
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
@@ -26,7 +28,7 @@
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-for="(m, i) in list" :key="m.id">
+                                 <tr v-for="(m, i) in filteredList" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
                                     <td class="py-0 px-1"
                                        :class="{ 'emision': m.detalle.tipoEmision === 'EMISION', 'anulacion': m.detalle.tipoEmision === 'ANULACION' }">
@@ -63,6 +65,7 @@
    </div>
 </template>
 
+
 <script>
 export default {
    name: "IndexPage",
@@ -76,6 +79,7 @@ export default {
       return {
          load: true,
          list: [],
+         searchQuery: '',
          apiUrl: 'notificaciones',
          page: 'Administracion',
          modulo: 'Notificaciones',
@@ -95,26 +99,27 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+      filteredList() {
+         return this.list.filter(item => item.codigo_seguimiento.toLowerCase().includes(this.searchQuery.toLowerCase()));
+      }
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
-         } else {
-            try {
-               await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-                  this.list = v[0]
-               })
-            } catch (e) {
+         try {
+            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
+               this.list = v[0];
+            });
+         } catch (e) {
 
-            } finally {
-               this.load = false
-            }
+         } finally {
+            this.load = false;
          }
+
       });
    },
 };
 </script>
+
 
 <style scoped>
 .emision {

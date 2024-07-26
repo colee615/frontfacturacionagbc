@@ -109,17 +109,15 @@ export default {
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
-         } else {
-            try {
-               await this.GET_DATA('notificaciones/' + this.$route.params.id);
-            } catch (e) {
-               console.log(e);
-            } finally {
-               this.load = false;
-            }
+
+         try {
+            await this.GET_DATA('notificaciones/' + this.$route.params.id);
+         } catch (e) {
+            console.log(e);
+         } finally {
+            this.load = false;
          }
+
       });
    },
 };

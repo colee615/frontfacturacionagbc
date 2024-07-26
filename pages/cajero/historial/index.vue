@@ -24,9 +24,12 @@
                                  <tr v-for="(m, i) in filteredList" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
                                     <td class="py-0 px-1">{{ m.fecha }}</td>
-                                    <td class="py-0 px-1">{{ m.cliente.codigoCliente }} - {{ m.cliente.razonSocial }}
+                                    <td class="py-0 px-1">
+                                       {{ m.cliente && m.cliente.codigoCliente ? m.cliente.codigoCliente : 'N/A' }} -
+                                       {{ m.cliente && m.cliente.razonSocial ? m.cliente.razonSocial : 'N/A' }}
                                     </td>
-                                    <td class="py-0 px-1">{{ m.cliente.documentoIdentidad }}</td>
+                                    <td class="py-0 px-1">{{ m.cliente && m.cliente.documentoIdentidad ?
+                                       m.cliente.documentoIdentidad : 'N/A' }}</td>
                                     <td class="py-0 px-1">{{ m.total }}</td>
                                     <td class="py-0 px-1">
                                        <div class="btn-group">
@@ -55,15 +58,14 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
 export default {
-
    head() {
       return {
          title: this.modulo,
       };
    },
-
    data() {
       return {
          load: true,
@@ -73,7 +75,6 @@ export default {
          page: "Ventas",
          modulo: "Lista de ventas",
          sucursal: {},
-
          url_editar: "/cajero/ventas/invoice/",
       };
    },
@@ -86,12 +87,11 @@ export default {
          this.load = true;
          try {
             const res = await this.$admin.$delete(this.apiUrl + "/" + id);
-
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
             });
          } catch (e) {
-
+            // Manejar errores aquí
          } finally {
             this.load = false;
          }
@@ -111,21 +111,19 @@ export default {
          });
       },
       async ImprimirVenta(venta) {
-         let sucursal = this.sucursal
-         sucursal.venta = venta
+         let sucursal = this.sucursal;
+         sucursal.venta = venta;
          const res = await this.$printer.$post(sucursal.impresora_url + "venta", sucursal);
-         console.log(res)
+         console.log(res);
       }
    },
    computed: {
       filteredList() {
-         // Filtrar la lista de ventas por el id del cajero actual
          return this.list.filter(m => m.cajero.id === this.user.id);
       },
       user() {
          return this.$store.state.auth.user;
       },
-
    },
    mounted() {
       this.$nextTick(async () => {
@@ -134,7 +132,7 @@ export default {
                this.list = v[0];
             });
          } catch (e) {
-
+            // Manejar errores aquí
          } finally {
             this.load = false;
          }

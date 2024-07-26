@@ -160,9 +160,7 @@ export default {
       },
    },
    mounted() {
-      if (this.user.role !== 'administrador') {
-         this.$router.push('/');
-      }
+
    },
 }
 </script>

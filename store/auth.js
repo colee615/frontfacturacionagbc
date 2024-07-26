@@ -1,7 +1,7 @@
-// store/auth.js
 export const state = () => ({
   token: null,
   user: null,
+  role: null, // New state property for role
 });
 
 export const mutations = {
@@ -13,9 +13,11 @@ export const mutations = {
   },
   setUser(state, user) {
     state.user = user;
+    state.role = user.role; 
   },
   clearUser(state) {
     state.user = null;
+    state.role = null; // Clear role when user is cleared
   },
 };
 
@@ -28,7 +30,8 @@ export const actions = {
         commit('setToken', token);
       }
       if (user) {
-        commit('setUser', JSON.parse(user));
+        const parsedUser = JSON.parse(user);
+        commit('setUser', parsedUser);
       }
     }
   },

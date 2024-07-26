@@ -30,7 +30,7 @@
                            </div>
                         </div>
                         <div class="my-4 border-top"></div>
-                        <h4 class="text-center my-4">Segunda Sección</h4>
+                        <h4 class="text-center my-4">Prevaloradas</h4>
                         <div class="row">
                            <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in serviciosPrevalorada" :key="m.id">
                               <PostServicio :servicio="m" @AddCarrito="AddCarritoSegundaSeccion" />
@@ -85,13 +85,17 @@
                                  <tr>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Artículo</th>
+                                       Artículo
+                                    </th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Cantidad</th>
+                                       Código Especial
+                                    </th>
+
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Total</th>
+                                       Total
+                                    </th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">
                                     </th>
@@ -104,7 +108,7 @@
                                        </p>
                                     </td>
                                     <td class="text-start">
-                                       <p class="text-xxs font-weight-bold mb-0 text-start">{{ m.cantidad }}</p>
+                                       <p class="text-xxs font-weight-bold mb-0 text-start">{{ m.codigoEspecial }}</p>
                                     </td>
                                     <td class="text-start">
                                        <p class="text-xxs font-weight-bold mb-0 text-start">{{ Number(m.cantidad *
@@ -122,10 +126,12 @@
                                           </button>
                                        </div>
                                     </td>
+
                                  </tr>
                               </tbody>
                            </table>
                         </div>
+
                         <a href="javascript:void(0);" class="btn bg-gradient-dark w-100 mt-4 mb-0"
                            @click="CheckAndSave">
                            <i class="fas fa-save mx-2"></i> GUARDAR VENTA
@@ -164,19 +170,27 @@
                               <div class="col-6">
                                  <div class="form-group has-success">
                                     <label for="">Cantidad</label>
-                                    <input type="text" placeholder="" class="form-control"
-                                       v-model.number="item.cantidad" />
+                                    <input type="number" placeholder="" class="form-control"
+                                       v-model.number="item.cantidad" min="1" />
+                                 </div>
+                              </div>
+                              <div class="col-12">
+                                 <div class="form-group has-success">
+                                    <label for="">Código Especial</label>
+                                    <input type="text" placeholder="Ingrese código especial" class="form-control"
+                                       v-model="item.codigoEspecial" />
                                  </div>
                               </div>
                            </div>
                         </div>
                         <div class="modal-footer">
-                           <button type="button" @click="modalEdit = false" class="btn bg-gradient-secondary w-100"
+                           <button type="button" @click="SaveItem" class="btn bg-gradient-secondary w-100"
                               data-bs-dismiss="modal">Confirmar</button>
                         </div>
                      </div>
                   </div>
                </div>
+
                <div class="modal fade" id="clienteModal" tabindex="-1" aria-labelledby="clienteModalLabel"
                   aria-hidden="true">
                   <div class="modal-dialog modal-lg">
@@ -363,7 +377,7 @@ export default {
             this.$swal.fire({
                icon: "error",
                title: "Restricción",
-               text: "No puedes agregar productos de la primera sección si ya tienes productos de la segunda sección en el carrito.",
+               text: "No puedes agregar productos de la primera sección si ya tienes productos de las prevaloradas en el carrito.",
                confirmButtonText: "Entendido",
             });
             return;
@@ -375,7 +389,7 @@ export default {
             this.$swal.fire({
                icon: "error",
                title: "Restricción",
-               text: "No puedes agregar productos de la segunda sección si ya tienes productos de la primera sección en el carrito.",
+               text: "No puedes agregar productos de las prevaloradas si ya tienes productos de la primera sección en el carrito.",
                confirmButtonText: "Entendido",
             });
             return;
@@ -485,26 +499,22 @@ export default {
          }
       },
       AddCarrito(servicio, tipo) {
-         let id = servicio.id;
-         let buscarRegistro = this.carrito.filter((i) => i.servicio.id == id);
-         if (buscarRegistro.length > 0) {
-            let indice = this.carrito.findIndex((i) => i.servicio.id == id);
-            if (this.carrito[indice].cantidad + 1 > this.carrito[indice].stock) {
-               return false;
-            } else {
-               this.carrito[indice].cantidad += 1;
-            }
-         } else {
-            const item = {
-               servicio: servicio,
-               cantidad: 1,
-               precio: servicio.precioUnitario,
-               tipo: tipo
-            };
-            this.carrito.push(item);
-            this.item = item;
-            this.modalEdit = true;
+         const item = {
+            servicio: servicio,
+            cantidad: 1,
+            precio: servicio.precioUnitario,
+            tipo: tipo,
+            codigoEspecial: ''  // Campo para el código especial
+         };
+         this.item = item;
+         this.modalEdit = true;
+      },
+      SaveItem() {
+         for (let i = 0; i < this.item.cantidad; i++) {
+            const newItem = { ...this.item, cantidad: 1 }; // Crear una copia con cantidad 1
+            this.carrito.push(newItem);
          }
+         this.modalEdit = false;
       },
       EliminarItem(i) {
          this.carrito.splice(i, 1);
@@ -536,7 +546,7 @@ export default {
                   servicio_id: item.servicio.id,
                   actividadEconomica: item.servicio.actividadEconomica,
                   codigoSin: item.servicio.codigoSin,
-                  codigo: item.servicio.codigo,
+                  codigo: `${item.servicio.codigo} ${item.codigoEspecial}`,
                   descripcion: item.servicio.descripcion,
                   unidadMedida: item.servicio.unidadMedida,
                   cantidad: item.cantidad,
@@ -568,6 +578,13 @@ export default {
                });
          } catch (e) {
             console.error(e);
+            this.$swal.fire({
+               title: "Error al emitir factura",
+               text: "No hay conexión con la AGETIC",
+               footer: e.response?.data?.details || "Hubo un error al procesar la venta",
+               icon: "error",
+               confirmButtonText: "Ok",
+            });
          } finally {
             this.load = false;
          }
@@ -624,6 +641,13 @@ export default {
                });
          } catch (e) {
             console.error(e);
+            this.$swal.fire({
+               title: "Error al emitir factura",
+               text: "No hay conexión con la AGETIC",
+               footer: e.response?.data?.details || "Hubo un error al procesar la venta",
+               icon: "error",
+               confirmButtonText: "Ok",
+            });
          } finally {
             this.load = false;
          }
@@ -645,18 +669,6 @@ export default {
 };
 </script>
 
-<style>
-.showModal {
-   visibility: visible;
-   display: block;
-   opacity: 1 !important;
-}
-
-.table-responsive {
-   max-height: 300px;
-   overflow-y: auto;
-}
-</style>
 <style>
 .showModal {
    visibility: visible;
