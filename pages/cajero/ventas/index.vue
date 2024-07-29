@@ -174,13 +174,22 @@
                                        v-model.number="item.cantidad" min="1" />
                                  </div>
                               </div>
-                              <div class="col-12">
+                              <div class="col-12" v-if="item.servicio.tipo === 'servicio'">
                                  <div class="form-group has-success">
                                     <label for="">Código Especial</label>
                                     <input type="text" placeholder="Ingrese código especial" class="form-control"
                                        v-model="item.codigoEspecial" />
                                  </div>
                               </div>
+                              <div class="col-12" v-if="item.servicio.tipo === 'servicio'">
+                                 <div class="form-group has-success">
+                                    <label for="">Información Adicional</label>
+                                    <input type="text" placeholder="Ingrese información adicional" class="form-control"
+                                       v-model="item.informacionAdicional" />
+                                 </div>
+                              </div>
+
+
                            </div>
                         </div>
                         <div class="modal-footer">
@@ -504,11 +513,14 @@ export default {
             cantidad: 1,
             precio: servicio.precioUnitario,
             tipo: tipo,
-            codigoEspecial: ''  // Campo para el código especial
+            codigoEspecial: '',  // Campo para el código especial
+            informacionAdicional: ''  // Campo para la información adicional
+
          };
          this.item = item;
          this.modalEdit = true;
-      },
+      }
+      ,
       SaveItem() {
          for (let i = 0; i < this.item.cantidad; i++) {
             const newItem = { ...this.item, cantidad: 1 }; // Crear una copia con cantidad 1
@@ -516,6 +528,7 @@ export default {
          }
          this.modalEdit = false;
       },
+
       EliminarItem(i) {
          this.carrito.splice(i, 1);
       },
@@ -542,12 +555,12 @@ export default {
                monto_descuento_adicional: this.montoDescuentoAdicional,
                motivo: "Venta",
                total: this.totalCarrito,
-               carrito: this.carrito.map((item) => ({
+               carrito: this.carrito.map((item, index) => ({
                   servicio_id: item.servicio.id,
                   actividadEconomica: item.servicio.actividadEconomica,
                   codigoSin: item.servicio.codigoSin,
-                  codigo: `${item.servicio.codigo} ${item.codigoEspecial}`,
-                  descripcion: item.servicio.descripcion,
+                  codigo: `${item.servicio.codigo}-${index + 1}`,
+                  descripcion: `Codigo: ${item.codigoEspecial}, Detalle de envío: ${item.informacionAdicional}`, // Modificación aquí
                   unidadMedida: item.servicio.unidadMedida,
                   cantidad: item.cantidad,
                   precio: item.precio,
@@ -588,7 +601,10 @@ export default {
          } finally {
             this.load = false;
          }
-      },
+      }
+
+
+      ,
       async SaveSegundaSeccion() {
          this.load = true;
          try {
