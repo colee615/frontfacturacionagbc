@@ -394,17 +394,23 @@ export default {
          this.AddCarrito(servicio, 'servicio');
       },
       AddCarritoSegundaSeccion(servicio) {
-         if (this.carrito.some(item => item.servicio.tipo === 'servicio')) {
-            this.$swal.fire({
-               icon: "error",
-               title: "Restricción",
-               text: "No puedes agregar productos de las prevaloradas si ya tienes productos de la primera sección en el carrito.",
-               confirmButtonText: "Entendido",
-            });
-            return;
+         const existingItemIndex = this.carrito.findIndex(item => item.servicio.id === servicio.id);
+         if (existingItemIndex !== -1) {
+            this.carrito[existingItemIndex].cantidad += this.item.cantidad;
+         } else {
+            const item = {
+               servicio: servicio,
+               cantidad: this.item.cantidad,
+               precio: servicio.precioUnitario,
+               tipo: 'prevalorada',
+               codigoEspecial: '',  // Campo para el código especial
+               informacionAdicional: ''  // Campo para la información adicional
+            };
+            this.item = item;
+            this.modalEdit = true;
          }
-         this.AddCarrito(servicio, 'prevalorada');
-      },
+      }
+      ,
       selectCliente(cliente) {
          this.cliente = cliente;
          this.ConfirmAndSave();
@@ -522,12 +528,30 @@ export default {
       }
       ,
       SaveItem() {
-         for (let i = 0; i < this.item.cantidad; i++) {
-            const newItem = { ...this.item, cantidad: 1 }; // Crear una copia con cantidad 1
-            this.carrito.push(newItem);
+         if (this.item.tipo === 'servicio') {
+            const baseCodigo = this.item.servicio.codigo;
+            for (let i = 0; i < this.item.cantidad; i++) {
+               const newItem = {
+                  ...this.item,
+                  cantidad: 1, // Crear una copia con cantidad 1
+                  servicio: {
+                     ...this.item.servicio,
+                     codigo: `${baseCodigo}-${i + 1}` // Añadir el número secuencial al código del servicio
+                  }
+               };
+               this.carrito.push(newItem);
+            }
+         } else if (this.item.tipo === 'prevalorada') {
+            const existingItemIndex = this.carrito.findIndex(item => item.servicio.id === this.item.servicio.id);
+            if (existingItemIndex !== -1) {
+               this.carrito[existingItemIndex].cantidad += this.item.cantidad;
+            } else {
+               this.carrito.push({ ...this.item });
+            }
          }
          this.modalEdit = false;
-      },
+      }
+      ,
 
       EliminarItem(i) {
          this.carrito.splice(i, 1);
