@@ -36,6 +36,9 @@
             </ol>
             <h6 class="font-weight-bolder mb-0">{{ modulo }}</h6>
          </nav>
+         <div class="navbar-text-container">
+            <span class="navbar-text">Bienvenido al sistema de facturacion SAFE {{ role }} - {{ user.name }}</span>
+         </div>
          <div class="sidenav-toggler sidenav-toggler-inner d-xl-block d-none">
             <a href="javascript:;" @click="SideToggle()" class="nav-link text-body p-0">
                <div class="sidenav-toggler-inner">
@@ -76,13 +79,11 @@
          </div>
       </div>
    </nav>
-
 </template>
 
 <script>
 export default {
    props: {
-
       page: {
          type: String,
          default: ''
@@ -95,13 +96,23 @@ export default {
    data() {
       return {
          theme: 'light-version',
-         user: {}
       }
    },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+      role() {
+         return this.$store.state.auth.role;
+      },
+
+   },
    methods: {
+
+
       SideToggle() {
          let body = document.body
-         body.classList.add("g-sidenav-show", "bg-gray-50");
+         body.classList.add("g-sidenav-show", "bg-gray-");
          body.classList.contains("g-sidenav-hidden") ? body.classList.remove("g-sidenav-hidden") : body.classList.add("g-sidenav-hidden");
       },
       hideSideNav() {
@@ -154,9 +165,9 @@ export default {
          }
       });
    }
-
 }
 </script>
+
 <style>
 .side_togle {
    cursor: pointer;
@@ -180,5 +191,16 @@ export default {
 
 #iconNavbarSidenav {
    cursor: pointer;
+}
+
+.navbar-text-container {
+   position: absolute;
+   left: 50%;
+   transform: translateX(-50%);
+}
+
+.navbar-text {
+   font-size: 1rem;
+   color: #6c757d;
 }
 </style>

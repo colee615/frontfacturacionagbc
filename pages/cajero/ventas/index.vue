@@ -38,10 +38,7 @@
                         </div>
                      </div>
                   </div>
-
-
                </div>
-
                <div class="col-12 col-sm-5">
                   <div class="card card-pricing">
                      <div class="card-header bg-gradient-dark text-center pt-4 pb-5 position-relative">
@@ -89,9 +86,8 @@
                                     </th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       Código Especial
+                                       Código de Rastreo
                                     </th>
-
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
                                        Total
@@ -126,19 +122,16 @@
                                           </button>
                                        </div>
                                     </td>
-
                                  </tr>
                               </tbody>
                            </table>
                         </div>
-
                         <a href="javascript:void(0);" class="btn bg-gradient-dark w-100 mt-4 mb-0"
                            @click="CheckAndSave">
                            <i class="fas fa-save mx-2"></i> GUARDAR VENTA
                         </a>
                      </div>
                   </div>
-
                </div>
                <div class="modal fade" :class="modalEdit ? 'showModal' : ''" id="AjusteModal" tabindex="-1"
                   role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -146,8 +139,8 @@
                      <div class="modal-content">
                         <div class="modal-header">
                            <h5 class="modal-title" id="exampleModalLabel">Editar servicio</h5>
-                           <button type="button" class="btn-close text-dark" @click="modalEdit = false"
-                              data-bs-dismiss="modal" aria-label="Close">
+                           <button type="button" class="btn-close text-dark" @click="closeModal" data-bs-dismiss="modal"
+                              aria-label="Close">
                               <span aria-hidden="true">&times;</span>
                            </button>
                         </div>
@@ -157,7 +150,9 @@
                                  <div class="form-group has-success">
                                     <label for="">Servicio</label>
                                     <input type="text" placeholder="" disabled class="form-control"
-                                       :value="item.servicio.nombre" />
+                                       :value="item.servicio.codigo" />
+                                    <input type="text" placeholder="" disabled class="form-control"
+                                       :value="item.servicio.descripcion" />
                                  </div>
                               </div>
                               <div class="col-6">
@@ -171,25 +166,23 @@
                                  <div class="form-group has-success">
                                     <label for="">Cantidad</label>
                                     <input type="number" placeholder="" class="form-control"
-                                       v-model.number="item.cantidad" min="1" />
+                                       v-model.number="item.cantidad" min="1" @input="validateCantidad" />
                                  </div>
                               </div>
-                              <div class="col-12" v-if="item.servicio.tipo === 'servicio'">
-                                 <div class="form-group has-success">
-                                    <label for="">Código Especial</label>
-                                    <input type="text" placeholder="Ingrese código especial" class="form-control"
-                                       v-model="item.codigoEspecial" />
+                              <div class="col-12">
+                                 <div v-for="(field, index) in specialFields" :key="index">
+                                    <div class="form-group has-success">
+                                       <label for="">Código de Rastreo {{ index + 1 }}</label>
+                                       <input type="text" placeholder="Ingrese código de rastreo" class="form-control"
+                                          v-model="field.codigoEspecial" />
+                                    </div>
+                                    <div class="form-group has-success">
+                                       <label for="">Información Adicional {{ index + 1 }}</label>
+                                       <input type="text" placeholder="Ingrese información adicional"
+                                          class="form-control" v-model="field.informacionAdicional" />
+                                    </div>
                                  </div>
                               </div>
-                              <div class="col-12" v-if="item.servicio.tipo === 'servicio'">
-                                 <div class="form-group has-success">
-                                    <label for="">Información Adicional</label>
-                                    <input type="text" placeholder="Ingrese información adicional" class="form-control"
-                                       v-model="item.informacionAdicional" />
-                                 </div>
-                              </div>
-
-
                            </div>
                         </div>
                         <div class="modal-footer">
@@ -199,7 +192,6 @@
                      </div>
                   </div>
                </div>
-
                <div class="modal fade" id="clienteModal" tabindex="-1" aria-labelledby="clienteModalLabel"
                   aria-hidden="true">
                   <div class="modal-dialog modal-lg">
@@ -313,6 +305,7 @@ export default {
 
    data() {
       return {
+         specialFields: [], // Array to hold multiple special fields
          formatoFactura: 'rollo', // Valor predeterminado
          filtroDocumentoIdentidad: "",
          model: {
@@ -381,6 +374,27 @@ export default {
       },
    },
    methods: {
+      validateCantidad() {
+         if (this.item.cantidad > 15) {
+            this.item.cantidad = 15;
+            this.$swal.fire({
+               icon: "error",
+               title: "Cantidad inválida",
+               text: "La cantidad no puede ser mayor a 15.",
+               confirmButtonText: "Entendido",
+            });
+         }
+         this.updateSpecialFields();
+      },
+      updateSpecialFields() {
+         this.specialFields = [];
+         for (let i = 0; i < this.item.cantidad && i < 15; i++) {
+            this.specialFields.push({
+               codigoEspecial: '',
+               informacionAdicional: ''
+            });
+         }
+      },
       AddCarritoPrimeraSeccion(servicio) {
          if (this.carrito.some(item => item.servicio.tipo === 'prevalorada')) {
             this.$swal.fire({
@@ -394,23 +408,17 @@ export default {
          this.AddCarrito(servicio, 'servicio');
       },
       AddCarritoSegundaSeccion(servicio) {
-         const existingItemIndex = this.carrito.findIndex(item => item.servicio.id === servicio.id);
-         if (existingItemIndex !== -1) {
-            this.carrito[existingItemIndex].cantidad += this.item.cantidad;
-         } else {
-            const item = {
-               servicio: servicio,
-               cantidad: this.item.cantidad,
-               precio: servicio.precioUnitario,
-               tipo: 'prevalorada',
-               codigoEspecial: '',  // Campo para el código especial
-               informacionAdicional: ''  // Campo para la información adicional
-            };
-            this.item = item;
-            this.modalEdit = true;
+         if (this.carrito.some(item => item.servicio.tipo === 'servicio')) {
+            this.$swal.fire({
+               icon: "error",
+               title: "Restricción",
+               text: "No puedes agregar productos de las prevaloradas si ya tienes productos de la primera sección en el carrito.",
+               confirmButtonText: "Entendido",
+            });
+            return;
          }
-      }
-      ,
+         this.AddCarrito(servicio, 'prevalorada');
+      },
       selectCliente(cliente) {
          this.cliente = cliente;
          this.ConfirmAndSave();
@@ -516,19 +524,41 @@ export default {
       AddCarrito(servicio, tipo) {
          const item = {
             servicio: servicio,
-            cantidad: 1,
+            cantidad: 0,
             precio: servicio.precioUnitario,
             tipo: tipo,
             codigoEspecial: '',  // Campo para el código especial
             informacionAdicional: ''  // Campo para la información adicional
-
          };
          this.item = item;
          this.modalEdit = true;
-      }
-      ,
+      },
       SaveItem() {
-         if (this.item.tipo === 'servicio') {
+         // Validar que la cantidad no sea 0
+         if (this.item.cantidad === 0) {
+            this.$swal.fire({
+               icon: "error",
+               title: "Cantidad inválida",
+               text: "La cantidad no puede ser 0.",
+               confirmButtonText: "Entendido",
+            });
+            return;
+         }
+
+         // Validar que todos los campos de código de rastreo e información adicional estén llenos
+         for (const field of this.specialFields) {
+            if (!field.codigoEspecial || !field.informacionAdicional) {
+               this.$swal.fire({
+                  icon: "error",
+                  title: "Campos vacíos",
+                  text: "Debe llenar todos los campos de Código de Rastreo e Información Adicional.",
+                  confirmButtonText: "Entendido",
+               });
+               return;
+            }
+         }
+
+         if (this.item.tipo === 'servicio' || this.item.tipo === 'prevalorada') {
             const baseCodigo = this.item.servicio.codigo;
             for (let i = 0; i < this.item.cantidad; i++) {
                const newItem = {
@@ -537,22 +567,26 @@ export default {
                   servicio: {
                      ...this.item.servicio,
                      codigo: `${baseCodigo}-${i + 1}` // Añadir el número secuencial al código del servicio
-                  }
+                  },
+                  codigoEspecial: this.specialFields[i].codigoEspecial, // Añadir código especial
+                  informacionAdicional: this.specialFields[i].informacionAdicional // Añadir información adicional
                };
                this.carrito.push(newItem);
             }
-         } else if (this.item.tipo === 'prevalorada') {
-            const existingItemIndex = this.carrito.findIndex(item => item.servicio.id === this.item.servicio.id);
-            if (existingItemIndex !== -1) {
-               this.carrito[existingItemIndex].cantidad += this.item.cantidad;
-            } else {
-               this.carrito.push({ ...this.item });
-            }
          }
          this.modalEdit = false;
-      }
-      ,
-
+         this.clearModalFields();
+      },
+      clearModalFields() {
+         this.item = {
+            servicio: {
+               nombre: "",
+            },
+            cantidad: 0,
+            precio: 0,
+         };
+         this.specialFields = [];
+      },
       EliminarItem(i) {
          this.carrito.splice(i, 1);
       },
@@ -561,6 +595,10 @@ export default {
       },
       Clean() {
          this.carrito = [];
+      },
+      closeModal() {
+         this.modalEdit = false;
+         this.clearModalFields();
       },
       async Save() {
          this.load = true;
@@ -584,10 +622,12 @@ export default {
                   actividadEconomica: item.servicio.actividadEconomica,
                   codigoSin: item.servicio.codigoSin,
                   codigo: `${item.servicio.codigo}-${index + 1}`,
-                  descripcion: `Codigo: ${item.codigoEspecial}, Detalle de envío: ${item.informacionAdicional}`, // Modificación aquí
+                  descripcion: `Codigo de Rastreo: ${item.codigoEspecial}, Detalle de envío: ${item.informacionAdicional}`, // Modificación aquí
                   unidadMedida: item.servicio.unidadMedida,
                   cantidad: item.cantidad,
                   precio: item.precio,
+                  codigoEspecial: item.codigoEspecial, // Asegurar que se envía el código especial
+                  informacionAdicional: item.informacionAdicional // Asegurar que se envía la información adicional
                })),
             };
             console.log("Datos a enviar:", operacion);
@@ -626,8 +666,6 @@ export default {
             this.load = false;
          }
       }
-
-
       ,
       async SaveSegundaSeccion() {
          this.load = true;
@@ -643,18 +681,22 @@ export default {
                metodoPago: 1,
                formatoFactura: this.formatoFactura,
                monto_descuento_adicional: this.montoDescuentoAdicional,
-               motivo: "Venta",
+               motivo: "Prevalorada",
                total: this.totalCarrito,
-               carrito: this.carrito.map((item) => ({
-                  servicio_id: item.servicio.id,
-                  actividadEconomica: item.servicio.actividadEconomica,
-                  codigoSin: item.servicio.codigoSin,
-                  codigo: item.servicio.codigo,
-                  descripcion: item.servicio.descripcion,
-                  unidadMedida: item.servicio.unidadMedida,
-                  cantidad: item.cantidad,
-                  precio: item.precio,
-               })),
+               carrito: [
+                  {
+                     servicio_id: this.carrito[0].servicio.id,
+                     actividadEconomica: this.carrito[0].servicio.actividadEconomica,
+                     codigoSin: this.carrito[0].servicio.codigoSin,
+                     codigo: this.carrito[0].servicio.codigo,
+                     descripcion: this.carrito[0].servicio.descripcion,
+                     unidadMedida: this.carrito[0].servicio.unidadMedida,
+                     cantidad: this.carrito.reduce((acc, item) => acc + item.cantidad, 0),
+                     precio: this.carrito[0].precio,
+                     codigoEspecial: this.carrito.map(item => item.codigoEspecial).join(", "),
+                     informacionAdicional: this.carrito.map(item => item.informacionAdicional).join(", "),
+                  }
+               ],
             };
             console.log("Datos a enviar:", operacion);
             const res = await this.$admin.$post("venta2", operacion);
@@ -692,8 +734,6 @@ export default {
             this.load = false;
          }
       },
-
-
    },
 
    mounted() {

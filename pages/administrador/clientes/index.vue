@@ -40,7 +40,7 @@
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-for="(m, i) in filteredList" :key="m.id">
+                                 <tr v-for="(m, i) in paginatedList" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
                                     <td class="py-0 px-1">{{ m.razonSocial }}</td>
                                     <td class="py-0 px-1">{{ m.documentoIdentidad }}</td>
@@ -63,6 +63,27 @@
                               </tbody>
                            </table>
                         </div>
+                        <!-- Pagination controls -->
+                        <nav aria-label="Page navigation example">
+                           <ul class="pagination justify-content-center">
+                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)"></a>
+                              </li>
+                              <li class="page-item" v-for="page in totalPages" :key="page"
+                                 :class="{ active: currentPage === page }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)"></a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Último</a>
+                              </li>
+                           </ul>
+                        </nav>
                      </div>
                   </div>
                </div>
@@ -103,9 +124,16 @@ export default {
             4: 'OD - Otro Documento de Identidad',
             5: 'NIT - Número de identificación Tributaria',
          },
+         currentPage: 1,
+         itemsPerPage: 14
       };
    },
    methods: {
+      changePage(page) {
+         if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+         }
+      },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res
@@ -269,6 +297,14 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+      totalPages() {
+         return Math.ceil(this.filteredList.length / this.itemsPerPage);
+      },
+      paginatedList() {
+         const start = (this.currentPage - 1) * this.itemsPerPage;
+         const end = start + this.itemsPerPage;
+         return this.filteredList.slice(start, end);
+      }
    },
    mounted() {
       this.$nextTick(async () => {
@@ -287,3 +323,20 @@ export default {
    },
 };
 </script>
+<style scoped>
+/* Estilos personalizados para paginación */
+.pagination .page-item.active .page-link {
+   background-color: #384464;
+   /* Color azulito */
+   border-color: #384464;
+   color: #fff;
+   /* Número blanco */
+   border-radius: 50%;
+   /* Circular */
+}
+
+.pagination .page-item .page-link {
+   color: #384464;
+   /* Color azulito para los links */
+}
+</style>

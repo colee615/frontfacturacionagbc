@@ -32,8 +32,8 @@
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-for="(m, i) in filteredList" :key="m.id">
-                                    <td class="py-1 px-2">{{ i + 1 }}</td>
+                                 <tr v-for="(m, i) in paginatedList" :key="m.id">
+                                    <td class="py-1 px-2">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
                                     <td class="py-1 px-2">{{ m.name }}</td>
                                     <td class="py-1 px-2">{{ m.email }}</td>
                                     <td class="py-1 px-2">{{ m.sucursale.departamento }}</td>
@@ -58,6 +58,27 @@
                               </tbody>
                            </table>
                         </div>
+                        <!-- Pagination controls -->
+                        <nav aria-label="Page navigation example">
+                           <ul class="pagination justify-content-center">
+                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)"></a>
+                              </li>
+                              <li class="page-item" v-for="page in totalPages" :key="page"
+                                 :class="{ active: currentPage === page }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)"></a>
+                              </li>
+                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Último</a>
+                              </li>
+                           </ul>
+                        </nav>
                      </div>
                   </div>
                </div>
@@ -66,7 +87,6 @@
       </AdminTemplate>
    </div>
 </template>
-
 <script>
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -89,6 +109,8 @@ export default {
          modulo: 'Cajeros',
          url_nuevo: '/administrador/cajeros/nuevo',
          url_editar: '/administrador/cajeros/editar/',
+         currentPage: 1,
+         itemsPerPage: 2
       };
    },
    computed: {
@@ -97,6 +119,14 @@ export default {
       },
       filteredList() {
          return this.list.filter(item => item.name.toLowerCase().includes(this.search.toLowerCase()));
+      },
+      totalPages() {
+         return Math.ceil(this.filteredList.length / this.itemsPerPage);
+      },
+      paginatedList() {
+         const start = (this.currentPage - 1) * this.itemsPerPage;
+         const end = start + this.itemsPerPage;
+         return this.filteredList.slice(start, end);
       }
    },
    methods: {
@@ -222,10 +252,7 @@ export default {
          }
       },
       generateExcel(data) {
-         // Crear una hoja de trabajo y agregar los datos
          const ws = utils.json_to_sheet(data);
-
-         // Aplicar estilos a la hoja de trabajo
          const wsOpts = {
             header: ['#', 'Nombre', 'Email', 'Sucursal', 'Estado'],
             font: {
@@ -234,7 +261,7 @@ export default {
                bold: true
             },
             fill: {
-               fgColor: { rgb: "FFFF00" } // Fondo amarillo para encabezados
+               fgColor: { rgb: "FFFF00" }
             },
             border: {
                top: { style: 'thin', color: { rgb: '000000' } },
@@ -244,23 +271,19 @@ export default {
             }
          };
 
-         // Aplicar estilos a los encabezados
          ws['!cols'] = [
-            { wpx: 50 }, // Ancho de columna para '#'
-            { wpx: 150 }, // Ancho de columna para 'Nombre'
-            { wpx: 200 }, // Ancho de columna para 'Email'
-            { wpx: 150 }, // Ancho de columna para 'Sucursal'
-            { wpx: 100 }  // Ancho de columna para 'Estado'
+            { wpx: 50 },
+            { wpx: 150 },
+            { wpx: 200 },
+            { wpx: 150 },
+            { wpx: 100 }
          ];
 
-         // Crear un libro de trabajo y agregar la hoja
          const wb = utils.book_new();
          utils.book_append_sheet(wb, ws, "Cajeros");
 
-         // Guardar el archivo
          writeFile(wb, "cajeros.xlsx");
-      }
-      ,
+      },
       generatePDF(data) {
          const doc = new jsPDF();
          const tableColumn = ['#', 'Nombre', 'Email', 'Sucursal', 'Estado'];
@@ -272,11 +295,9 @@ export default {
             item['Estado']
          ]);
 
-         // Agregar el título
          doc.setFontSize(18);
          doc.text('Reporte de Cajeros', 14, 22);
 
-         // Estilos para la tabla
          autoTable(doc, {
             startY: 30,
             head: [tableColumn],
@@ -306,17 +327,18 @@ export default {
             theme: 'grid'
          });
 
-         // Guardar el archivo PDF
          doc.save('cajeros.pdf');
+      },
+      changePage(page) {
+         if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+         }
       }
-      ,
-
    },
-
    mounted() {
       this.$nextTick(async () => {
          if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
+            this.$router.push('/');
          }
          try {
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
@@ -331,7 +353,20 @@ export default {
    },
 };
 </script>
-
 <style scoped>
-/* Estilos personalizados */
+/* Estilos personalizados para paginación */
+.pagination .page-item.active .page-link {
+   background-color: #384464;
+   /* Color azulito */
+   border-color: #384464;
+   color: #fff;
+   /* Número blanco */
+   border-radius: 50%;
+   /* Circular */
+}
+
+.pagination .page-item .page-link {
+   color: #384464;
+   /* Color azulito para los links */
+}
 </style>

@@ -40,10 +40,7 @@
                                              class="btn btn-success btn-sm py-1 px-2">
                                              <i class="fas fa-print"></i>
                                           </button>
-                                          <button type="button" @click="Eliminar(m.id)"
-                                             class="btn btn-danger btn-sm py-1 px-2">
-                                             <i class="fas fa-trash"></i>
-                                          </button>
+
                                        </div>
                                     </td>
                                  </tr>
@@ -82,33 +79,6 @@ export default {
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res;
-      },
-      async EliminarItem(id) {
-         this.load = true;
-         try {
-            const res = await this.$admin.$delete(this.apiUrl + "/" + id);
-            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0];
-            });
-         } catch (e) {
-            // Manejar errores aquí
-         } finally {
-            this.load = false;
-         }
-      },
-      Eliminar(id) {
-         let self = this;
-         this.$swal.fire({
-            title: "Deseas Eliminar?",
-            showDenyButton: false,
-            showCancelButton: true,
-            confirmButtonText: "Eliminar",
-            cancelarButtonText: `Cancelar`,
-         }).then(async (result) => {
-            if (result.isConfirmed) {
-               await self.EliminarItem(id);
-            }
-         });
       },
       async ImprimirVenta(venta) {
          let sucursal = this.sucursal;
