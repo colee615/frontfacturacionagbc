@@ -655,13 +655,22 @@ export default {
                });
          } catch (e) {
             console.error(e);
-            this.$swal.fire({
-               title: "Error al emitir factura",
-               text: "No hay conexión con la AGETIC",
-               footer: e.response?.data?.details || "Hubo un error al procesar la venta",
-               icon: "error",
-               confirmButtonText: "Ok",
-            });
+            if (e.response?.status === 403) {
+               this.$swal.fire({
+                  title: 'Horario no permitido',
+                  text: 'El sistema solo está disponible entre las 8 AM y las 7 PM.',
+                  icon: "error",
+                  confirmButtonText: 'Entendido'
+               });
+            } else {
+               this.$swal.fire({
+                  title: "Error al emitir factura",
+                  text: "No hay conexión con la AGETIC",
+                  footer: e.response?.data?.details || "Hubo un error al procesar la venta",
+                  icon: "error",
+                  confirmButtonText: "Ok",
+               });
+            }
          } finally {
             this.load = false;
          }

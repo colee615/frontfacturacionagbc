@@ -92,6 +92,7 @@ export default {
          type: String,
          default: ''
       },
+
    },
    data() {
       return {
@@ -108,8 +109,6 @@ export default {
 
    },
    methods: {
-
-
       SideToggle() {
          let body = document.body
          body.classList.add("g-sidenav-show", "bg-gray-");
@@ -149,8 +148,6 @@ export default {
    },
    mounted() {
       this.$nextTick(() => {
-         let user = localStorage.getItem('userAuth');
-         this.user = JSON.parse(user);
          let body = document.body
          let theme = localStorage.getItem('theme.pos')
          if (theme != null) {

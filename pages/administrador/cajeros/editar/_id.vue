@@ -24,12 +24,12 @@
                            </div>
                            <div class="row">
                               <div class="form-group col-12">
-                                 <label for="ubicacion">* Nombre del Cajero</label>
+                                 <label for="name">* Nombre del Cajero</label>
                                  <input type="text" v-model="model.name" class="form-control" id="name" required>
                               </div>
                               <div class="form-group col-6">
-                                 <label for="">* Sucursal del Cajero</label>
-                                 <select name="" id="" class="form-control" v-model="model.sucursale_id" required>
+                                 <label for="sucursale">* Sucursal del Cajero</label>
+                                 <select v-model="model.sucursale_id" class="form-control" id="sucursale" required>
                                     <option value="" disabled selected>Seleccione una sucursal</option>
                                     <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
                                  </select>
@@ -42,7 +42,14 @@
                                  <label for="password">Password del Cajero</label>
                                  <input type="password" v-model="model.password" class="form-control" id="password">
                               </div>
-
+                              <div class="form-group col-12">
+                                 <label for="special_access">Acceso Especial</label>
+                                 <input type="checkbox" v-model="model.special_access" id="special_access">
+                              </div>
+                              <div class="form-group col-12" v-if="model.special_access !== initialSpecialAccess">
+                                 <label for="motivo">Motivo</label>
+                                 <textarea v-model="model.motivo" id="motivo" class="form-control" required></textarea>
+                              </div>
                            </div>
                            <div class="col-12">
                               <div class="row">
@@ -83,13 +90,16 @@ export default {
             email: '',
             password: '',
             sucursale_id: '',
+            special_access: false,
+            motivo: '', // Campo adicional para motivo
          },
+         initialSpecialAccess: false,
          sucursales: [],
          apiUrl: 'cajeros',
          page: 'Administracion',
          modulo: 'Cajeros',
          load: true,
-         showInfoTooltip: false, // Variable para controlar la visibilidad del tooltip de información
+         showInfoTooltip: false,
       }
    },
    methods: {
@@ -112,7 +122,6 @@ export default {
          return errors;
       },
       async Save() {
-         // Validaciones
          const errors = this.validateFields();
          if (errors.length) {
             this.$swal.fire({
@@ -130,23 +139,21 @@ export default {
          try {
             const res = await this.$admin.$put(this.apiUrl + "/" + this.model.id, this.model);
 
-            // Mostrar la notificación de éxito y redirigir después de un tiempo
             this.$swal.fire({
                toast: true,
                position: 'center',
                showConfirmButton: false,
                icon: 'success',
                title: 'Guardado exitosamente!',
-               timer: 2000, // Mostrar la alerta por 2 segundos
+               timer: 2000,
                timerProgressBar: true,
             });
 
-            // Esperar 2 segundos antes de redirigir
             setTimeout(() => {
                this.$router.back();
             }, 2000);
          } catch (e) {
-
+            console.error(e);
          } finally {
             this.load = false;
          }
@@ -160,7 +167,7 @@ export default {
    mounted() {
       this.$nextTick(async () => {
          if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
+            this.$router.push('/');
          } else {
             try {
                await Promise.all([
@@ -168,10 +175,10 @@ export default {
                ]).then((v) => {
                   this.model = v[0];
                   this.sucursales = v[1];
-
+                  this.initialSpecialAccess = this.model.special_access; // Guardar el valor inicial
                });
             } catch (e) {
-
+               console.error(e);
             } finally {
                this.load = false;
             }
@@ -180,6 +187,7 @@ export default {
    },
 };
 </script>
+
 <style scoped>
 .info-container {
    display: inline-block;
@@ -189,41 +197,27 @@ export default {
 .info-tooltip {
    position: absolute;
    top: 100%;
-   /* Posicionar debajo del icono */
    left: 0;
    margin-top: 5px;
-   /* Espacio entre el icono y el tooltip */
    background-color: rgba(0, 0, 0, 0.85);
-   /* Fondo oscuro semitransparente */
    color: #fff;
-   /* Texto blanco */
    border: 1px solid rgba(255, 255, 255, 0.3);
-   /* Borde blanco semitransparente */
    padding: 10px;
-   /* Espacio interno más amplio */
    border-radius: 8px;
-   /* Bordes redondeados */
    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-   /* Sombra más pronunciada */
    display: none;
    font-size: 0.875rem;
-   /* Tamaño de fuente ligeramente mayor */
    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-   /* Fuente más formal */
    max-width: 250px;
-   /* Ancho máximo del tooltip */
    text-align: left;
    z-index: 1000;
-   /* Asegurar que esté por encima de otros elementos */
 }
 
 .info-tooltip::after {
    content: "";
    position: absolute;
    top: -5px;
-   /* Ajustar la posición de la flecha */
    left: 20px;
-   /* Posicionar la flecha */
    border-width: 5px;
    border-style: solid;
    border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;

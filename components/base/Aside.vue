@@ -36,6 +36,12 @@
                <div class="collapse" id="usuarios" v-if="isAdmin || isCashier">
                   <ul class="nav ms-4 ps-3">
                      <li class="nav-item" v-if="isAdmin">
+                        <nuxt-link class="nav-link" to="/administrador/activaciones/">
+                           <span class="sidenav-mini-icon"> A </span>
+                           <span class="sidenav-normal"> Activaciones</span>
+                        </nuxt-link>
+                     </li>
+                     <li class="nav-item" v-if="isAdmin">
                         <nuxt-link class="nav-link" to="/administrador/cajeros/">
                            <span class="sidenav-mini-icon"> C </span>
                            <span class="sidenav-normal"> Cajeros</span>

@@ -110,7 +110,7 @@ export default {
          url_nuevo: '/administrador/cajeros/nuevo',
          url_editar: '/administrador/cajeros/editar/',
          currentPage: 1,
-         itemsPerPage: 2
+         itemsPerPage: 14
       };
    },
    computed: {

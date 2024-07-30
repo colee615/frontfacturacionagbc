@@ -49,6 +49,7 @@ export const actions = {
       localStorage.removeItem('user');
       commit('clearToken');
       commit('clearUser');
+      this.$router.push('/auth/login');
     }
   }
 };

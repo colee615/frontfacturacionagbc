@@ -53,8 +53,7 @@
                                        </div>
                                     </form>
                                     <div v-if="codigoEnviado">
-                                       <p>Se ha enviado un código de confirmación a su correo. Por favor, ingréselo a
-                                          continuación:</p>
+
                                        <form @submit.prevent="verificarCodigo">
                                           <div class="mb-3">
                                              <label for="codigo_confirmacion" class="form-label">Código de
@@ -295,6 +294,7 @@ export default {
          }
          try {
             const res = await this.$admin.post('login', { ...this.model, 'g-recaptcha-response': recaptchaResponse });
+
             if (res.data.message) {
                this.$swal.fire({
                   toast: true,
@@ -313,15 +313,67 @@ export default {
                   title: res.data.error,
                });
             }
-         } catch (e) {
-            console.error('Error during login:', e);
-            this.$swal.fire({
-               title: "Error",
-               text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
-               icon: 'error',
-            });
+         } catch (error) {
+            if (error.response) {
+               // El servidor respondió con un estado distinto a 2xx
+               if (error.response.status === 403) {
+                  this.$swal.fire({
+                     toast: true,
+                     position: 'top-end',
+                     showConfirmButton: false,
+                     icon: 'error',
+                     title: 'Horario no permitido',
+                     text: 'El sistema solo está disponible entre las 8 AM y las 7 PM.',
+                  });
+               } else if (error.response.status === 400) {
+                  this.$swal.fire({
+                     toast: true,
+                     position: 'top-end',
+                     showConfirmButton: false,
+                     icon: 'error',
+                     title: 'Correo no registrado',
+                     text: 'El correo electrónico que ingresó no está registrado en el sistema.',
+                  });
+               } else if (error.response.status === 401) {
+                  this.$swal.fire({
+                     toast: true,
+                     position: 'top-end',
+                     showConfirmButton: false,
+                     icon: 'error',
+                     title: 'Credenciales incorrectas',
+                  });
+               } else {
+                  this.$swal.fire({
+                     toast: true,
+                     position: 'top-end',
+                     showConfirmButton: false,
+                     icon: 'error',
+                     title: 'Error',
+                     text: error.response.data.error || 'Ocurrió un error. Por favor, inténtelo de nuevo más tarde.',
+                  });
+               }
+            } else if (error.request) {
+               // La solicitud fue hecha pero no hubo respuesta
+               console.error('No response received:', error.request);
+               this.$swal.fire({
+                  title: "Error",
+                  text: "No se recibió respuesta del servidor. Por favor, inténtelo de nuevo más tarde.",
+                  icon: 'error',
+               });
+            } else {
+               // Algo pasó al configurar la solicitud
+               console.error('Error during login:', error.message);
+               this.$swal.fire({
+                  title: "Error",
+                  text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
+                  icon: 'error',
+               });
+            }
          }
-      },
+      }
+
+
+      ,
       async verificarCodigo() {
          if (!this.model.codigo_confirmacion) {
             this.$swal.fire({
@@ -352,7 +404,11 @@ export default {
                this.$store.dispatch('auth/login', { token: res.data.token, user: res.data.cajero });
                setTimeout(() => {
                   this.$swal.close();
-                  this.$router.push('/');
+                  if (res.data.cajero.role === 'cajero') {
+                     this.$router.push('/cajero/ventas/');
+                  } else {
+                     this.$router.push('/');
+                  }
                }, 2000);
             } else if (res.data.error) {
                this.$swal.fire({
