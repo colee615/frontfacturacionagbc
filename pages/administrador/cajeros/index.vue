@@ -95,9 +95,11 @@ import { utils, writeFile } from 'xlsx';
 export default {
    name: "IndexPage",
    head() {
+
       return {
          title: this.modulo,
       };
+
    },
    data() {
       return {

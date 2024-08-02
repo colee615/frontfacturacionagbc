@@ -25,7 +25,7 @@ export default {
       { rel: 'stylesheet', href: '/assets/css/soft-ui-dashboard.min.css' },
     ],
     script: [
-      { src: "https://kit.fontawesome.com/42d5adcbca.js" },
+      { src: "https://kit.fontawesome.com/f969ae7604.js" },
       { src: "/assets/js/core/popper.min.js" },
       { src: "/assets/js/core/bootstrap.min.js" },
       { src: "/assets/js/plugins/perfect-scrollbar.min.js" },

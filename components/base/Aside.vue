@@ -71,9 +71,59 @@
                            <span class="sidenav-normal"> Notificaciones</span>
                         </nuxt-link>
                      </li>
+
                   </ul>
                </div>
             </li>
+
+
+
+
+
+            <li class="nav-item mt-3" v-if="isAdmin">
+               <h6 class="ps-4 ms-2 text-uppercase text-xs font-weight-bolder opacity-6">REPORTES</h6>
+            </li>
+            <li class="nav-item" v-if="isAdmin">
+               <a data-bs-toggle="collapse" href="#reportes" class="nav-link" aria-controls="usuarios" role="button"
+                  aria-expanded="false">
+                  <div
+                     class="icon icon-shape icon-sm shadow border-radius-md bg-white text-center d-flex align-items-center justify-content-center me-2">
+                     <svg width="12px" height="12px" viewBox="0 0 42 42" version="1.1"
+                        xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                        <title>office</title>
+                        <!-- Contenido del icono de oficina -->
+                     </svg>
+                  </div>
+                  <span class="nav-link-text ms-1">Reportes de ventas</span>
+               </a>
+               <div class="collapse" id="reportes" v-if="isAdmin">
+                  <ul class="nav ms-4 ps-3">
+
+
+                     <li class="nav-item" v-if="isAdmin">
+                        <nuxt-link class="nav-link" to="/administrador/reportes/sucursal/">
+                           <span class="sidenav-mini-icon"> P </span>
+                           <span class="sidenav-normal">Por Sucursal</span>
+                        </nuxt-link>
+                     </li>
+
+
+                     <li class="nav-item" v-if="isAdmin">
+                        <nuxt-link class="nav-link" to="/administrador/reportes/cajero">
+                           <span class="sidenav-mini-icon"> P</span>
+                           <span class="sidenav-normal"> Por Cajero</span>
+                        </nuxt-link>
+                     </li>
+                  </ul>
+               </div>
+            </li>
+
+
+
+
+
+
+
 
             <!-- Sección de Caja -->
             <li class="nav-item mt-3" v-if="isCashier || isAdmin">
