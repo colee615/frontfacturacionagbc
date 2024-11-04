@@ -3,120 +3,112 @@
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
             <div class="row justify-content-md-center">
-               <div class="form-group mt-3">
+               <div class="form-group mt-3 col-md-6">
                   <label for="cajeroSelect">Seleccione un cajero:</label>
-                  <select id="cajeroSelect" v-model="selectedCajero" class="form-control">
-                     <option v-for="cajero in filteredList" :key="cajero.id" :value="cajero.id">
-                        {{ cajero.name }} - {{ cajero.email }}
-                     </option>
-                  </select>
+                  <v-select :options="list" v-model="selectedCajero" label="name" :reduce="cajero => cajero.id"
+                     @input="resetData" placeholder="Buscar cajero...">
+                     <template #option="option">
+                        <div>
+                           {{ option.name }} - {{ option.email }}
+                        </div>
+                     </template>
+                  </v-select>
                </div>
-               <div class="col-lg-8 mx-auto" v-if="selectedCajero">
+               <div class="col-lg-10 mx-auto" v-if="selectedCajero">
                   <div class="card mb-4">
-                     <div class="card-header p-3 pb-0">
+                     <div class="card-header p-3">
                         <div class="d-flex justify-content-between align-items-center">
-                           <div>
-                              <h6>Detalle de cajero</h6>
-                              <p class="text-sm mb-0">
-                                 <strong>Nombre:</strong> {{ selectedCajeroDetails.name }}
-                              </p>
-                              <p class="text-sm mb-0">
-                                 <strong>Email:</strong> {{ selectedCajeroDetails.email }}
-                              </p>
-                              <p class="text-sm mb-0">
-                                 <strong>Sucursal:</strong> {{ selectedCajeroDetails.sucursale.departamento }}
-                              </p>
-                              <p class="text-sm mb-0">
-                                 <strong>Estado:</strong> {{ formatEstado(selectedCajeroDetails.estado) }}
-                              </p>
+                           <h6>Datos del Cajero</h6>
+                           <div class="btn-group">
+                              <button @click="descargarPDF" class="btn btn-danger btn-sm">
+                                 Exportar PDF Día De Hoy
+                              </button>
+                              <button @click="descargarExcel" class="btn btn-success btn-sm">
+                                 Exportar Excel Día De Hoy
+                              </button>
+                              <button @click="descargarPDFPorRangoFechas" class="btn btn-danger btn-sm">
+                                 Exportar PDF por Rango de Fechas
+                              </button>
+                              <button @click="descargarExcelPorRangoFechas" class="btn btn-success btn-sm">
+                                 Exportar Excel por Rango de Fechas
+                              </button>
                            </div>
-                           <button @click="$router.back()" class="btn bg-gradient-info btn-sm mb-0">
-                              <i class="ni ni-bold-left"></i> Regresar
-                           </button>
                         </div>
                      </div>
-                     <div class="card-body p-3 pt-0">
-                        <hr class="horizontal dark mt-0 mb-4" />
+                     <div class="card-body p-3">
                         <div class="row">
-                           <div class="d-flex">
-                              <div>
-                                 <h6 class="text-lg mb-0 mt-2"></h6>
-                                 <p class="text-sm mb-3"></p>
-                                 <span class="badge badge-sm bg-gradient-success">
-                                    <i class="fas fa-barcode"></i>
-                                 </span>
-                              </div>
+                           <div class="col-md-6">
+                              <p class="text-sm mb-0"><strong>Nombre:</strong> {{ selectedCajeroDetails.name }}</p>
+                              <p class="text-sm mb-0"><strong>Email:</strong> {{ selectedCajeroDetails.email }}</p>
+                              <p class="text-sm mb-0"><strong>Sucursal:</strong> {{
+                                 selectedCajeroDetails.sucursale.departamento }}</p>
+                              <p class="text-sm mb-0"><strong>Estado:</strong> {{
+                                 formatEstado(selectedCajeroDetails.estado) }}</p>
                            </div>
                         </div>
                         <hr class="horizontal dark mt-4 mb-4" />
                         <div class="row">
-                           <div class="col-lg-8 col-md-6 col-12">
-                              <h6 class="mb-3 mt-4">Información</h6>
+                           <div class="col-lg-6">
+                              <h6 class="mb-3">Información</h6>
+                              <div class="form-group mt-3">
+                                 <label for="fechaInicio">Fecha Inicio:</label>
+                                 <input type="date" id="fechaInicio" v-model="fechaInicio" class="form-control" />
+                              </div>
+                              <div class="form-group mt-3">
+                                 <label for="fechaFin">Fecha Fin:</label>
+                                 <input type="date" id="fechaFin" v-model="fechaFin" class="form-control" />
+                              </div>
+                              <button @click="fetchVentasPorRangoFechas(selectedCajeroDetails.id)"
+                                 class="btn btn-secondary btn-sm mt-2">
+                                 Ver Ventas por Rango de Fechas
+                              </button>
+                              <button @click="fetchVentasDelDia(selectedCajeroDetails.id)"
+                                 class="btn btn-primary btn-sm mt-2">
+                                 Ver Ventas del Día
+                              </button>
+                           </div>
+                           <div class="col-lg-6 text-center">
+                              <img src="/assets/img/logo.png" alt="Imagen Descriptiva" class="img-fluid mt-4"
+                                 style="max-width: 150px;" />
+                              <div class="mt-4">
+                                 <span class="mb-2 text-lg">Total del Día:</span>
+                                 <span class="text-dark text-lg ms-2 font-weight-bold">{{ totalVentasDelDia }} Bs</span>
+                              </div>
+                           </div>
+                        </div>
+                        <div class="mt-3">
+                           <div v-if="ventasDelDia.length > 0">
+                              <h5>Ventas del Día</h5>
                               <ul class="list-group">
-                                 <li class="list-group-item border-0 d-flex p-4 mb-2 bg-gray-100 border-radius-lg">
-                                    <div class="d-flex flex-column">
-                                       <h6 class="mb-3 text-sm">Detalle de venta</h6>
-                                       <span class="mb-2 text-xs">Código de Seguimiento:
-                                          <span class="text-dark font-weight-bold ms-2"></span>
-                                       </span>
-                                       <span class="mb-2 text-xs">Cliente:
-                                          <span class="text-dark font-weight-bold ms-2"></span>
-                                       </span>
-                                       <span class="mb-2 text-xs">Documento Identidad:
-                                          <span class="text-dark font-weight-bold ms-2"></span>
-                                       </span>
-                                       <span class="mb-2 text-xs">Cajero:
-                                          <span class="text-dark font-weight-bold ms-2"></span>
-                                       </span>
-                                    </div>
+                                 <li v-for="venta in ventasDelDia" :key="venta.id" class="list-group-item">
+                                    N° - {{ venta.codigoOrden }} Razon Social: {{ venta.cliente?.razonSocial || 'N/A' }}
+                                    N° Identidad: {{ venta.cliente?.documentoIdentidad ?
+                                       formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A' }}
+                                    Tipo: {{ venta.motivo }} - Total Venta {{ venta.total }} Bs - Estado: {{
+                                       formatEstado(venta.estado)
+                                    }}
                                  </li>
                               </ul>
+                              <p><strong>Total del Día (sin Estado 0):</strong> {{ totalVentasDelDia }} Bs</p>
                            </div>
-                           <div class="col-lg-4 col-12 ms-auto">
-                              <div class="d-flex justify-content-between mt-4">
-                                 <span class="mb-2 text-lg">Total:</span>
-                                 <span class="text-dark text-lg ms-2 font-weight-bold">{{ totalVentasDelDia }}</span>
-                              </div>
-                              <div class="text-center mt-2">
-                                 <img src="/assets/img/logo.png" alt="Imagen Descriptiva"
-                                    style="width: 150px; height: auto;">
-                              </div>
+                           <div v-if="ventasPorRangoFechas.length > 0" class="mt-3">
+                              <h5>Ventas por Rango de Fechas</h5>
+                              <ul class="list-group">
+                                 <li v-for="venta in ventasPorRangoFechas" :key="venta.id" class="list-group-item">
+                                    N° - {{ venta.codigoOrden }} Razon Social: {{ venta.cliente?.razonSocial || 'N/A' }}
+                                    N° Identidad: {{ venta.cliente?.documentoIdentidad ?
+                                       formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A' }}
+                                    Tipo: {{ venta.motivo }} - Total Venta {{ venta.total }} Bs - Estado: {{
+                                       formatEstado(venta.estado)
+                                    }}
+                                 </li>
+                              </ul>
+                              <p><strong>Total por Rango de Fechas (sin Estado 0):</strong> {{ totalVentasPorRangoFechas
+                                 }} Bs</p>
                            </div>
                         </div>
                      </div>
                   </div>
-               </div>
-            </div>
-            <div v-if="selectedCajero">
-               <h5 class="mt-4">Detalles del Cajero</h5>
-               <p><strong>Nombre:</strong> {{ selectedCajeroDetails.name }}</p>
-               <p><strong>Email:</strong> {{ selectedCajeroDetails.email }}</p>
-               <p><strong>Sucursal:</strong> {{ selectedCajeroDetails.sucursale.departamento }}</p>
-               <p><strong>Estado:</strong> {{ formatEstado(selectedCajeroDetails.estado) }}</p>
-               <div class="btn-group">
-                  <nuxt-link :to="`${url_editar}${selectedCajeroDetails.id}`" class="btn btn-info btn-sm py-1 px-2">
-                     <i class="fas fa-pen"></i>
-                  </nuxt-link>
-                  <button v-if="selectedCajeroDetails.estado === 1" type="button"
-                     @click="confirmarEliminar(selectedCajeroDetails.id)" class="btn btn-danger btn-sm py-1 px-2">
-                     <i class="fas fa-trash"></i>
-                  </button>
-                  <button v-if="selectedCajeroDetails.estado === 2" type="button"
-                     @click="confirmarActivar(selectedCajeroDetails.id)" class="btn btn-success btn-sm py-1 px-2">
-                     <i class="fas fa-check"></i>
-                  </button>
-               </div>
-               <button @click="fetchVentasDelDia(selectedCajeroDetails.id)" class="btn btn-primary btn-sm mt-2">
-                  Ver Ventas del Día
-               </button>
-               <div v-if="ventasDelDia.length > 0" class="mt-3">
-                  <h5>Ventas del Día</h5>
-                  <ul>
-                     <li v-for="venta in ventasDelDia" :key="venta.id">
-                        {{ venta.cliente.name }} - {{ venta.total }}
-                     </li>
-                  </ul>
-                  <p><strong>Total del día:</strong> {{ totalVentasDelDia }}</p>
                </div>
             </div>
          </div>
@@ -125,12 +117,15 @@
 </template>
 
 <script>
+import vSelect from 'vue-select';
+import 'vue-select/dist/vue-select.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { utils, writeFile } from 'xlsx';
 
 export default {
    name: "IndexPage",
+   components: { vSelect },
    head() {
       return {
          title: this.modulo,
@@ -149,8 +144,12 @@ export default {
          currentPage: 1,
          itemsPerPage: 14,
          selectedCajero: null,
+         fechaInicio: '',
+         fechaFin: '',
          ventasDelDia: [],
-         totalVentasDelDia: 0
+         totalVentasDelDia: 0,
+         ventasPorRangoFechas: [],
+         totalVentasPorRangoFechas: 0
       };
    },
    computed: {
@@ -169,100 +168,6 @@ export default {
          const res = await this.$admin.$get(path);
          return res;
       },
-      async EliminarItem(id) {
-         this.load = true;
-         try {
-            await this.$admin.$delete(`${this.apiUrl}/${id}`);
-            const [data] = await Promise.all([this.GET_DATA(this.apiUrl)]);
-            this.list = data;
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'success',
-               title: 'Cajero eliminado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Hubo un problema al eliminar al cajero. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } finally {
-            this.load = false;
-         }
-      },
-      confirmarEliminar(id) {
-         this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Eliminar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas eliminar al Cajero?</div></div>',
-            icon: 'warning',
-            dangerMode: true,
-         }).then(async (result) => {
-            if (result.isConfirmed) {
-               await this.EliminarItem(id);
-            }
-         });
-      },
-      confirmarActivar(id) {
-         this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Activar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas activar al Cajero?</div></div>',
-            icon: 'warning',
-            dangerMode: true,
-         }).then(async (result) => {
-            if (result.isConfirmed) {
-               await this.ActivarItem(id);
-            }
-         });
-      },
-      async ActivarItem(id) {
-         this.load = true;
-         try {
-            await this.$admin.$put(`${this.apiUrl}/${id}`, { estado: 1 });
-            const [data] = await Promise.all([this.GET_DATA(this.apiUrl)]);
-            this.list = data;
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'success',
-               title: 'Cajero activado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Hubo un problema al activar al cajero. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } finally {
-            this.load = false;
-         }
-      },
       async fetchVentasDelDia(id) {
          this.load = true;
          try {
@@ -270,56 +175,153 @@ export default {
             this.ventasDelDia = res.ventas;
             this.totalVentasDelDia = res.total;
          } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Hubo un problema al obtener las ventas del día. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
-            });
+            this.showErrorMessage('Hubo un problema al obtener las ventas del día. Intente nuevamente.');
+         } finally {
+            this.load = false;
+         }
+      },
+      async fetchVentasPorRangoFechas(id) {
+         this.load = true;
+         try {
+            const res = await this.$admin.$post(`/ventas/fecha/${id}`, { fecha_inicio: this.fechaInicio, fecha_fin: this.fechaFin });
+            this.ventasPorRangoFechas = res.ventas;
+            this.totalVentasPorRangoFechas = res.total;
+         } catch (e) {
+            this.showErrorMessage('Hubo un problema al obtener las ventas por rango de fechas. Intente nuevamente.');
          } finally {
             this.load = false;
          }
       },
       formatEstado(estado) {
-         switch (estado) {
-            case 1:
-               return 'Activo';
-            case 2:
-               return 'Inactivo';
-            default:
-               return 'Desconocido';
-         }
+         const estados = {
+            1: 'Activo',
+            2: 'Inactivo',
+            default: 'Desconocido'
+         };
+         return estados[estado] || estados.default;
       },
-      descargarPDF() {
-         const doc = new jsPDF();
-         autoTable(doc, { html: '#cajerosTable' });
-         doc.save('cajeros.pdf');
+      formatDocumentoIdentidad(documentoIdentidad) {
+         return documentoIdentidad || 'N/A';
       },
-      descargarExcel() {
-         const ws = utils.json_to_sheet(this.list);
-         const wb = utils.book_new();
-         utils.book_append_sheet(wb, ws, 'Cajeros');
-         writeFile(wb, 'cajeros.xlsx');
-      }
-   },
-   async mounted() {
-      this.load = true;
-      try {
-         const [data] = await Promise.all([this.GET_DATA(this.apiUrl)]);
-         this.list = data;
-      } catch (e) {
+      resetData() {
+         this.ventasDelDia = [];
+         this.totalVentasDelDia = 0;
+         this.ventasPorRangoFechas = [];
+         this.totalVentasPorRangoFechas = 0;
+         this.fechaInicio = '';
+         this.fechaFin = '';
+      },
+      showErrorMessage(message) {
          this.$swal.fire({
             toast: true,
             position: 'center',
             showConfirmButton: false,
             icon: 'error',
-            title: 'Hubo un problema al obtener los datos de cajeros. Intente nuevamente.',
+            title: message,
             timer: 2000,
             timerProgressBar: true,
          });
+      },
+      descargarPDF() {
+         const doc = new jsPDF({ orientation: 'landscape' });
+
+         // Agregar información del cajero
+         doc.text(`Nombre: ${this.selectedCajeroDetails.name}`, 14, 20);
+         doc.text(`Sucursal: ${this.selectedCajeroDetails.sucursale.departamento}`, 14, 40);
+         doc.text(`Total Ventas del Día: ${this.totalVentasDelDia} Bs`, 14, 60);
+
+         // Agregar tabla de ventas
+         autoTable(doc, {
+            startY: 70,
+            head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
+            body: this.ventasDelDia.map(venta => [
+               venta.codigoOrden,
+               venta.cliente?.razonSocial || 'N/A',
+               venta.cliente?.documentoIdentidad ? this.formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A',
+               venta.motivo,
+               `${venta.total} Bs`
+            ]),
+            theme: 'grid',
+            margin: { top: 20, right: 20, bottom: 20, left: 20 }
+         });
+
+         doc.save('ventas_del_dia.pdf');
+      },
+      descargarExcel() {
+         const data = [
+            { 'Cajero': `Nombre: ${this.selectedCajeroDetails.name}, Sucursal: ${this.selectedCajeroDetails.sucursale.departamento}` },
+            {},
+            ...this.ventasDelDia.map(venta => ({
+               'N°': venta.codigoOrden,
+               'Razon Social': venta.cliente?.razonSocial || 'N/A',
+               'Identidad': venta.cliente?.documentoIdentidad ? this.formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A',
+               'Tipo': venta.motivo,
+               'Total Venta': `${venta.total} Bs`
+            })),
+            {},
+            { 'N°': '', 'Razon Social': '', 'Identidad': '', 'Tipo': 'Total Ventas del Día', 'Total Venta': `${this.totalVentasDelDia} Bs` }
+         ];
+
+         const ws = utils.json_to_sheet(data);
+         const wb = utils.book_new();
+         utils.book_append_sheet(wb, ws, 'Ventas del Día');
+
+         writeFile(wb, 'ventas_del_dia.xlsx');
+      },
+      descargarPDFPorRangoFechas() {
+         const doc = new jsPDF({ orientation: 'landscape' });
+
+         // Agregar información del cajero
+         doc.text(`Nombre: ${this.selectedCajeroDetails.name}`, 14, 20);
+         doc.text(`Sucursal: ${this.selectedCajeroDetails.sucursale.departamento}`, 14, 40);
+         doc.text(`Total Ventas por Rango de Fechas: ${this.totalVentasPorRangoFechas} Bs`, 14, 60);
+
+         // Agregar tabla de ventas
+         autoTable(doc, {
+            startY: 70,
+            head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
+            body: this.ventasPorRangoFechas.map(venta => [
+               venta.codigoOrden,
+               venta.cliente?.razonSocial || 'N/A',
+               venta.cliente?.documentoIdentidad ? this.formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A',
+               venta.motivo,
+               `${venta.total} Bs`
+            ]),
+            theme: 'grid',
+            margin: { top: 20, right: 20, bottom: 20, left: 20 }
+         });
+
+         doc.save('ventas_por_rango_fechas.pdf');
+      },
+      descargarExcelPorRangoFechas() {
+         const data = [
+            { 'Cajero': `Nombre: ${this.selectedCajeroDetails.name}, Sucursal: ${this.selectedCajeroDetails.sucursale.departamento}` },
+            {},
+            ...this.ventasPorRangoFechas.map(venta => ({
+               'N°': venta.codigoOrden,
+               'Razon Social': venta.cliente?.razonSocial || 'N/A',
+               'Identidad': venta.cliente?.documentoIdentidad ? this.formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A',
+               'Tipo': venta.motivo,
+               'Total Venta': `${venta.total} Bs`
+            })),
+            {},
+            { 'N°': '', 'Razon Social': '', 'Identidad': '', 'Tipo': 'Total Ventas por Rango de Fechas', 'Total Venta': `${this.totalVentasPorRangoFechas} Bs` }
+         ];
+
+         const ws = utils.json_to_sheet(data);
+         const wb = utils.book_new();
+         utils.book_append_sheet(wb, ws, 'Ventas por Rango de Fechas');
+
+         writeFile(wb, 'ventas_por_rango_fechas.xlsx');
+      }
+   },
+   async mounted() {
+      this.load = true;
+      try {
+         const data = await this.GET_DATA(this.apiUrl);
+         this.list = data;
+      } catch (e) {
+         this.showErrorMessage('Hubo un problema al obtener los datos de cajeros. Intente nuevamente.');
       } finally {
          this.load = false;
       }
@@ -330,5 +332,13 @@ export default {
 <style scoped>
 .btn-group {
    margin-top: 1rem;
+}
+
+.text-lg {
+   font-size: 1.25rem;
+}
+
+.font-weight-bold {
+   font-weight: 700;
 }
 </style>

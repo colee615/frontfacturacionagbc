@@ -37,7 +37,9 @@
             <h6 class="font-weight-bolder mb-0">{{ modulo }}</h6>
          </nav>
          <div class="navbar-text-container">
-            <span class="navbar-text">Bienvenido al sistema de facturacion SAFE {{ role }} - {{ user.name }}</span>
+            <span class="navbar-text">Bienvenido al sistema de facturacion SAFE {{ role }} - {{ user.name }} - Sucursal
+               {{
+                  user.sucursale.departamento }}</span>
          </div>
          <div class="sidenav-toggler sidenav-toggler-inner d-xl-block d-none">
             <a href="javascript:;" @click="SideToggle()" class="nav-link text-body p-0">
