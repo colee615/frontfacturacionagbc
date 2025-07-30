@@ -8,7 +8,7 @@ export default function ({ $axios, store, redirect }, inject) {
       }
     }
   });
-  const url = 'http://172.65.10.36:10001/admin/';
+  const url = 'http://172.65.10.36:10001/cajero/';
 
 //   const url = 'http://localhost/laravel11/api11fact/apifacturacionagbc/public/admin/';
   admin.setBaseURL(url);
