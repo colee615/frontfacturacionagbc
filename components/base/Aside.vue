@@ -59,7 +59,7 @@
                            <span class="sidenav-normal"> Clientes</span>
                         </nuxt-link>
                      </li>
-                     <li class="nav-item" v-if="isAdmin">
+                     <li class="nav-item" v-if="isAdmin || isCashier">
                         <nuxt-link class="nav-link" to="/administrador/servicios/">
                            <span class="sidenav-mini-icon"> S </span>
                            <span class="sidenav-normal"> Servicios</span>

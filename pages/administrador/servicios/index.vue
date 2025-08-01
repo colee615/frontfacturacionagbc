@@ -160,7 +160,7 @@ export default {
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
+         if (!['cajero', 'administrador'].includes(this.user.role)) {
             this.$router.push('/'); // Redirige a la página principal
          } else {
             try {
