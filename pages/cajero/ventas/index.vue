@@ -545,18 +545,18 @@ export default {
             return;
          }
 
-         // Validar que todos los campos de código de rastreo e información adicional estén llenos
-         for (const field of this.specialFields) {
-            if (!field.codigoEspecial || !field.informacionAdicional) {
-               this.$swal.fire({
-                  icon: "error",
-                  title: "Campos vacíos",
-                  text: "Debe llenar todos los campos de Código de Rastreo e Información Adicional.",
-                  confirmButtonText: "Entendido",
-               });
-               return;
-            }
-         }
+         // // Validar que todos los campos de código de rastreo e información adicional estén llenos
+         // for (const field of this.specialFields) {
+         //    if (!field.codigoEspecial || !field.informacionAdicional) {
+         //       this.$swal.fire({
+         //          icon: "error",
+         //          title: "Campos vacíos",
+         //          text: "Debe llenar todos los campos de Código de Rastreo e Información Adicional.",
+         //          confirmButtonText: "Entendido",
+         //       });
+         //       return;
+         //    }
+         // }
 
          if (this.item.tipo === 'servicio' || this.item.tipo === 'prevalorada') {
             const baseCodigo = this.item.servicio.codigo;
