@@ -23,7 +23,7 @@
                               </div>
                            </div>
                            <div class="form-group col-12">
-                              <label for="razonSocial">* Nombre del Cliente</label>
+                              <label for="razonSocial">* Razón Social</label>
                               <input type="text" v-model="model.razonSocial" class="form-control" id="razonSocial">
                            </div>
                            <div class="form-group col-12">
@@ -48,7 +48,7 @@
                               <input type="text" v-model="model.complemento" class="form-control" id="complemento">
                            </div>
                            <div class="form-group col-12">
-                              <label for="correo">* Email del Cajero</label>
+                              <label for="correo">Email del Cliente</label>
                               <input type="text" v-model="model.correo" class="form-control" id="correo">
                            </div>
                         </div>
@@ -107,16 +107,31 @@ export default {
       },
    },
    methods: {
+      buildPayload() {
+         return {
+            razonSocial: (this.model.razonSocial || '').trim(),
+            documentoIdentidad: (this.model.documentoIdentidad || '').trim(),
+            complemento: this.model.complemento ? this.model.complemento.trim() : '',
+            tipoDocumentoIdentidad: this.model.tipoDocumentoIdentidad,
+            correo: this.model.correo ? this.model.correo.trim() : '',
+         }
+      },
       validateFields() {
          const errors = [];
          if (!this.model.razonSocial || typeof this.model.razonSocial !== 'string') {
-            errors.push('El Nombre del Cliente es obligatorio.');
+            errors.push('La Razón Social es obligatoria.');
          }
          if (!this.model.documentoIdentidad) {
             errors.push('El Numero de Identidad es obligatorio.');
          }
          if (!this.model.tipoDocumentoIdentidad) {
             errors.push('El Tipo de Documento de Identidad es obligatorio.');
+         }
+         if (this.model.correo) {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(this.model.correo)) {
+               errors.push('El Email del Cliente no tiene un formato válido.');
+            }
          }
          return errors;
       },
@@ -139,7 +154,8 @@ export default {
          // Si todas las validaciones pasan
          this.load = true;
          try {
-            const res = await this.$admin.$post(this.apiUrl, this.model);
+            const payload = this.buildPayload();
+            await this.$admin.$post(this.apiUrl, payload);
 
             // Mostrar la notificación de éxito y redirigir después de un tiempo
             this.$swal.fire({
@@ -157,12 +173,26 @@ export default {
                this.$router.back();
             }, 2000);
          } catch (e) {
+            const backendErrors = e.response?.data?.errors;
+            const backendMessage = e.response?.data?.message || e.response?.data?.error;
+            if (backendErrors && typeof backendErrors === 'object') {
+               const items = Object.values(backendErrors).flat().map(err => `<li>${err}</li>`).join('');
+               this.$swal.fire({
+                  toast: true,
+                  position: 'center',
+                  showConfirmButton: false,
+                  icon: 'error',
+                  title: 'No se pudo guardar el cliente',
+                  html: `<ul style="text-align: left;">${items}</ul>`,
+               });
+               return;
+            }
             this.$swal.fire({
                toast: true,
                position: 'center',
                showConfirmButton: false,
                icon: 'error',
-               title: 'Hubo un problema al guardar. Intente nuevamente.',
+               title: backendMessage || 'Hubo un problema al guardar. Intente nuevamente.',
             });
          } finally {
             this.load = false;

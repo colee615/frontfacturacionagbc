@@ -1,4 +1,4 @@
-﻿<template>
+<template>
    <div>
       <main class="main-content main-content-bg mt-0 ps">
          <transition name="fade" mode="out-in">
@@ -303,8 +303,8 @@ export default {
                      position: 'top-end',
                      showConfirmButton: false,
                      icon: 'error',
-                     title: 'Horario no permitido',
-                     text: 'El sistema solo está disponible entre las 8 AM y las 7 PM.',
+                     title: error.response.data?.error || 'Acceso denegado',
+                     text: error.response.data?.message || 'No tienes permiso para realizar esta acción.',
                   });
                } else if (error.response.status === 400) {
                   this.$swal.fire({

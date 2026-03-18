@@ -31,8 +31,8 @@
                                  <tr v-for="(m, i) in paginatedList" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
                                     <td class="py-0 px-1"
-                                       :class="{ 'emision': m.detalle.tipoEmision === 'EMISION', 'anulacion': m.detalle.tipoEmision === 'ANULACION' }">
-                                       {{ m.detalle.tipoEmision }}
+                                       :class="tipoEmisionClass(m.detalle.tipoEmision)">
+                                       {{ m.detalle.tipoEmision || 'SIN TIPO' }}
                                     </td>
                                     <td class="py-0 px-1">{{ m.estado }}</td>
                                     <td class="py-0 px-1">{{ m.fuente }}</td>
@@ -109,6 +109,18 @@ export default {
       };
    },
    methods: {
+      tipoEmisionClass(tipo) {
+         const classes = {
+            EMISION: 'emision',
+            ANULACION: 'anulacion',
+            MULTIPLE: 'multiple',
+            MASIVO: 'masivo',
+            CONTINGENCIA: 'contingencia',
+            CONTINGENCIA_CAFC: 'contingencia-cafc',
+            DOCUMENTO_AJUSTE: 'documento-ajuste',
+         };
+         return classes[tipo] || 'tipo-generico';
+      },
       changePage(page) {
          if (page >= 1 && page <= this.totalPages) {
             this.currentPage = page;
@@ -117,7 +129,13 @@ export default {
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          res.forEach(notification => {
-            notification.detalle = JSON.parse(notification.detalle);
+            try {
+               notification.detalle = typeof notification.detalle === 'string'
+                  ? JSON.parse(notification.detalle)
+                  : (notification.detalle || {});
+            } catch (e) {
+               notification.detalle = {};
+            }
          });
          return res;
       }
@@ -170,6 +188,36 @@ export default {
    /* color de fondo para ANULACION */
    color: #c62828;
    /* color de texto para ANULACION */
+}
+
+.multiple {
+   background-color: #e8f5e9;
+   color: #2e7d32;
+}
+
+.masivo {
+   background-color: #fff8e1;
+   color: #f57f17;
+}
+
+.contingencia {
+   background-color: #fff3e0;
+   color: #ef6c00;
+}
+
+.contingencia-cafc {
+   background-color: #f3e5f5;
+   color: #6a1b9a;
+}
+
+.documento-ajuste {
+   background-color: #e3f2fd;
+   color: #1565c0;
+}
+
+.tipo-generico {
+   background-color: #eceff1;
+   color: #37474f;
 }
 
 /* Estilos personalizados para paginación */

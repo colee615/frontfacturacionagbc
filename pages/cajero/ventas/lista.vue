@@ -118,7 +118,13 @@
                               </div>
                               <div class="mb-3">
                                  <label for="tipoAnulacion" class="form-label">Tipo de Anulación</label>
-                                 <input type="text" class="form-control" id="tipoAnulacion" v-model="tipoAnulacion">
+                                 <select class="form-control" id="tipoAnulacion" v-model="tipoAnulacion">
+                                    <option disabled value="">Seleccione una opción</option>
+                                    <option value="1">1 - Factura mal emitida</option>
+                                    <option value="2">2 - Nota de crédito-débito mal emitida</option>
+                                    <option value="3">3 - Datos de emisión incorrectos</option>
+                                    <option value="4">4 - Factura o nota devuelta</option>
+                                 </select>
                               </div>
                            </div>
                         </div>
@@ -294,21 +300,73 @@ export default {
 
       showAnularModal(cuf) {
          this.ventaDetails.cuf = cuf;
+         this.motivo = '';
+         this.tipoAnulacion = '';
          this.modalAnular = true;
+      },
+      extractErrorMessages(error) {
+         const messages = [];
+         const data = error?.response?.data || {};
+
+         if (data.message) {
+            messages.push(data.message);
+         }
+
+         if (data.error) {
+            messages.push(data.error);
+         }
+
+         if (data.errors && typeof data.errors === 'object') {
+            Object.values(data.errors).flat().forEach(message => messages.push(message));
+         }
+
+         if (data.details?.datos?.errores && Array.isArray(data.details.datos.errores)) {
+            data.details.datos.errores.forEach(message => messages.push(message));
+         }
+
+         if (data.details && typeof data.details === 'string') {
+            messages.push(data.details);
+         }
+
+         return [...new Set(messages.filter(Boolean))];
+      },
+      validateAnulacionForm() {
+         const errors = [];
+         const motivo = (this.motivo || '').trim();
+         const tipoAnulacion = String(this.tipoAnulacion || '').trim();
+
+         if (!motivo) {
+            errors.push('El motivo de anulación es obligatorio.');
+         } else if (!/^[A-Za-z0-9\s\-_.\/;,\\]+$/.test(motivo)) {
+            errors.push('El motivo de anulación contiene caracteres no permitidos por el protocolo.');
+         }
+
+         if (!['1', '2', '3', '4'].includes(tipoAnulacion)) {
+            errors.push('Debe seleccionar un tipo de anulación válido.');
+         }
+
+         if (errors.length) {
+            this.$swal.fire({
+               icon: 'error',
+               title: 'La anulación no cumple las validaciones',
+               html: `<ul style="text-align:left;">${errors.map(error => `<li>${error}</li>`).join('')}</ul>`,
+            });
+            return false;
+         }
+
+         return true;
       },
 
       async AnularFactura() {
+         if (!this.validateAnulacionForm()) return;
+
          try {
-            const res = await this.$admin.patch(`ventas/anular/${this.ventaDetails.cuf}`, {
-               motivo: this.motivo,
-               tipoAnulacion: this.tipoAnulacion
+            const res = await this.$admin.$patch(`ventas/anular/${this.ventaDetails.cuf}`, {
+               motivo: this.motivo.trim(),
+               tipoAnulacion: Number(this.tipoAnulacion)
             });
 
-            if (res.status === 200) {
-               this.$swal.fire('Éxito', 'La factura ha sido anulada correctamente.', 'success');
-            } else {
-               this.$swal.fire('Error', 'Hubo un problema al anular la factura.', 'error');
-            }
+            this.$swal.fire('Éxito', res?.message || 'La factura ha sido anulada correctamente.', 'success');
 
             this.modalAnular = false;
             this.modalEdit = false;
@@ -319,7 +377,15 @@ export default {
 
          } catch (error) {
             console.error('Error al anular factura:', error);
-            this.$swal.fire('Error', 'Hubo un problema al anular la factura.', 'error');
+            const messages = this.extractErrorMessages(error);
+            this.$swal.fire({
+               icon: 'error',
+               title: 'Hubo un problema al anular la factura.',
+               html: messages.length
+                  ? `<ul style="text-align:left;">${messages.map(message => `<li>${message}</li>`).join('')}</ul>`
+                  : null,
+               text: messages.length ? null : 'Revise los datos enviados o la respuesta del servicio.',
+            });
          }
       }
    },

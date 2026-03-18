@@ -19,7 +19,7 @@
                         </p>
                         <p class="text-sm mb-0">
                            Observación:
-                           <b>{{ parsedDetalle.observacion ? parsedDetalle.observacion : 'No hay observaciones' }}</b>
+                           <b>{{ resolvedObservacion }}</b>
                         </p>
 
 
@@ -38,8 +38,9 @@
                               <li><strong>Estado:</strong> {{ model.estado }}</li>
                               <li><strong>Fuente:</strong> {{ model.fuente }}</li>
                               <li><strong>Código de Seguimiento:</strong> {{ model.codigo_seguimiento }}</li>
-                              <li><strong>CUF:</strong> {{ parsedDetalle.cuf }}</li>
+                              <li><strong>CUF:</strong> {{ parsedDetalle.cuf || 'No disponible' }}</li>
                               <li><strong>N° Factura:</strong> {{ parsedDetalle.nroFactura }}</li>
+                              <li><strong>Código Estado Impuestos:</strong> {{ parsedDetalle.codigoEstadoImpuestos ?? 'No disponible' }}</li>
 
                            </ul>
                         </div>
@@ -52,10 +53,16 @@
                         <div class="col-lg-8">
                            <h5 class="mb-3">Información Adicional</h5>
                            <ul class="list-unstyled">
-                              <li><strong>URL PDF:</strong> <a :href="parsedDetalle.urlPdf" target="_blank">{{
-                                 parsedDetalle.urlPdf }}</a></li>
-                              <li><strong>URL XML:</strong> <a :href="parsedDetalle.urlXml" target="_blank">{{
-                                 parsedDetalle.urlXml }}</a></li>
+                              <li><strong>URL PDF:</strong>
+                                 <a v-if="parsedDetalle.urlPdf" :href="parsedDetalle.urlPdf" target="_blank">{{
+                                    parsedDetalle.urlPdf }}</a>
+                                 <span v-else>No disponible</span>
+                              </li>
+                              <li><strong>URL XML:</strong>
+                                 <a v-if="parsedDetalle.urlXml" :href="parsedDetalle.urlXml" target="_blank">{{
+                                    parsedDetalle.urlXml }}</a>
+                                 <span v-else>No disponible</span>
+                              </li>
                            </ul>
                         </div>
                      </div>
@@ -84,6 +91,7 @@ export default {
             urlPdf: '',
             urlXml: '',
             observacion: '',
+            codigoEstadoImpuestos: null,
          }
       };
    },
@@ -93,7 +101,9 @@ export default {
             const response = await this.$admin.$get(path);
             this.model = response;
             if (response.detalle) {
-               this.parsedDetalle = JSON.parse(response.detalle);
+               this.parsedDetalle = typeof response.detalle === 'string'
+                  ? JSON.parse(response.detalle)
+                  : response.detalle;
             }
          } catch (error) {
             console.error('Error al obtener los datos:', error);
@@ -106,6 +116,9 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+      resolvedObservacion() {
+         return this.model.observacion || this.parsedDetalle.observacion || 'No hay observaciones';
+      }
    },
    mounted() {
       this.$nextTick(async () => {
