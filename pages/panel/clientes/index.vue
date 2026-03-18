@@ -3,50 +3,57 @@
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
+
             <div class="row">
+               <div class="col-12 mb-2">
+                  <input v-model="searchNombre" type="text" class="form-control mb-2" placeholder="Buscar por nombre">
+                  <input v-model="searchDocumento" type="text" class="form-control" placeholder="Buscar por documento">
+               </div>
+
+               <div class="col-12 mb-2 text-right">
+                  <button @click="generateReport('excel')" class="btn btn-success btn-sm">
+                     <i class="fas fa-file-excel"></i> Excel
+                  </button>
+                  <button @click="generateReport('pdf')" class="btn btn-danger btn-sm">
+                     <i class="fas fa-file-pdf"></i> PDF
+                  </button>
+               </div>
+
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
-                        <input v-model="search" type="text" class="form-control" placeholder="Buscar por nombre">
-                        <br>
-                        <nuxtLink :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
+                        <nuxt-link v-if="canCreateClientes" :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
                            <i class="fas fa-plus"></i> Agregar
-                        </nuxtLink>
-                        <button @click="generateReport('excel')" class="btn btn-success btn-sm">
-                           <i class="fas fa-file-excel"></i> Excel
-                        </button>
-                        <button @click="generateReport('pdf')" class="btn btn-danger btn-sm">
-                           <i class="fas fa-file-pdf"></i> PDF
-                        </button>
+                        </nuxt-link>
                         <div class="table-responsive">
                            <table class="table table-striped table-bordered">
                               <thead>
                                  <tr>
                                     <th class="py-0 px-1">#</th>
                                     <th class="py-0 px-1">NOMBRE</th>
-                                    <th class="py-0 px-1">MUNICIPIO</th>
-                                    <th class="py-0 px-1">DEPARTAMENTO</th>
-                                    <th class="py-0 px-1">CODIGO SUCURSAL</th>
-                                    <th class="py-0 px-1">DIRECCION</th>
-                                    <th class="py-0 px-1">TELEFONO</th>
+                                    <th class="py-0 px-1">DOCUMENTO ID</th>
+                                    <th class="py-0 px-1">COMPLEMENTO</th>
+                                    <th class="py-0 px-1">TIPO DOCUMENTO</th>
+                                    <th class="py-0 px-1">CORREO</th>
+                                    <th class="py-0 px-1">CODIGO CLIENTE</th>
                                     <th class="py-0 px-1"></th>
                                  </tr>
                               </thead>
                               <tbody>
                                  <tr v-for="(m, i) in paginatedList" :key="m.id">
                                     <td class="py-0 px-1">{{ i + 1 }}</td>
-                                    <td class="py-0 px-1">{{ m.nombre }}</td>
-                                    <td class="py-0 px-1">{{ m.municipio }}</td>
-                                    <td class="py-0 px-1">{{ m.departamento }}</td>
-                                    <td class="py-0 px-1">{{ m.codigosucursal }}</td>
-                                    <td class="py-0 px-1">{{ m.direcccion }}</td>
-                                    <td class="py-0 px-1">{{ m.telefono }}</td>
+                                    <td class="py-0 px-1">{{ m.razonSocial }}</td>
+                                    <td class="py-0 px-1">{{ m.documentoIdentidad }}</td>
+                                    <td class="py-0 px-1">{{ m.complemento }}</td>
+                                    <td class="py-0 px-1">{{ tipoDocumentoMap[m.tipoDocumentoIdentidad] }}</td>
+                                    <td class="py-0 px-1">{{ m.correo }}</td>
+                                    <td class="py-0 px-1">{{ m.codigoCliente }}</td>
                                     <td class="py-0 px-1">
                                        <div class="btn-group">
-                                          <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
+                                          <nuxt-link v-if="canUpdateClientes" :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
                                              <i class="fas fa-pen"></i>
                                           </nuxt-link>
-                                          <button type="button" @click="Eliminar(m.id)"
+                                          <button v-if="canDeleteClientes" type="button" @click="Eliminar(m.id)"
                                              class="btn btn-danger btn-sm py-1 px-2">
                                              <i class="fas fa-trash"></i>
                                           </button>
@@ -56,6 +63,7 @@
                               </tbody>
                            </table>
                         </div>
+                        <!-- Pagination controls -->
                         <nav aria-label="Page navigation example">
                            <ul class="pagination justify-content-center">
                               <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -102,13 +110,20 @@ export default {
       return {
          load: true,
          list: [],
-         search: '',
-         apiUrl: 'sucursales',
+         searchNombre: '',
+         searchDocumento: '',
+         apiUrl: 'clientes',
          page: 'Administracion',
-         modulo: 'Sucursales',
-         url_nuevo: '/administrador/sucursales/nuevo',
-         url_editar: '/administrador/sucursales/editar/',
-         url_permisos: '/administrador/sucursales/permisos/',
+         modulo: 'Clientes',
+         url_nuevo: '/panel/clientes/nuevo',
+         url_editar: '/panel/clientes/editar/',
+         tipoDocumentoMap: {
+            1: 'CI - Cédula de identidad',
+            2: 'CEX - Cédula de identidad de extranjero',
+            3: 'PAS - Pasaporte',
+            4: 'OD - Otro Documento de Identidad',
+            5: 'NIT - Número de identificación Tributaria',
+         },
          currentPage: 1,
          itemsPerPage: 14
       };
@@ -121,45 +136,48 @@ export default {
       },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
-         return res;
+         return res
       },
+
       async EliminarItem(id) {
-         this.load = true;
+         if (!this.canDeleteClientes) return;
+         this.load = true
          try {
             const res = await this.$admin.$delete(this.apiUrl + '/' + id);
-            console.log(res);
+            console.log(res)
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0];
-            });
+               this.list = v[0]
+            })
          } catch (e) {
-            console.error(e);
+
          } finally {
-            this.load = false;
+            this.load = false
          }
       },
       Eliminar(id) {
-         let self = this;
+         if (!this.canDeleteClientes) return;
+         let self = this
          this.$swal.fire({
             title: 'Deseas Eliminar?',
             showDenyButton: false,
             showCancelButton: true,
             confirmButtonText: 'Eliminar',
-            cancelButtonText: 'Cancelar',
+            cancelarButtonText: `Cancelar`,
          }).then(async (result) => {
             if (result.isConfirmed) {
-               await self.EliminarItem(id);
+               await self.EliminarItem(id)
             }
-         });
+         })
       },
       generateReport(format) {
          const data = this.filteredList.map((item, index) => ({
             '#': index + 1,
-            'Nombre': item.nombre,
-            'Municipio': item.municipio,
-            'Departamento': item.departamento,
-            'Codigo Sucursal': item.codigosucursal,
-            'Direccion': item.direcccion,
-            'Telefono': item.telefono
+            'Nombre': item.razonSocial,
+            'Documento id': item.documentoIdentidad,
+            'Complemento': item.complemento,
+            'Tipo Documento': this.tipoDocumentoMap[item.tipoDocumentoIdentidad] || 'Desconocido', // Mapeo correcto aquí
+            'Correo': item.correo,
+            'Codigo cliente': item.codigoCliente
          }));
 
          switch (format) {
@@ -170,14 +188,15 @@ export default {
                this.generatePDF(data);
                break;
          }
-      },
+      }
+      ,
       generateExcel(data) {
          // Crear una hoja de trabajo y agregar los datos
          const ws = utils.json_to_sheet(data);
 
          // Aplicar estilos a la hoja de trabajo
          const wsOpts = {
-            header: ['#', 'Nombre', 'Email', 'Sucursal', 'Estado'],
+            header: ['#', 'Nombre', 'Documento id', 'Complemento', 'Tipo documento', 'Correo', 'Codigo cliente'],
             font: {
                name: 'Arial',
                sz: 12,
@@ -193,7 +212,6 @@ export default {
                right: { style: 'thin', color: { rgb: '000000' } }
             }
          };
-
          // Aplicar estilos a los encabezados
          ws['!cols'] = [
             { wpx: 50 }, // Ancho de columna para '#'
@@ -205,26 +223,35 @@ export default {
 
          // Crear un libro de trabajo y agregar la hoja
          const wb = utils.book_new();
-         utils.book_append_sheet(wb, ws, "Sucursales");
+         utils.book_append_sheet(wb, ws, "Clientes");
 
          // Guardar el archivo
-         writeFile(wb, "sucursales.xlsx");
-      },
+         writeFile(wb, "clientes.xlsx");
+      }
+      ,
       generatePDF(data) {
          const doc = new jsPDF();
-         const tableColumn = ['#', 'Nombre', 'Municipio', 'Departamento', 'Codigo Sucursal', 'Direccion', 'Telefono'];
-         const tableRows = data.map(item => [
-            item['#'],
-            item['Nombre'],
-            item['Municipio'],
-            item['Departamento'],
-            item['Codigo Sucursal'],
-            item['Direccion'],
-            item['Telefono']
-         ]);
+         const tableColumn = ['#', 'Nombre', 'Documento id', 'Complemento', 'Tipo documento', 'Correo', 'Codigo cliente'];
+
+         // Mapeo de datos
+         const tableRows = data.map(item => {
+            // Verificar el valor del tipo de documento
+            console.log(`Tipo de documento: ${item['Tipo Documento']}`);
+
+            return [
+               item['#'],
+               item['Nombre'],
+               item['Documento id'],
+               item['Complemento'],
+               item['Tipo Documento'],
+               item['Correo'],
+               item['Codigo cliente']
+            ];
+         });
+
          // Agregar el título
          doc.setFontSize(18);
-         doc.text('Reporte de sucursales', 14, 22);
+         doc.text('Reporte de clientes', 14, 22);
 
          // Estilos para la tabla
          autoTable(doc, {
@@ -255,16 +282,39 @@ export default {
             },
             theme: 'grid'
          });
+
          // Guardar el archivo PDF
-         doc.save('sucursales.pdf');
-      },
+         doc.save('clientes.pdf');
+      }
+
+      ,
    },
    computed: {
+      filteredList() {
+         const searchNombre = (this.searchNombre || '').toString().toLowerCase();
+         const searchDocumento = (this.searchDocumento || '').toString().toLowerCase();
+         return this.list.filter(m =>
+            ((m && m.razonSocial) ? m.razonSocial : '').toString().toLowerCase().includes(searchNombre) &&
+            ((m && m.documentoIdentidad) ? m.documentoIdentidad : '').toString().toLowerCase().includes(searchDocumento)
+         );
+      },
       user() {
          return this.$store.state.auth.user;
       },
-      filteredList() {
-         return this.list.filter(item => item.nombre.toLowerCase().includes(this.search.toLowerCase()));
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canCreateClientes() {
+         return this.permissions.includes('clientes.manage') || this.permissions.includes('clientes.write') || this.permissions.includes('clientes.create');
+      },
+      canUpdateClientes() {
+         return this.permissions.includes('clientes.manage') || this.permissions.includes('clientes.write') || this.permissions.includes('clientes.update');
+      },
+      canDeleteClientes() {
+         return this.permissions.includes('clientes.manage') || this.permissions.includes('clientes.write') || this.permissions.includes('clientes.delete');
+      },
+      canWriteClientes() {
+         return this.permissions.includes('clientes.write');
       },
       totalPages() {
          return Math.ceil(this.filteredList.length / this.itemsPerPage);
@@ -277,19 +327,17 @@ export default {
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
-         } else {
-            try {
-               await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-                  this.list = v[0];
-               });
-            } catch (e) {
-               console.error(e);
-            } finally {
-               this.load = false;
-            }
+
+         try {
+            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
+               this.list = v[0]
+            })
+         } catch (e) {
+
+         } finally {
+            this.load = false
          }
+
       });
    },
 };
@@ -311,3 +359,4 @@ export default {
    /* Color azulito para los links */
 }
 </style>
+

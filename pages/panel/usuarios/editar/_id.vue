@@ -24,31 +24,23 @@
                            </div>
                            <div class="row">
                               <div class="form-group col-12">
-                                 <label for="name">* Nombre del Cajero</label>
+                                 <label for="name">* Nombre del Usuario</label>
                                  <input type="text" v-model="model.name" class="form-control" id="name" required>
                               </div>
                               <div class="form-group col-6">
-                                 <label for="sucursale">* Sucursal del Cajero</label>
+                                 <label for="sucursale">* Sucursal del Usuario</label>
                                  <select v-model="model.sucursale_id" class="form-control" id="sucursale" required>
                                     <option value="" disabled selected>Seleccione una sucursal</option>
                                     <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
                                  </select>
                               </div>
                               <div class="form-group col-12">
-                                 <label for="email">* Email del Cajero</label>
+                                 <label for="email">* Email del Usuario</label>
                                  <input type="email" v-model="model.email" class="form-control" id="email" required>
                               </div>
                               <div class="form-group col-12">
-                                 <label for="password">Password del Cajero</label>
+                                 <label for="password">Password del Usuario</label>
                                  <input type="password" v-model="model.password" class="form-control" id="password">
-                              </div>
-                              <div class="form-group col-12">
-                                 <label for="special_access">Acceso Especial</label>
-                                 <input type="checkbox" v-model="model.special_access" id="special_access">
-                              </div>
-                              <div class="form-group col-12" v-if="model.special_access !== initialSpecialAccess">
-                                 <label for="motivo">Motivo</label>
-                                 <textarea v-model="model.motivo" id="motivo" class="form-control" required></textarea>
                               </div>
                            </div>
                            <div class="col-12">
@@ -59,7 +51,7 @@
                                     </button>
                                  </div>
                                  <div class="col-6">
-                                    <button class="btn btn-dark w-100" @click="Save()">
+                                    <button v-if="canUpdateUsuarios" class="btn btn-dark w-100" @click="Save()">
                                        Guardar
                                     </button>
                                  </div>
@@ -90,14 +82,11 @@ export default {
             email: '',
             password: '',
             sucursale_id: '',
-            special_access: false,
-            motivo: '', // Campo adicional para motivo
          },
-         initialSpecialAccess: false,
          sucursales: [],
-         apiUrl: 'cajeros',
+         apiUrl: 'usuarios',
          page: 'Administracion',
-         modulo: 'Cajeros',
+         modulo: 'usuarios',
          load: true,
          showInfoTooltip: false,
       }
@@ -110,18 +99,32 @@ export default {
       validateFields() {
          const errors = [];
          if (!this.model.name || typeof this.model.name !== 'string' || this.model.name.length > 255) {
-            errors.push('El Nombre Cajero es obligatorio.');
+            errors.push('El Nombre Usuario es obligatorio.');
          }
          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
          if (!this.model.email || !emailPattern.test(this.model.email) || this.model.email.length > 255) {
-            errors.push('El Email del Cajero es obligatorio.');
+            errors.push('El Email del Usuario es obligatorio.');
          }
          if (!this.model.sucursale_id || typeof this.model.sucursale_id !== 'number') {
             errors.push('Debe seleccionar una Sucursal válida.');
          }
          return errors;
       },
+      buildPayload() {
+         const payload = {
+            name: this.model.name ? this.model.name.trim() : '',
+            email: this.model.email ? this.model.email.trim() : '',
+            sucursale_id: Number(this.model.sucursale_id),
+         };
+
+         if (this.model.password && this.model.password.trim()) {
+            payload.password = this.model.password.trim();
+         }
+
+         return payload;
+      },
       async Save() {
+         if (!this.canUpdateUsuarios) return;
          const errors = this.validateFields();
          if (errors.length) {
             this.$swal.fire({
@@ -137,7 +140,8 @@ export default {
 
          this.load = true;
          try {
-            const res = await this.$admin.$put(this.apiUrl + "/" + this.model.id, this.model);
+            const payload = this.buildPayload();
+            await this.$admin.$put(this.apiUrl + "/" + this.model.id, payload);
 
             this.$swal.fire({
                toast: true,
@@ -154,6 +158,29 @@ export default {
             }, 2000);
          } catch (e) {
             console.error(e);
+            const backendErrors = e.response?.data?.errors;
+            const backendMessage = e.response?.data?.message || e.response?.data?.error;
+
+            if (backendErrors && typeof backendErrors === 'object') {
+               const items = Object.values(backendErrors).flat().map(err => `<li>${err}</li>`).join('');
+               this.$swal.fire({
+                  toast: true,
+                  position: 'center',
+                  showConfirmButton: false,
+                  icon: 'error',
+                  title: 'No se pudo actualizar el usuario',
+                  html: `<ul style="text-align: left;">${items}</ul>`,
+               });
+               return;
+            }
+
+            this.$swal.fire({
+               toast: true,
+               position: 'center',
+               showConfirmButton: false,
+               icon: 'error',
+               title: backendMessage || 'Hubo un problema al actualizar. Intente nuevamente.',
+            });
          } finally {
             this.load = false;
          }
@@ -163,25 +190,34 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canUpdateUsuarios() {
+         return this.permissions.includes('usuarios.manage') || this.permissions.includes('usuarios.update');
+      },
+      canManageUsuarios() {
+         return this.permissions.includes('usuarios.manage');
+      },
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/');
-         } else {
-            try {
-               await Promise.all([
-                  this.GET_DATA(this.apiUrl + "/" + this.$route.params.id), this.GET_DATA('sucursales'),
-               ]).then((v) => {
-                  this.model = v[0];
-                  this.sucursales = v[1];
-                  this.initialSpecialAccess = this.model.special_access; // Guardar el valor inicial
-               });
-            } catch (e) {
-               console.error(e);
-            } finally {
-               this.load = false;
-            }
+         try {
+            await Promise.all([
+               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id), this.GET_DATA('sucursales'),
+            ]).then((v) => {
+               this.model = {
+                  ...this.model,
+                  ...v[0],
+                  password: '',
+                  sucursale_id: Number(v[0].sucursale_id || v[0].sucursale?.id || ''),
+               };
+               this.sucursales = v[1];
+            });
+         } catch (e) {
+            console.error(e);
+         } finally {
+            this.load = false;
          }
       });
    },
@@ -228,3 +264,5 @@ export default {
    display: block;
 }
 </style>
+
+

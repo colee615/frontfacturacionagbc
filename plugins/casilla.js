@@ -8,7 +8,7 @@ export default function ({ $axios, store, redirect }, inject) {
     }
   });
 
-  const url = 'http://172.65.10.33:8000/cajero/';
+  const url = 'http://172.65.10.33:8000/panel/';
   casilla.setBaseURL(url);
 
   casilla.interceptors.request.use(config => {
@@ -33,3 +33,7 @@ export default function ({ $axios, store, redirect }, inject) {
 
   inject('casilla', casilla);
 }
+
+
+
+

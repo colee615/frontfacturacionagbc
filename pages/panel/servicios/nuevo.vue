@@ -73,9 +73,9 @@
                                        </button>
                                     </div>
                                     <div class="col-6">
-                                       <button class="btn btn-dark w-100" @click="Save()">
-                                          Guardar
-                                       </button>
+                                    <button v-if="canCreateServicios" class="btn btn-dark w-100" @click="Save()">
+                                       Guardar
+                                    </button>
                                     </div>
                                  </div>
                               </div>
@@ -159,6 +159,7 @@ export default {
          return errors;
       },
       async Save() {
+         if (!this.canCreateServicios) return;
          // Validaciones
          const errors = this.validateFields();
          if (errors.length) {
@@ -210,10 +211,19 @@ export default {
       user() {
          return this.$store.state.auth.user;
       },
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canManageServicios() {
+         return this.permissions.includes('servicios.manage');
+      },
+      canCreateServicios() {
+         return this.permissions.includes('servicios.manage') || this.permissions.includes('servicios.create');
+      },
    },
    mounted() {
       this.$nextTick(async () => {
-         if (!['cajero', 'administrador'].includes(this.user.role)) {
+         if (!['usuario', 'admin'].includes(this.user.role)) {
             this.$router.push('/'); // Redirige a la página principal
          } else {
             try {
@@ -283,3 +293,4 @@ export default {
    display: block;
 }
 </style>
+

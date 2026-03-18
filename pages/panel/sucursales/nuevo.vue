@@ -1,13 +1,12 @@
 <template>
    <div>
-      <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
             <div class="row justify-content-center">
                <div class="col-sm-8 col-12">
                   <div class="card">
                      <div class="card-header">
-                        <h3>Agregar</h3>
+                        <h3>Agregar Sucursal</h3>
                      </div>
                      <div class="card-body">
                         <div class="row">
@@ -22,39 +21,50 @@
                                  <div class="arrow"></div>
                               </div>
                            </div>
-
-                           <div class="form-group col-12">
-                              <label for="ubicacion">* Nombre del Cajero</label>
-                              <input type="text" v-model="model.name" class="form-control" id="name" required>
+                           <div class="row">
+                              <div class="form-group col-12">
+                                 <label for="nombre">* Nombre de la Sucursal</label>
+                                 <input type="text" name="nombre" v-model="model.nombre" class="form-control"
+                                    id="nombre" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="municipio">* Municipio</label>
+                                 <input type="text" name="municipio" v-model="model.municipio" class="form-control"
+                                    id="municipio" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="departamento">* Departamento</label>
+                                 <input type="text" name="departamento" v-model="model.departamento"
+                                    class="form-control" id="departamento" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="codigosucursal">* Código Sucursal</label>
+                                 <input type="text" name="codigosucursal" v-model="model.codigosucursal"
+                                    class="form-control" id="codigosucursal" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="direcccion">* Dirección</label>
+                                 <input type="text" name="direcccion" v-model="model.direcccion" class="form-control"
+                                    id="direcccion" />
+                              </div>
+                              <div class="form-group col-12">
+                                 <label for="telefono">* Teléfono</label>
+                                 <input type="text" name="telefono" v-model="model.telefono" class="form-control"
+                                    id="telefono" />
+                              </div>
                            </div>
-                           <div class="form-group col-6">
-                              <label for="">* Sucursal del Cajero</label>
-                              <select name="" id="" class="form-control" v-model="model.sucursale_id" required>
-                                 <option value="" disabled selected>Seleccione una sucursal</option>
-                                 <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
-                              </select>
-                           </div>
-                           <div class="form-group col-12">
-                              <label for="email"> * Email del Cajero</label>
-                              <input type="email" v-model="model.email" class="form-control" id="email" required>
-                           </div>
-                           <div class="form-group col-12">
-                              <label for="password">* Password del Cajero</label>
-                              <input type="password" v-model="model.password" class="form-control" id="password"
-                                 required>
-                           </div>
-                           <div class="col-12">
-                              <div class="row">
-                                 <div class="col-6">
-                                    <button class="btn btn-info w-100" @click="$router.back()">
-                                       Regresar
-                                    </button>
-                                 </div>
-                                 <div class="col-6">
-                                    <button class="btn btn-dark w-100" @click="Save()">
-                                       Guardar
-                                    </button>
-                                 </div>
+                        </div>
+                        <div class="col-12">
+                           <div class="row">
+                              <div class="col-6">
+                                 <button class="btn btn-info w-100" @click="$router.back()">
+                                    Regresar
+                                 </button>
+                              </div>
+                              <div class="col-6">
+                                 <button v-if="canCreateSucursales" class="btn btn-dark w-100" @click="Save()">
+                                    Guardar
+                                 </button>
                               </div>
                            </div>
                         </div>
@@ -69,46 +79,54 @@
 
 <script>
 export default {
+   name: "AgregarSucursal",
    data() {
       return {
          model: {
-            name: '',
-            email: '',
-            password: '',
-            sucursale_id: '',
+            nombre: '',
+            municipio: '',
+            departamento: '',
+            codigosucursal: '',
+            direcccion: '',
+            telefono: '',
          },
-         sucursales: [],
-         apiUrl: 'cajeros',
-         page: 'Administracion',
-         modulo: 'Cajeros',
-         load: true,
          showInfoTooltip: false, // Variable para controlar la visibilidad del tooltip de información
-      }
+         apiUrl: 'sucursales',
+         page: 'Administracion',
+         modulo: 'Sucursales',
+      };
    },
-
    methods: {
-      async GET_DATA(path) {
-         const res = await this.$admin.$get(path);
-         return res;
-      },
       validateFields() {
          const errors = [];
-         if (!this.model.name || typeof this.model.name !== 'string') {
-            errors.push('El Nombre Cajero es obligatorio.');
+
+         if (!this.model.nombre) {
+            errors.push('El Nombre es obligatorio.');
          }
-         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-         if (!this.model.email || !emailPattern.test(this.model.email)) {
-            errors.push('El Email del Cajero es obligatorio.');
+
+         if (!this.model.municipio) {
+            errors.push('El Municipio es obligatorio.');
          }
-         if (!this.model.sucursale_id || typeof this.model.sucursale_id !== 'number') {
-            errors.push('Debe seleccionar una Sucursal válida.');
+
+         if (!this.model.departamento) {
+            errors.push('El Departamento es obligatorio.');
          }
-         if (!this.model.password) {
-            errors.push('El Password del Cajero es obligatorio.');
+
+         if (!this.model.codigosucursal) {
+            errors.push('El Código de Sucursal es obligatorio.');
+         }
+
+         if (!this.model.direcccion) {
+            errors.push('La Dirección es obligatoria.');
+         }
+
+         if (!this.model.telefono) {
+            errors.push('El Teléfono es obligatorio.');
          }
          return errors;
       },
       async Save() {
+         if (!this.canCreateSucursales) return;
          // Validaciones
          const errors = this.validateFields();
          if (errors.length) {
@@ -156,38 +174,34 @@ export default {
          }
       },
    },
-
    computed: {
       user() {
          return this.$store.state.auth.user;
       },
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canManageSucursales() {
+         return this.permissions.includes('sucursales.manage');
+      },
+      canCreateSucursales() {
+         return this.permissions.includes('sucursales.manage') || this.permissions.includes('sucursales.create');
+      },
    },
-
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/'); // Redirige a la página principal
-         } else {
-            try {
-               await Promise.all([this.GET_DATA('sucursales')]).then((v) => {
-                  this.sucursales = v[0];
+         try {
+            // Puedes agregar aquí alguna lógica adicional que necesites al cargar el componente
+         } catch (e) {
 
-                  if (this.sucursales.length) {
-                     this.model.sucursale_id = this.sucursales[0].id;
-                  }
-               });
-
-            } catch (e) {
-               console.error('Error al cargar sucursales:', e);
-            } finally {
-               this.load = false
-            }
+         } finally {
+            // Y aquí cualquier acción de limpieza o finalización
          }
       });
    },
-}
-
+};
 </script>
+
 <style scoped>
 .info-container {
    display: inline-block;
@@ -213,6 +227,7 @@ export default {
    /* Bordes redondeados */
    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
    /* Sombra más pronunciada */
+   display: none;
    font-size: 0.875rem;
    /* Tamaño de fuente ligeramente mayor */
    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -241,3 +256,4 @@ export default {
    display: block;
 }
 </style>
+

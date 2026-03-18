@@ -3,11 +3,22 @@
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
             <div class="row justify-content-md-center">
-               <div class="col-lg-10 mx-auto">
+               <div class="form-group mt-3 col-md-6">
+                  <label for="Usuarioselect">Seleccione un Usuario:</label>
+                  <v-select :options="list" v-model="selectedUsuario" label="name" :reduce="Usuario => Usuario.id"
+                     @input="resetData" placeholder="Buscar Usuario...">
+                     <template #option="option">
+                        <div>
+                           {{ option.name }} - {{ option.email }}
+                        </div>
+                     </template>
+                  </v-select>
+               </div>
+               <div class="col-lg-10 mx-auto" v-if="selectedUsuario">
                   <div class="card mb-4">
                      <div class="card-header p-3">
                         <div class="d-flex justify-content-between align-items-center">
-                           <h6>Datos del Cajero</h6>
+                           <h6>Datos del Usuario</h6>
                            <div class="btn-group">
                               <button @click="descargarPDF" class="btn btn-danger btn-sm">
                                  Exportar PDF Día De Hoy
@@ -25,12 +36,14 @@
                         </div>
                      </div>
                      <div class="card-body p-3">
-                        <div class="row" v-if="user">
+                        <div class="row">
                            <div class="col-md-6">
-                              <p class="text-sm mb-0"><strong>Nombre:</strong> {{ user.name }}</p>
-                              <p class="text-sm mb-0"><strong>Email:</strong> {{ user.email }}</p>
-                              <p class="text-sm mb-0"><strong>Sucursal:</strong> {{ user.sucursal }}</p>
-                              <p class="text-sm mb-0"><strong>Estado:</strong> {{ formatEstado(user.estado) }}</p>
+                              <p class="text-sm mb-0"><strong>Nombre:</strong> {{ selectedUsuarioDetails.name }}</p>
+                              <p class="text-sm mb-0"><strong>Email:</strong> {{ selectedUsuarioDetails.email }}</p>
+                              <p class="text-sm mb-0"><strong>Sucursal:</strong> {{
+                                 selectedUsuarioDetails.sucursale ? selectedUsuarioDetails.sucursale.departamento : 'N/A' }}</p>
+                              <p class="text-sm mb-0"><strong>Estado:</strong> {{
+                                 formatEstado(selectedUsuarioDetails.estado) }}</p>
                            </div>
                         </div>
                         <hr class="horizontal dark mt-4 mb-4" />
@@ -45,10 +58,12 @@
                                  <label for="fechaFin">Fecha Fin:</label>
                                  <input type="date" id="fechaFin" v-model="fechaFin" class="form-control" />
                               </div>
-                              <button @click="fetchVentasPorRangoFechas(user.id)" class="btn btn-secondary btn-sm mt-2">
+                              <button @click="fetchVentasPorRangoFechas(selectedUsuarioDetails.id)"
+                                 class="btn btn-secondary btn-sm mt-2">
                                  Ver Ventas por Rango de Fechas
                               </button>
-                              <button @click="fetchVentasDelDia(user.id)" class="btn btn-primary btn-sm mt-2">
+                              <button @click="fetchVentasDelDia(selectedUsuarioDetails.id)"
+                                 class="btn btn-primary btn-sm mt-2">
                                  Ver Ventas del Día
                               </button>
                            </div>
@@ -70,9 +85,8 @@
                                     N° Identidad: {{ venta.cliente?.documentoIdentidad ?
                                        formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A' }}
                                     Tipo: {{ venta.motivo }} - Total Venta {{ venta.total }} Bs - Estado: {{
-                                       formatEstado(venta.estado) }}
-                                    <a :href="`${url_editar}${venta.id}`" class="btn btn-secondary btn-sm">Ver
-                                       detalles</a>
+                                       formatEstado(venta.estado)
+                                    }}
                                  </li>
                               </ul>
                               <p><strong>Total del Día (sin Estado 0):</strong> {{ totalVentasDelDia }} Bs</p>
@@ -85,9 +99,8 @@
                                     N° Identidad: {{ venta.cliente?.documentoIdentidad ?
                                        formatDocumentoIdentidad(venta.cliente.documentoIdentidad) : 'N/A' }}
                                     Tipo: {{ venta.motivo }} - Total Venta {{ venta.total }} Bs - Estado: {{
-                                       formatEstado(venta.estado) }}
-                                    <a :href="`${url_editar}${venta.id}`" class="btn btn-secondary btn-sm">Ver
-                                       detalles</a>
+                                       formatEstado(venta.estado)
+                                    }}
                                  </li>
                               </ul>
                               <p><strong>Total por Rango de Fechas (sin Estado 0):</strong> {{ totalVentasPorRangoFechas
@@ -121,13 +134,16 @@ export default {
    data() {
       return {
          load: true,
+         list: [],
          search: '',
-         apiUrl: 'cajeros',
-         page: 'Administración',
-         modulo: 'Cajeros',
-         url_editar: '/cajero/ventas/invoice/',
+         apiUrl: 'usuarios',
+         page: 'Panel',
+         modulo: 'Reporte por usuario',
+         url_nuevo: '/panel/usuarios/nuevo',
+         url_editar: '/panel/usuarios/editar/',
          currentPage: 1,
          itemsPerPage: 14,
+         selectedUsuario: null,
          fechaInicio: '',
          fechaFin: '',
          ventasDelDia: [],
@@ -139,6 +155,13 @@ export default {
    computed: {
       user() {
          return this.$store.state.auth.user;
+      },
+      filteredList() {
+         const term = (this.search || '').toString().toLowerCase();
+         return this.list.filter(item => ((item && item.name) ? item.name : '').toString().toLowerCase().includes(term));
+      },
+      selectedUsuarioDetails() {
+         return this.list.find(item => item.id === this.selectedUsuario) || { sucursale: null };
       }
    },
    methods: {
@@ -203,13 +226,12 @@ export default {
       descargarPDF() {
          const doc = new jsPDF({ orientation: 'landscape' });
 
-         // Agregar información del cajero
-         doc.text(`Nombre: ${this.user.name}`, 14, 20);
-         doc.text(`Email: ${this.user.email}`, 14, 30);
-         doc.text(`Sucursal: ${this.user.sucursale.departamento}`, 14, 40);
-
+         // Agregar información del Usuario
+         doc.text(`Nombre: ${this.selectedUsuarioDetails.name}`, 14, 20);
+         doc.text(`Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}`, 14, 40);
          doc.text(`Total Ventas del Día: ${this.totalVentasDelDia} Bs`, 14, 60);
 
+         // Agregar tabla de ventas
          autoTable(doc, {
             startY: 70,
             head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
@@ -227,9 +249,8 @@ export default {
          doc.save('ventas_del_dia.pdf');
       },
       descargarExcel() {
-
          const data = [
-            { 'Cajero': `Nombre: ${this.user.name}, Sucursal: ${this.user.sucursale.departamento}` },
+            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}, Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}` },
             {},
             ...this.ventasDelDia.map(venta => ({
                'N°': venta.codigoOrden,
@@ -249,15 +270,14 @@ export default {
          writeFile(wb, 'ventas_del_dia.xlsx');
       },
       descargarPDFPorRangoFechas() {
-
          const doc = new jsPDF({ orientation: 'landscape' });
 
-         // Agregar información del cajero
-         doc.text(`Nombre: ${this.user.name}`, 14, 20);
-         doc.text(`Email: ${this.user.email}`, 14, 30);
-         doc.text(`Sucursal: ${this.user.sucursal}`, 14, 40);
-         doc.text(`Estado: ${this.formatEstado(this.user.estado)}`, 14, 50);
+         // Agregar información del Usuario
+         doc.text(`Nombre: ${this.selectedUsuarioDetails.name}`, 14, 20);
+         doc.text(`Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}`, 14, 40);
+         doc.text(`Total Ventas por Rango de Fechas: ${this.totalVentasPorRangoFechas} Bs`, 14, 60);
 
+         // Agregar tabla de ventas
          autoTable(doc, {
             startY: 70,
             head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
@@ -276,7 +296,7 @@ export default {
       },
       descargarExcelPorRangoFechas() {
          const data = [
-            { 'Cajero': `Nombre: ${this.user.name}, Sucursal: ${this.user.sucursale.departamento}` },
+            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}, Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}` },
             {},
             ...this.ventasPorRangoFechas.map(venta => ({
                'N°': venta.codigoOrden,
@@ -296,19 +316,32 @@ export default {
          writeFile(wb, 'ventas_por_rango_fechas.xlsx');
       }
    },
-   mounted() {
-      this.resetData();
-      if (this.user) {
-         this.fetchVentasDelDia(this.user.id);
+   async mounted() {
+      this.load = true;
+      try {
+         const data = await this.GET_DATA(this.apiUrl);
+         this.list = data;
+      } catch (e) {
+         this.showErrorMessage('Hubo un problema al obtener los datos de Usuarios. Intente nuevamente.');
+      } finally {
+         this.load = false;
       }
-   },
+   }
 };
 </script>
 
-
-
 <style scoped>
-.card-body .row>div {
-   margin-bottom: 20px;
+.btn-group {
+   margin-top: 1rem;
+}
+
+.text-lg {
+   font-size: 1.25rem;
+}
+
+.font-weight-bold {
+   font-weight: 700;
 }
 </style>
+
+

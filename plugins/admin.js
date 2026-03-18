@@ -1,16 +1,15 @@
-import Swal from 'sweetalert2';
+﻿import Swal from 'sweetalert2';
 
 export default function ({ $axios, store, redirect }, inject) {
   const admin = $axios.create({
     headers: {
       common: {
-        Accept: 'text/plain, */*'
+        Accept: 'application/json, text/plain, */*'
       }
     }
   });
-  const url = 'https://172.65.10.36:10001/admin/';
 
-  // const url = 'http://localhost/apifacturacionagbc/public/admin/';
+  const url = 'http://127.0.0.1:8000/admin/';
   admin.setBaseURL(url);
 
   admin.interceptors.request.use(config => {
@@ -26,20 +25,21 @@ export default function ({ $axios, store, redirect }, inject) {
   admin.interceptors.response.use(
     response => response,
     error => {
-      if (error.response.status === 401 || error.response.status === 403) {
-        // Muestra el mensaje de error
-        if (error.response.status === 403 && error.response.data.error) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Horario no permitido',
-            text: 'El sistema solo está disponible entre las 8 AM y las 7 PM.',
-            confirmButtonText: 'Entendido'
-          });
-        }
-        // Redirige a la página de login y cierra sesión en el frontend
+      const status = error?.response?.status;
+      const message = error?.response?.data?.error;
+
+      if (status === 401) {
         store.dispatch('auth/logout');
         redirect('/auth/login');
+      } else if (status === 403) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Acceso denegado',
+          text: message || 'No tienes permiso para esta accion',
+          confirmButtonText: 'Entendido'
+        });
       }
+
       return Promise.reject(error);
     }
   );

@@ -304,11 +304,12 @@ export default {
    },
 
    data() {
-      return {
-         specialFields: [], // Array to hold multiple special fields
-         formatoFactura: 'rollo', // Valor predeterminado
-         filtroDocumentoIdentidad: "",
-         model: {
+         return {
+            specialFields: [], // Array to hold multiple special fields
+            formatoFactura: 'rollo', // Valor predeterminado
+            montoDescuentoAdicional: 0,
+            filtroDocumentoIdentidad: "",
+            model: {
             razonSocial: "",
             documentoIdentidad: "",
             complemento: "",
@@ -357,6 +358,10 @@ export default {
       },
       user() {
          return this.$store.state.auth.user;
+      },
+      currentSucursal() {
+         if (!this.user) return null;
+         return this.user.sucursale || this.user.sucursal || null;
       },
       totalCarrito() {
          let subtotal = this.carrito.reduce((a, b) => a + b.cantidad * b.precio, 0);
@@ -600,21 +605,50 @@ export default {
          this.modalEdit = false;
          this.clearModalFields();
       },
+      validateUserContext() {
+         if (!this.user || !this.user.id) {
+            this.$swal.fire({
+               title: "Sesión inválida",
+               text: "No se encontró el usuario autenticado. Inicie sesión nuevamente.",
+               icon: "error",
+               confirmButtonText: "Ok",
+            });
+            return false;
+         }
+
+         const hasCodigoSucursal = this.currentSucursal
+            && this.currentSucursal.codigosucursal !== null
+            && this.currentSucursal.codigosucursal !== undefined;
+
+         if (!hasCodigoSucursal) {
+            this.$swal.fire({
+               title: "Sucursal no disponible",
+               text: "El usuario no tiene una sucursal asignada o la sesión no cargó ese dato.",
+               icon: "error",
+               confirmButtonText: "Ok",
+            });
+            return false;
+         }
+
+         return true;
+      },
       async Save() {
+         if (!this.validateUserContext()) return;
          this.load = true;
          try {
+            const sucursal = this.currentSucursal;
             const operacion = {
                cliente_id: this.cliente.id,
-               cajero_id: this.user.id,
-               codigoSucursal: this.user.sucursale.codigosucursal,
+               usuario_id: this.user.id,
+               codigoSucursal: sucursal.codigosucursal,
                puntoVenta: 0,
                documentoSector: 1,
-               municipio: this.user.sucursale.municipio,
-               departamento: this.user.sucursale.departamento,
-               telefono: this.user.sucursale.telefono,
+               municipio: sucursal.municipio,
+               departamento: sucursal.departamento,
+               telefono: sucursal.telefono,
                metodoPago: 1,
                formatoFactura: this.formatoFactura,
-               monto_descuento_adicional: this.montoDescuentoAdicional,
+               monto_descuento_adicional: Number(this.montoDescuentoAdicional || 0),
                motivo: "Venta",
                total: this.totalCarrito,
                carrito: this.carrito.map((item, index) => ({
@@ -677,19 +711,21 @@ export default {
       }
       ,
       async SaveSegundaSeccion() {
+         if (!this.validateUserContext()) return;
          this.load = true;
          try {
+            const sucursal = this.currentSucursal;
             const operacion = {
-               cajero_id: this.user.id,
-               codigoSucursal: this.user.sucursale.codigosucursal,
+               usuario_id: this.user.id,
+               codigoSucursal: sucursal.codigosucursal,
                puntoVenta: 0,
                documentoSector: 23,
-               municipio: this.user.sucursale.municipio,
-               departamento: this.user.sucursale.departamento,
-               telefono: this.user.sucursale.telefono,
+               municipio: sucursal.municipio,
+               departamento: sucursal.departamento,
+               telefono: sucursal.telefono,
                metodoPago: 1,
                formatoFactura: this.formatoFactura,
-               monto_descuento_adicional: this.montoDescuentoAdicional,
+               monto_descuento_adicional: Number(this.montoDescuentoAdicional || 0),
                motivo: "Prevalorada",
                total: this.totalCarrito,
                carrito: [

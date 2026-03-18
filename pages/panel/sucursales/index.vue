@@ -9,7 +9,7 @@
                      <div class="card-body">
                         <input v-model="search" type="text" class="form-control" placeholder="Buscar por nombre">
                         <br>
-                        <nuxtLink :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
+                        <nuxtLink v-if="canCreateSucursales" :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
                            <i class="fas fa-plus"></i> Agregar
                         </nuxtLink>
                         <button @click="generateReport('excel')" class="btn btn-success btn-sm">
@@ -18,39 +18,37 @@
                         <button @click="generateReport('pdf')" class="btn btn-danger btn-sm">
                            <i class="fas fa-file-pdf"></i> PDF
                         </button>
-
                         <div class="table-responsive">
                            <table class="table table-striped table-bordered">
                               <thead>
                                  <tr>
-                                    <th class="py-1 px-2">#</th>
-                                    <th class="py-1 px-2">NOMBRE</th>
-                                    <th class="py-1 px-2">EMAIL</th>
-                                    <th class="py-1 px-2">SUCURSAL</th>
-                                    <th class="py-1 px-2">ESTADO</th>
-                                    <th class="py-1 px-2">ACCIONES</th>
+                                    <th class="py-0 px-1">#</th>
+                                    <th class="py-0 px-1">NOMBRE</th>
+                                    <th class="py-0 px-1">MUNICIPIO</th>
+                                    <th class="py-0 px-1">DEPARTAMENTO</th>
+                                    <th class="py-0 px-1">CODIGO SUCURSAL</th>
+                                    <th class="py-0 px-1">DIRECCION</th>
+                                    <th class="py-0 px-1">TELEFONO</th>
+                                    <th class="py-0 px-1"></th>
                                  </tr>
                               </thead>
                               <tbody>
                                  <tr v-for="(m, i) in paginatedList" :key="m.id">
-                                    <td class="py-1 px-2">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
-                                    <td class="py-1 px-2">{{ m.name }}</td>
-                                    <td class="py-1 px-2">{{ m.email }}</td>
-                                    <td class="py-1 px-2">{{ m.sucursale.departamento }}</td>
-                                    <td class="py-1 px-2">{{ m.estado === 1 ? 'Activo' : m.estado === 2 ? 'Inactivo' :
-                                       'Desconocido' }}</td>
-                                    <td class="py-1 px-2">
+                                    <td class="py-0 px-1">{{ i + 1 }}</td>
+                                    <td class="py-0 px-1">{{ m.nombre }}</td>
+                                    <td class="py-0 px-1">{{ m.municipio }}</td>
+                                    <td class="py-0 px-1">{{ m.departamento }}</td>
+                                    <td class="py-0 px-1">{{ m.codigosucursal }}</td>
+                                    <td class="py-0 px-1">{{ m.direcccion }}</td>
+                                    <td class="py-0 px-1">{{ m.telefono }}</td>
+                                    <td class="py-0 px-1">
                                        <div class="btn-group">
-                                          <nuxt-link :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
+                                          <nuxt-link v-if="canUpdateSucursales" :to="`${url_editar}${m.id}`" class="btn btn-info btn-sm py-1 px-2">
                                              <i class="fas fa-pen"></i>
                                           </nuxt-link>
-                                          <button v-if="m.estado === 1" type="button" @click="Eliminar(m.id)"
+                                          <button v-if="canDeleteSucursales" type="button" @click="Eliminar(m.id)"
                                              class="btn btn-danger btn-sm py-1 px-2">
                                              <i class="fas fa-trash"></i>
-                                          </button>
-                                          <button v-if="m.estado === 2" type="button" @click="Activar(m.id)"
-                                             class="btn btn-success btn-sm py-1 px-2">
-                                             <i class="fas fa-check"></i>
                                           </button>
                                        </div>
                                     </td>
@@ -58,7 +56,6 @@
                               </tbody>
                            </table>
                         </div>
-                        <!-- Pagination controls -->
                         <nav aria-label="Page navigation example">
                            <ul class="pagination justify-content-center">
                               <li class="page-item" :class="{ disabled: currentPage === 1 }">
@@ -87,6 +84,7 @@
       </AdminTemplate>
    </div>
 </template>
+
 <script>
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -95,153 +93,75 @@ import { utils, writeFile } from 'xlsx';
 export default {
    name: "IndexPage",
    head() {
-
       return {
          title: this.modulo,
       };
-
    },
+
    data() {
       return {
          load: true,
          list: [],
          search: '',
-         apiUrl: 'cajeros',
-         page: 'Administración',
-         modulo: 'Cajeros',
-         url_nuevo: '/administrador/cajeros/nuevo',
-         url_editar: '/administrador/cajeros/editar/',
+         apiUrl: 'sucursales',
+         page: 'Administracion',
+         modulo: 'Sucursales',
+         url_nuevo: '/panel/sucursales/nuevo',
+         url_editar: '/panel/sucursales/editar/',
+         url_permisos: '/panel/sucursales/permisos/',
          currentPage: 1,
          itemsPerPage: 14
       };
    },
-   computed: {
-      user() {
-         return this.$store.state.auth.user;
-      },
-      filteredList() {
-         return this.list.filter(item => item.name.toLowerCase().includes(this.search.toLowerCase()));
-      },
-      totalPages() {
-         return Math.ceil(this.filteredList.length / this.itemsPerPage);
-      },
-      paginatedList() {
-         const start = (this.currentPage - 1) * this.itemsPerPage;
-         const end = start + this.itemsPerPage;
-         return this.filteredList.slice(start, end);
-      }
-   },
    methods: {
+      changePage(page) {
+         if (page >= 1 && page <= this.totalPages) {
+            this.currentPage = page;
+         }
+      },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
          return res;
       },
       async EliminarItem(id) {
+         if (!this.canDeleteSucursales) return;
          this.load = true;
          try {
-            const res = await this.$admin.$delete(this.apiUrl + "/" + id);
-
+            const res = await this.$admin.$delete(this.apiUrl + '/' + id);
+            console.log(res);
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
             });
-
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'success',
-               title: 'Cajero eliminado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
-            });
          } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Hubo un problema al eliminar al cajero. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
-            });
+            console.error(e);
          } finally {
             this.load = false;
          }
       },
       Eliminar(id) {
+         if (!this.canDeleteSucursales) return;
          let self = this;
          this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
+            title: 'Deseas Eliminar?',
+            showDenyButton: false,
             showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Eliminar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas eliminar al Cajero?</div></div>',
-            icon: 'warning',
-            dangerMode: true,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar',
          }).then(async (result) => {
             if (result.isConfirmed) {
                await self.EliminarItem(id);
             }
          });
       },
-      async ActivarItem(id) {
-         this.load = true;
-         try {
-            const res = await this.$admin.$put(this.apiUrl + "/activar/" + id);
-            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0];
-            });
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'success',
-               title: 'Cajero activado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Hubo un problema al activar al cajero. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
-            });
-         } finally {
-            this.load = false;
-         }
-      },
-      Activar(id) {
-         this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Activar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas activar al Cajero?</div></div>',
-            icon: 'warning',
-            dangerMode: true,
-         }).then(async (result) => {
-            if (result.isConfirmed) {
-               await this.ActivarItem(id);
-            }
-         });
-      },
       generateReport(format) {
          const data = this.filteredList.map((item, index) => ({
             '#': index + 1,
-            'Nombre': item.name,
-            'Email': item.email,
-            'Sucursal': item.sucursale.departamento,
-            'Estado': item.estado === 1 ? 'Activo' : item.estado === 2 ? 'Inactivo' : 'Desconocido'
+            'Nombre': item.nombre,
+            'Municipio': item.municipio,
+            'Departamento': item.departamento,
+            'Codigo Sucursal': item.codigosucursal,
+            'Direccion': item.direcccion,
+            'Telefono': item.telefono
          }));
 
          switch (format) {
@@ -254,7 +174,10 @@ export default {
          }
       },
       generateExcel(data) {
+         // Crear una hoja de trabajo y agregar los datos
          const ws = utils.json_to_sheet(data);
+
+         // Aplicar estilos a la hoja de trabajo
          const wsOpts = {
             header: ['#', 'Nombre', 'Email', 'Sucursal', 'Estado'],
             font: {
@@ -263,7 +186,7 @@ export default {
                bold: true
             },
             fill: {
-               fgColor: { rgb: "FFFF00" }
+               fgColor: { rgb: "FFFF00" } // Fondo amarillo para encabezados
             },
             border: {
                top: { style: 'thin', color: { rgb: '000000' } },
@@ -273,33 +196,39 @@ export default {
             }
          };
 
+         // Aplicar estilos a los encabezados
          ws['!cols'] = [
-            { wpx: 50 },
-            { wpx: 150 },
-            { wpx: 200 },
-            { wpx: 150 },
-            { wpx: 100 }
+            { wpx: 50 }, // Ancho de columna para '#'
+            { wpx: 150 }, // Ancho de columna para 'Nombre'
+            { wpx: 200 }, // Ancho de columna para 'Email'
+            { wpx: 150 }, // Ancho de columna para 'Sucursal'
+            { wpx: 100 }  // Ancho de columna para 'Estado'
          ];
 
+         // Crear un libro de trabajo y agregar la hoja
          const wb = utils.book_new();
-         utils.book_append_sheet(wb, ws, "Cajeros");
+         utils.book_append_sheet(wb, ws, "Sucursales");
 
-         writeFile(wb, "cajeros.xlsx");
+         // Guardar el archivo
+         writeFile(wb, "sucursales.xlsx");
       },
       generatePDF(data) {
          const doc = new jsPDF();
-         const tableColumn = ['#', 'Nombre', 'Email', 'Sucursal', 'Estado'];
+         const tableColumn = ['#', 'Nombre', 'Municipio', 'Departamento', 'Codigo Sucursal', 'Direccion', 'Telefono'];
          const tableRows = data.map(item => [
             item['#'],
             item['Nombre'],
-            item['Email'],
-            item['Sucursal'],
-            item['Estado']
+            item['Municipio'],
+            item['Departamento'],
+            item['Codigo Sucursal'],
+            item['Direccion'],
+            item['Telefono']
          ]);
-
+         // Agregar el título
          doc.setFontSize(18);
-         doc.text('Reporte de Cajeros', 14, 22);
+         doc.text('Reporte de sucursales', 14, 22);
 
+         // Estilos para la tabla
          autoTable(doc, {
             startY: 30,
             head: [tableColumn],
@@ -328,28 +257,52 @@ export default {
             },
             theme: 'grid'
          });
-
-         doc.save('cajeros.pdf');
+         // Guardar el archivo PDF
+         doc.save('sucursales.pdf');
       },
-      changePage(page) {
-         if (page >= 1 && page <= this.totalPages) {
-            this.currentPage = page;
-         }
+   },
+   computed: {
+      user() {
+         return this.$store.state.auth.user;
+      },
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canCreateSucursales() {
+         return this.permissions.includes('sucursales.manage') || this.permissions.includes('sucursales.create');
+      },
+      canUpdateSucursales() {
+         return this.permissions.includes('sucursales.manage') || this.permissions.includes('sucursales.update');
+      },
+      canDeleteSucursales() {
+         return this.permissions.includes('sucursales.manage') || this.permissions.includes('sucursales.delete');
+      },
+      canManageSucursales() {
+         return this.permissions.includes('sucursales.manage');
+      },
+      filteredList() {
+         const term = (this.search || '').toString().toLowerCase();
+         return this.list.filter(item => ((item && item.nombre) ? item.nombre : '').toString().toLowerCase().includes(term));
+      },
+      totalPages() {
+         return Math.ceil(this.filteredList.length / this.itemsPerPage);
+      },
+      paginatedList() {
+         const start = (this.currentPage - 1) * this.itemsPerPage;
+         const end = start + this.itemsPerPage;
+         return this.filteredList.slice(start, end);
       }
    },
    mounted() {
       this.$nextTick(async () => {
-         if (this.user.role !== 'administrador') {
-            this.$router.push('/');
-         }
          try {
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0]
-            })
+               this.list = v[0];
+            });
          } catch (e) {
-
+            console.error(e);
          } finally {
-            this.load = false
+            this.load = false;
          }
       });
    },
@@ -372,3 +325,4 @@ export default {
    /* Color azulito para los links */
 }
 </style>
+

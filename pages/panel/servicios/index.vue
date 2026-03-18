@@ -3,53 +3,47 @@
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
          <div slot="body">
-
-            <div class="row">
-               <div class="col-12 mb-2">
-                  <input v-model="searchQuery" type="text" class="form-control mb-2"
-                     placeholder="Buscar por codigo seguimiento">
-
+            <div class="row justify-content-end mb-2">
+               <div class="col-auto">
                </div>
+            </div>
+            <div class="row">
                <div class="col-12">
                   <div class="card">
                      <div class="card-body">
+                        <input v-model="search" type="text" class="form-control" placeholder="Buscar por nombre">
+                        <br>
+                        <nuxtLink v-if="canCreateServicios" :to="url_nuevo" class="btn btn-dark btn-sm w-100 mb-2">
+                           <i class="fas fa-plus"></i> Agregar
+                        </nuxtLink>
                         <div class="table-responsive">
                            <table class="table table-striped table-bordered">
                               <thead>
                                  <tr>
                                     <th class="py-0 px-1">#</th>
-                                    <th class="py-0 px-1">TIPO DE LA SOLICITUD</th>
-                                    <th class="py-0 px-1">ESTADO DE LA SOLICITUD</th>
-                                    <th class="py-0 px-1">FUENTE</th>
-                                    <th class="py-0 px-1">CODIGO SEGUIMIENTO</th>
-                                    <th class="py-0 px-1">FECHA</th>
-                                    <th class="py-0 px-1">MENSAJE</th>
+                                    <th class="py-0 px-1">Nombre</th>
+                                    <th class="py-0 px-1">N°Codigo</th>
+                                    <th class="py-0 px-1">Precio Unitario</th>
+                                    <th class="py-0 px-1">Codigo Sin</th>
                                     <th class="py-0 px-1"></th>
                                  </tr>
                               </thead>
                               <tbody>
                                  <tr v-for="(m, i) in paginatedList" :key="m.id">
-                                    <td class="py-0 px-1">{{ i + 1 }}</td>
-                                    <td class="py-0 px-1"
-                                       :class="{ 'emision': m.detalle.tipoEmision === 'EMISION', 'anulacion': m.detalle.tipoEmision === 'ANULACION' }">
-                                       {{ m.detalle.tipoEmision }}
-                                    </td>
-                                    <td class="py-0 px-1">{{ m.estado }}</td>
-                                    <td class="py-0 px-1">{{ m.fuente }}</td>
-                                    <td class="py-0 px-1">{{ m.codigo_seguimiento }}</td>
-                                    <td class="py-0 px-1">{{ m.fecha }}</td>
-                                    <td class="py-0 px-1">{{ m.mensaje }}</td>
+                                    <td class="py-0 px-1">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
+                                    <td class="py-0 px-1">{{ m.nombre }}</td>
+                                    <td class="py-0 px-1">{{ m.codigo }}</td>
+                                    <td class="py-0 px-1">{{ m.precioUnitario }}</td>
+                                    <td class="py-0 px-1">{{ m.codigoSin }}</td>
                                     <td class="py-0 px-1">
                                        <div class="btn-group">
-                                          <nuxt-link :to="`${url_editar}${m.id}`"
-                                             class="btn btn-success btn-sm py-1 px-2" v-if="m.estado === 'EXITO'">
-                                             <i class="fas fa-search"></i>
-                                          </nuxt-link>
-                                          <nuxt-link :to="`${url_editar}${m.id}`"
-                                             class="btn btn-sm py-1 px-2 btn-danger"
-                                             v-else-if="m.estado === 'OBSERVADO'">
-                                             <i class="fas fa-exclamation-triangle"></i>
-                                          </nuxt-link>
+                                          <nuxtLink v-if="canUpdateServicios" :to="url_editar + m.id" class="btn btn-info btn-sm py-1 px-2">
+                                             <i class="fas fa-pen"></i>
+                                          </nuxtLink>
+                                          <button v-if="canDeleteServicios" type="button" @click="Eliminar(m.id)"
+                                             class="btn btn-danger btn-sm py-1 px-2">
+                                             <i class="fas fa-trash"></i>
+                                          </button>
                                        </div>
                                     </td>
                                  </tr>
@@ -85,7 +79,6 @@
    </div>
 </template>
 
-
 <script>
 export default {
    name: "IndexPage",
@@ -94,16 +87,16 @@ export default {
          title: this.modulo,
       };
    },
-
    data() {
       return {
          load: true,
          list: [],
-         searchQuery: '',
-         apiUrl: 'notificaciones',
-         page: 'Administracion',
-         modulo: 'Notificaciones',
-         url_editar: '/administrador/notificaciones/detalle/',
+         search: '',
+         apiUrl: "servicios",
+         page: "Administracion",
+         modulo: "Servicios",
+         url_nuevo: "/panel/servicios/nuevo",
+         url_editar: "/panel/servicios/editar/",
          currentPage: 1,
          itemsPerPage: 14
       };
@@ -116,18 +109,63 @@ export default {
       },
       async GET_DATA(path) {
          const res = await this.$admin.$get(path);
-         res.forEach(notification => {
-            notification.detalle = JSON.parse(notification.detalle);
-         });
          return res;
-      }
+      },
+      async EliminarItem(id) {
+         if (!this.canDeleteServicios) return;
+         this.load = true;
+         try {
+            const res = await this.$admin.$delete(this.apiUrl + "/" + id);
+
+            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
+               this.list = v[0];
+            });
+         } catch (e) {
+
+         } finally {
+            this.load = false;
+         }
+      },
+      Eliminar(id) {
+         if (!this.canDeleteServicios) return;
+         let self = this;
+         this.$swal
+            .fire({
+               title: "Deseas Eliminar?",
+               showDenyButton: false,
+               showCancelButton: true,
+               confirmButtonText: "Eliminar",
+               cancelarButtonText: `Cancelar`,
+            })
+            .then(async (result) => {
+               if (result.isConfirmed) {
+                  await self.EliminarItem(id);
+               }
+            });
+      },
    },
    computed: {
       user() {
          return this.$store.state.auth.user;
       },
+      permissions() {
+         return this.$store.state.auth.permissions || [];
+      },
+      canCreateServicios() {
+         return this.permissions.includes('servicios.manage') || this.permissions.includes('servicios.create');
+      },
+      canUpdateServicios() {
+         return this.permissions.includes('servicios.manage') || this.permissions.includes('servicios.update');
+      },
+      canDeleteServicios() {
+         return this.permissions.includes('servicios.manage') || this.permissions.includes('servicios.delete');
+      },
+      canManageServicios() {
+         return this.permissions.includes('servicios.manage');
+      },
       filteredList() {
-         return this.list.filter(item => item.codigo_seguimiento.toLowerCase().includes(this.searchQuery.toLowerCase()));
+         const term = (this.search || '').toString().toLowerCase();
+         return this.list.filter(item => ((item && item.nombre) ? item.nombre : '').toString().toLowerCase().includes(term));
       },
       totalPages() {
          return Math.ceil(this.filteredList.length / this.itemsPerPage);
@@ -140,37 +178,25 @@ export default {
    },
    mounted() {
       this.$nextTick(async () => {
-         try {
-            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0];
-            });
-         } catch (e) {
+         if (!['usuario', 'admin'].includes(this.user.role)) {
+            this.$router.push('/'); // Redirige a la página principal
+         } else {
+            try {
+               await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
+                  this.list = v[0];
+               });
+            } catch (e) {
 
-         } finally {
-            this.load = false;
+            } finally {
+               this.load = false;
+            }
          }
-
       });
    },
 };
 </script>
 
-
 <style scoped>
-.emision {
-   background-color: #e0f7fa;
-   /* color de fondo para EMISION */
-   color: #00796b;
-   /* color de texto para EMISION */
-}
-
-.anulacion {
-   background-color: #ffebee;
-   /* color de fondo para ANULACION */
-   color: #c62828;
-   /* color de texto para ANULACION */
-}
-
 /* Estilos personalizados para paginación */
 .pagination .page-item.active .page-link {
    background-color: #384464;
@@ -187,3 +213,4 @@ export default {
    /* Color azulito para los links */
 }
 </style>
+

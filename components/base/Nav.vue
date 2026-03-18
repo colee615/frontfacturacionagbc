@@ -37,9 +37,8 @@
             <h6 class="font-weight-bolder mb-0">{{ modulo }}</h6>
          </nav>
          <div class="navbar-text-container">
-            <span class="navbar-text">Bienvenido al sistema de facturacion SAFE {{ role }} - {{ user.name }} - Sucursal
-               {{
-                  user.sucursale.departamento }}</span>
+            <span class="navbar-text">Bienvenido al sistema de facturacion SAFE {{ roleLabel }} - {{ userName }} - Sucursal
+               {{ departmentName }}</span>
          </div>
          <div class="sidenav-toggler sidenav-toggler-inner d-xl-block d-none">
             <a href="javascript:;" @click="SideToggle()" class="nav-link text-body p-0">
@@ -107,6 +106,22 @@ export default {
       },
       role() {
          return this.$store.state.auth.role;
+      },
+      roles() {
+         return this.$store.state.auth.roles || [];
+      },
+      userName() {
+         return this.user && this.user.name ? this.user.name : '';
+      },
+      departmentName() {
+         return this.user && this.user.sucursale && this.user.sucursale.departamento
+            ? this.user.sucursale.departamento
+            : '';
+      },
+      roleLabel() {
+         if (this.roles.includes('admin')) return 'admin';
+         if (this.roles.includes('usuario')) return 'usuario';
+         return this.role || '';
       },
 
    },
@@ -203,3 +218,6 @@ export default {
    color: #6c757d;
 }
 </style>
+
+
+

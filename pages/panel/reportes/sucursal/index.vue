@@ -181,7 +181,8 @@ export default {
          return this.$store.state.auth.user;
       },
       filteredList() {
-         return this.list.filter(item => item.nombre.toLowerCase().includes(this.search.toLowerCase()));
+         const term = (this.search || '').toString().toLowerCase();
+         return this.list.filter(item => ((item && item.nombre) ? item.nombre : '').toString().toLowerCase().includes(term));
       },
       selectedSucursalDetails() {
          return this.list.find(item => item.codigosucursal === this.selectedSucursal) || {};

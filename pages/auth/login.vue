@@ -1,4 +1,4 @@
-<template>
+﻿<template>
    <div>
       <main class="main-content main-content-bg mt-0 ps">
          <transition name="fade" mode="out-in">
@@ -40,9 +40,6 @@
                                           </button>
 
                                        </div>
-                                       <div class="mb-3">
-                                          <div id="recaptcha" class="g-recaptcha"></div>
-                                       </div>
                                        <div class="text-center">
                                           <button type="submit"
                                              class="btn bg-gradient-info w-100 mt-4">Ingresar</button>
@@ -52,21 +49,6 @@
                                           </p>
                                        </div>
                                     </form>
-                                    <div v-if="codigoEnviado">
-
-                                       <form @submit.prevent="verificarCodigo">
-                                          <div class="mb-3">
-                                             <label for="codigo_confirmacion" class="form-label">Código de
-                                                Confirmación</label>
-                                             <input type="text" v-model="model.codigo_confirmacion" class="form-control"
-                                                id="codigo_confirmacion" required>
-                                          </div>
-                                          <div class="text-center">
-                                             <button type="submit" class="btn bg-gradient-info w-100 mt-4">Verificar
-                                                Código</button>
-                                          </div>
-                                       </form>
-                                    </div>
                                  </div>
                               </div>
                            </div>
@@ -158,16 +140,13 @@
 </template>
 
 <script>
-import Swal from 'sweetalert2';
 
 export default {
    data() {
       return {
          apiUrl2: 'reset-password',
-         codigoEnviado: false,
          isLogin: true,
          forgotPasswordEmail: '',
-         codigo_confirmacion: '',
          model: {
             email: '',
             password: ''
@@ -182,29 +161,7 @@ export default {
          newPassword: ''
       }
    },
-   mounted() {
-      this.loadRecaptcha();
-   },
    methods: {
-      loadRecaptcha() {
-         if (!document.querySelector('script[src="https://www.google.com/recaptcha/api.js"]')) {
-            const script = document.createElement('script');
-            script.src = 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit';
-            script.async = true;
-            script.defer = true;
-            window.onloadCallback = this.renderRecaptcha;
-            document.head.appendChild(script);
-         } else {
-            this.renderRecaptcha();
-         }
-      },
-      renderRecaptcha() {
-         if (window.grecaptcha) {
-            window.grecaptcha.render('recaptcha', {
-               sitekey: '6Lf-IHUqAAAAAJXW1DGOSXiYo0bTB9GimCivr9_8'
-            });
-         }
-      },
       async enviarDatosCita() {
          if (!this.resetToken || !this.newPassword) {
             await this.$swal.fire({
@@ -280,30 +237,54 @@ export default {
             });
             return;
          }
-         const recaptchaResponse = grecaptcha.getResponse();
-         if (!recaptchaResponse) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Oops...',
-               text: 'Por favor, complete el reCAPTCHA.',
-            });
-            return;
-         }
          try {
-            const res = await this.$admin.post('login', { ...this.model, 'g-recaptcha-response': recaptchaResponse });
+            const res = await this.$admin.post('login', this.model);
 
-            if (res.data.message) {
+            if (res.data.token) {
+               const loginUser = res.data.usuario || null;
+               const loginRoles = res.data.roles || (loginUser?.role ? [loginUser.role] : []);
+               const loginPermissions = res.data.permissions || [];
+               const loginViews = res.data.views || [];
+
+               this.$store.dispatch('auth/login', {
+                  token: res.data.token,
+                  user: loginUser,
+                  roles: loginRoles,
+                  permissions: loginPermissions,
+                  views: loginViews
+               });
+
+               try {
+                  const me = await this.$admin.$get('me');
+                  const user = me.usuario || loginUser;
+                  const roles = me.roles || loginRoles;
+                  const permissions = me.permissions || loginPermissions;
+                  const views = me.views || loginViews;
+
+                  this.$store.dispatch('auth/login', {
+                     token: res.data.token,
+                     user,
+                     roles,
+                     permissions,
+                     views
+                  });
+               } catch (meError) {
+                  console.error('Error loading full session from me:', meError);
+               }
+
                this.$swal.fire({
                   toast: true,
                   position: 'center',
                   showConfirmButton: false,
+                  timer: 2000,
+                  timerProgressBar: true,
                   icon: 'success',
-                  title: res.data.message,
+                  title: 'Inicio de sesión exitoso',
                });
-               this.codigoEnviado = true;
+               setTimeout(() => {
+                  this.$swal.close();
+                  this.$router.push('/');
+               }, 2000);
             } else if (res.data.error) {
                this.$swal.fire({
                   toast: true,
@@ -370,63 +351,6 @@ export default {
                });
             }
          }
-      }
-
-
-      ,
-      async verificarCodigo() {
-         if (!this.model.codigo_confirmacion) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
-               icon: 'error',
-               title: 'Oops...',
-               text: 'El código de confirmación es obligatorio. Por favor, ingréselo.',
-            });
-            return;
-         }
-         try {
-            const res = await this.$admin.post('verificar-codigo-confirmacion', this.model);
-            if (res.data.token) {
-               this.$swal.fire({
-                  toast: true,
-                  position: 'center',
-                  showConfirmButton: false,
-                  timer: 2000,
-                  timerProgressBar: true,
-                  icon: 'success',
-                  title: 'Inicio de sesión exitoso',
-                  didOpen: () => {
-                     Swal.showLoading();
-                  }
-               });
-               this.$store.dispatch('auth/login', { token: res.data.token, user: res.data.cajero });
-               setTimeout(() => {
-                  this.$swal.close();
-                  if (res.data.cajero.role === 'cajero') {
-                     this.$router.push('/cajero/ventas/');
-                  } else {
-                     this.$router.push('/');
-                  }
-               }, 2000);
-            } else if (res.data.error) {
-               this.$swal.fire({
-                  toast: true,
-                  position: 'top-end',
-                  showConfirmButton: false,
-                  icon: 'error',
-                  title: res.data.error,
-               });
-            }
-         } catch (e) {
-            console.error('Error during verification:', e);
-            this.$swal.fire({
-               title: "Error",
-               text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
-               icon: 'error',
-            });
-         }
       },
       async submitForgotPassword() {
          if (!this.forgotPasswordEmail) {
@@ -472,7 +396,6 @@ export default {
       toggleMode(mode) {
          this.isLogin = mode === 'login';
          this.isRegister = mode === 'register';
-         this.codigoEnviado = false;
       },
    }
 }
@@ -585,3 +508,14 @@ i {
    display: block;
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
