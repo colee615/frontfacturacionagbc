@@ -9,7 +9,7 @@ export default function ({ $axios, store, redirect }, inject) {
     }
   });
 
-  const url = 'http://127.0.0.1:8000/admin/';
+  const url = 'https://safe.correos.gob.bo/admin/';
   admin.setBaseURL(url);
 
   admin.interceptors.request.use(config => {
