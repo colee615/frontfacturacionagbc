@@ -27,13 +27,6 @@
                                  <label for="name">* Nombre del Usuario</label>
                                  <input type="text" v-model="model.name" class="form-control" id="name" required>
                               </div>
-                              <div class="form-group col-6">
-                                 <label for="sucursale">* Sucursal del Usuario</label>
-                                 <select v-model="model.sucursale_id" class="form-control" id="sucursale" required>
-                                    <option value="" disabled selected>Seleccione una sucursal</option>
-                                    <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
-                                 </select>
-                              </div>
                               <div class="form-group col-12">
                                  <label for="email">* Email del Usuario</label>
                                  <input type="email" v-model="model.email" class="form-control" id="email" required>
@@ -81,9 +74,7 @@ export default {
             name: '',
             email: '',
             password: '',
-            sucursale_id: '',
          },
-         sucursales: [],
          apiUrl: 'usuarios',
          page: 'Administracion',
          modulo: 'usuarios',
@@ -105,16 +96,12 @@ export default {
          if (!this.model.email || !emailPattern.test(this.model.email) || this.model.email.length > 255) {
             errors.push('El Email del Usuario es obligatorio.');
          }
-         if (!this.model.sucursale_id || typeof this.model.sucursale_id !== 'number') {
-            errors.push('Debe seleccionar una Sucursal válida.');
-         }
          return errors;
       },
       buildPayload() {
          const payload = {
             name: this.model.name ? this.model.name.trim() : '',
             email: this.model.email ? this.model.email.trim() : '',
-            sucursale_id: Number(this.model.sucursale_id),
          };
 
          if (this.model.password && this.model.password.trim()) {
@@ -204,15 +191,13 @@ export default {
       this.$nextTick(async () => {
          try {
             await Promise.all([
-               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id), this.GET_DATA('sucursales'),
+               this.GET_DATA(this.apiUrl + "/" + this.$route.params.id),
             ]).then((v) => {
                this.model = {
                   ...this.model,
                   ...v[0],
                   password: '',
-                  sucursale_id: Number(v[0].sucursale_id || v[0].sucursale?.id || ''),
                };
-               this.sucursales = v[1];
             });
          } catch (e) {
             console.error(e);

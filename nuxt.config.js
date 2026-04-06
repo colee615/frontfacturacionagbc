@@ -43,8 +43,7 @@
   // Plugins to run before rendering page: https://go.nuxtjs.dev/config-plugins
   plugins: [
     '~/plugins/admin',
-     '~/plugins/auth.js',
-  '~/plugins/casilla.js'
+     '~/plugins/auth.js'
   ],
   // Auto import components: https://go.nuxtjs.dev/config-components
   components: true,

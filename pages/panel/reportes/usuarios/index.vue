@@ -40,8 +40,6 @@
                            <div class="col-md-6">
                               <p class="text-sm mb-0"><strong>Nombre:</strong> {{ selectedUsuarioDetails.name }}</p>
                               <p class="text-sm mb-0"><strong>Email:</strong> {{ selectedUsuarioDetails.email }}</p>
-                              <p class="text-sm mb-0"><strong>Sucursal:</strong> {{
-                                 selectedUsuarioDetails.sucursale ? selectedUsuarioDetails.sucursale.departamento : 'N/A' }}</p>
                               <p class="text-sm mb-0"><strong>Estado:</strong> {{
                                  formatEstado(selectedUsuarioDetails.estado) }}</p>
                            </div>
@@ -161,7 +159,7 @@ export default {
          return this.list.filter(item => ((item && item.name) ? item.name : '').toString().toLowerCase().includes(term));
       },
       selectedUsuarioDetails() {
-         return this.list.find(item => item.id === this.selectedUsuario) || { sucursale: null };
+         return this.list.find(item => item.id === this.selectedUsuario) || {};
       }
    },
    methods: {
@@ -228,12 +226,11 @@ export default {
 
          // Agregar información del Usuario
          doc.text(`Nombre: ${this.selectedUsuarioDetails.name}`, 14, 20);
-         doc.text(`Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}`, 14, 40);
-         doc.text(`Total Ventas del Día: ${this.totalVentasDelDia} Bs`, 14, 60);
+         doc.text(`Total Ventas del Día: ${this.totalVentasDelDia} Bs`, 14, 40);
 
          // Agregar tabla de ventas
          autoTable(doc, {
-            startY: 70,
+            startY: 50,
             head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
             body: this.ventasDelDia.map(venta => [
                venta.codigoOrden,
@@ -250,7 +247,7 @@ export default {
       },
       descargarExcel() {
          const data = [
-            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}, Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}` },
+            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}` },
             {},
             ...this.ventasDelDia.map(venta => ({
                'N°': venta.codigoOrden,
@@ -274,12 +271,11 @@ export default {
 
          // Agregar información del Usuario
          doc.text(`Nombre: ${this.selectedUsuarioDetails.name}`, 14, 20);
-         doc.text(`Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}`, 14, 40);
-         doc.text(`Total Ventas por Rango de Fechas: ${this.totalVentasPorRangoFechas} Bs`, 14, 60);
+         doc.text(`Total Ventas por Rango de Fechas: ${this.totalVentasPorRangoFechas} Bs`, 14, 40);
 
          // Agregar tabla de ventas
          autoTable(doc, {
-            startY: 70,
+            startY: 50,
             head: [['N°', 'Razon Social', 'Identidad', 'Tipo', 'Total Venta']],
             body: this.ventasPorRangoFechas.map(venta => [
                venta.codigoOrden,
@@ -296,7 +292,7 @@ export default {
       },
       descargarExcelPorRangoFechas() {
          const data = [
-            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}, Sucursal: ${this.selectedUsuarioDetails.sucursale ? this.selectedUsuarioDetails.sucursale.departamento : 'N/A'}` },
+            { 'Usuario': `Nombre: ${this.selectedUsuarioDetails.name}` },
             {},
             ...this.ventasPorRangoFechas.map(venta => ({
                'N°': venta.codigoOrden,

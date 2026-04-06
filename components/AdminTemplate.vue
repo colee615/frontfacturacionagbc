@@ -1,10 +1,12 @@
 <template>
    <div v-if="user">
       <BaseAside />
-      <main class="main-content position-relative max-height-vh-100 h-100 border-radius-lg enterprise-admin-theme">
+      <main class="main-content position-relative border-radius-lg enterprise-admin-theme enterprise-main-shell">
          <BaseNav :page="page" :modulo="modulo" />
-         <div class="container-fluid py-4 enterprise-admin-surface">
-            <slot name="body" />
+         <div class="container-fluid py-4 enterprise-admin-surface enterprise-admin-layout">
+            <div class="enterprise-admin-body">
+               <slot name="body" />
+            </div>
             <BaseFooter />
          </div>
       </main>
@@ -52,6 +54,20 @@ export default {
       radial-gradient(circle at top right, rgba(255, 216, 79, 0.12), transparent 24%),
       linear-gradient(180deg, #f8f9fc 0%, #f2f4f8 100%);
    min-height: 100vh;
+}
+
+.enterprise-main-shell {
+   min-height: 100vh;
+}
+
+.enterprise-admin-layout {
+   min-height: calc(100vh - 110px);
+   display: flex;
+   flex-direction: column;
+}
+
+.enterprise-admin-body {
+   flex: 1 1 auto;
 }
 
 .enterprise-admin-surface .card {
@@ -193,5 +209,56 @@ export default {
 .enterprise-admin-surface h5,
 .enterprise-admin-surface h6 {
    color: #1e293b;
+}
+
+.enterprise-admin-surface .enterprise-pagination {
+   gap: 0.625rem;
+   flex-wrap: wrap;
+}
+
+.enterprise-admin-surface .enterprise-pagination .page-item {
+   margin: 0;
+}
+
+.enterprise-admin-surface .enterprise-pagination .page-link {
+   margin-left: 0 !important;
+   min-width: 52px;
+   height: 42px;
+   padding: 0 0.95rem;
+   border-radius: 999px !important;
+   border: 1px solid #d8e0ec !important;
+   background: rgba(255, 255, 255, 0.96) !important;
+   color: #6a7a96 !important;
+   font-weight: 700;
+   font-size: 0.92rem;
+   line-height: 1;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   box-shadow: 0 8px 20px rgba(31, 41, 55, 0.06);
+   transition: all 0.18s ease;
+}
+
+.enterprise-admin-surface .enterprise-pagination .page-link:hover {
+   background: #ffffff !important;
+   border-color: #b9c7dc !important;
+   color: #334155 !important;
+   transform: translateY(-1px);
+}
+
+.enterprise-admin-surface .enterprise-pagination .page-item.active .page-link {
+   background: linear-gradient(180deg, #ffd86b 0%, #f6c94c 100%) !important;
+   border-color: #d7aa2f !important;
+   color: #4f3905 !important;
+   box-shadow: 0 12px 28px rgba(214, 170, 47, 0.26);
+}
+
+.enterprise-admin-surface .enterprise-pagination .page-item.disabled .page-link {
+   background: #f7f9fc !important;
+   border-color: #e2e8f0 !important;
+   color: #a5b1c2 !important;
+   box-shadow: none;
+   opacity: 0.9;
+   pointer-events: none;
 }
 </style>

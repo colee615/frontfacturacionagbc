@@ -8,10 +8,10 @@
                   <div class="row align-items-center">
                      <div class="col-12 col-xl-7 mb-3 mb-xl-0">
                         <p class="eyebrow mb-2">Facturación Empresarial</p>
-                        <h2 class="hero-title mb-2">Enviar Ventas de Forma Fácil</h2>
+                        <h2 class="hero-title mb-2">Operar Ventas y Contingencias</h2>
                         <p class="hero-copy mb-0">
-                           Esta pantalla está pensada para uso diario. Solo busca la venta, selecciónala y usa el botón
-                           que necesites. El sistema se encarga del envío automáticamente.
+                           Esta pantalla separa el envío normal del día a día y la regularización manual. Usa CAFC solo
+                           cuando ya hubo facturación manual fuera de línea.
                         </p>
                      </div>
                      <div class="col-12 col-xl-5">
@@ -48,6 +48,24 @@
 
             <div class="card mb-4 guide-card">
                <div class="card-body">
+                  <div class="contingency-explainer mb-4">
+                     <div class="contingency-card contingency-card-auto">
+                        <span class="contingency-tag">Contingencia automática SEFE</span>
+                        <strong>Se maneja desde el envío normal</strong>
+                        <p class="mb-0">
+                           Para ventas del día a día usa <b>Enviar ventas</b>. Si SIAT no está disponible, SEFE activa
+                           la contingencia automáticamente y luego podrás revisar el resultado.
+                        </p>
+                     </div>
+                     <div class="contingency-card contingency-card-cafc">
+                        <span class="contingency-tag">Contingencia manual CAFC</span>
+                        <strong>Solo para regularizar facturas manuales</strong>
+                        <p class="mb-0">
+                           Usa <b>Regularizar CAFC</b> únicamente cuando las facturas ya fueron emitidas manualmente
+                           durante una caída y ahora deben registrarse en SEFE.
+                        </p>
+                     </div>
+                  </div>
                   <div class="guide-grid">
                      <div class="guide-step">
                         <span class="guide-number">1</span>
@@ -67,7 +85,7 @@
                         <span class="guide-number">3</span>
                         <div>
                            <strong>Haz clic en el botón</strong>
-                           <p class="mb-0">Usa “Enviar ventas”, “Revisar estado” o “Enviar por contingencia”.</p>
+                           <p class="mb-0">Usa “Enviar ventas”, “Revisar estado” o “Regularizar CAFC” según el caso.</p>
                         </div>
                      </div>
                   </div>
@@ -123,12 +141,12 @@
                            </button>
                            <button class="btn btn-outline-warning" :disabled="!selectedVentaIds.length"
                               @click="openCafcModal">
-                              Enviar por contingencia
+                              Regularizar CAFC
                            </button>
                         </div>
                         <p class="quick-help mt-3 mb-0">
-                           Si seleccionas una sola venta, el sistema la envía sola. Si seleccionas varias, el sistema
-                           intenta enviarlas juntas automáticamente.
+                           “Enviar ventas” sirve para emisión normal y también cubre la contingencia automática de SEFE.
+                           “Regularizar CAFC” es solo para facturas manuales emitidas fuera de línea.
                         </p>
                      </div>
                   </div>
@@ -209,7 +227,7 @@
                                     <button class="btn btn-sm btn-outline-warning"
                                        :disabled="!venta.status?.can_cafc"
                                        @click="runSingleAction('cafc', venta)">
-                                       Contingencia
+                                       CAFC
                                     </button>
                                     <button class="btn btn-sm btn-outline-secondary"
                                        @click="focusResponse(venta)">
@@ -280,7 +298,7 @@
                            </div>
 
                            <div class="advanced-block mb-0">
-                              <label class="form-label subtle-label">Contingencia manual</label>
+                              <label class="form-label subtle-label">Regularización manual CAFC</label>
                               <div class="row">
                                  <div class="col-12 col-md-4 mb-2">
                                     <input v-model.trim="cafc.cafc" type="text" class="form-control" placeholder="CAFC" />
@@ -296,7 +314,7 @@
                               </div>
                               <textarea v-model="cafc.facturasJson" class="form-control code-box" rows="8"></textarea>
                               <button class="btn btn-warning w-100 mt-2" @click="emitirContingenciaCafc">
-                                 Enviar contingencia manual
+                                 Regularizar contingencia CAFC
                               </button>
                            </div>
                         </div>
@@ -311,8 +329,8 @@
                   <div class="modal-content cafc-modal">
                      <div class="modal-header border-0">
                         <div>
-                           <h5 class="modal-title mb-1">Enviar por Contingencia</h5>
-                           <p class="text-sm text-muted mb-0">Completa estos datos solo si la venta debe regularizarse por contingencia.</p>
+                           <h5 class="modal-title mb-1">Regularizar Facturas Manuales CAFC</h5>
+                           <p class="text-sm text-muted mb-0">Completa estos datos solo si la venta ya fue emitida manualmente fuera de línea y ahora debe registrarse.</p>
                         </div>
                         <button type="button" class="btn-close" @click="showCafcSelectionModal = false"></button>
                      </div>
@@ -363,7 +381,7 @@
                            Cancelar
                         </button>
                         <button type="button" class="btn btn-warning" @click="emitirCafcSeleccionadas">
-                           Confirmar envío por contingencia
+                           Confirmar regularización CAFC
                         </button>
                      </div>
                   </div>
@@ -497,7 +515,7 @@ export default {
       summary() {
          return this.operables.reduce((acc, venta) => {
             const key = venta.status?.key;
-            if (key === 'PENDIENTE') acc.pending += 1;
+            if (['PENDIENTE', 'RECEPCIONADA', 'PENDIENTE_CONFIRMACION', 'CONTINGENCIA_CREADA'].includes(key)) acc.pending += 1;
             if (key === 'OBSERVADO') acc.observed += 1;
             return acc;
          }, { pending: 0, observed: 0 });
@@ -511,6 +529,8 @@ export default {
       statusClass(status) {
          const map = {
             PENDIENTE: 'chip-pending',
+            RECEPCIONADA: 'chip-info',
+            PENDIENTE_CONFIRMACION: 'chip-info',
             OBSERVADO: 'chip-observed',
             PROCESADO: 'chip-success',
             CONTINGENCIA_CREADA: 'chip-contingency',
@@ -851,6 +871,54 @@ export default {
    background: linear-gradient(180deg, #fffdfa 0%, #f8fbff 100%);
 }
 
+.contingency-explainer {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 16px;
+}
+
+.contingency-card {
+   border-radius: 18px;
+   padding: 18px;
+   border: 1px solid #e6ecf3;
+   background: #fff;
+}
+
+.contingency-card strong {
+   display: block;
+   margin-bottom: 6px;
+   color: #243b53;
+   font-size: 1rem;
+}
+
+.contingency-card p {
+   color: #5b6f88;
+   font-size: 14px;
+   line-height: 1.55;
+}
+
+.contingency-card-auto {
+   background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+}
+
+.contingency-card-cafc {
+   background: linear-gradient(180deg, #fffaf1 0%, #fff3de 100%);
+}
+
+.contingency-tag {
+   display: inline-flex;
+   align-items: center;
+   padding: 6px 10px;
+   border-radius: 999px;
+   margin-bottom: 10px;
+   font-size: 11px;
+   font-weight: 800;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   background: rgba(23, 50, 77, 0.08);
+   color: #17324d;
+}
+
 .guide-grid {
    display: grid;
    grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1023,6 +1091,10 @@ export default {
 @media (max-width: 1199px) {
    .toolbar-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+   }
+
+   .contingency-explainer {
+      grid-template-columns: 1fr;
    }
 
    .guide-grid {

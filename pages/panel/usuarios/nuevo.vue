@@ -27,13 +27,6 @@
                               <label for="ubicacion">* Nombre del Usuario</label>
                               <input type="text" v-model="model.name" class="form-control" id="name" required>
                            </div>
-                           <div class="form-group col-6">
-                              <label for="">* Sucursal del Usuario</label>
-                              <select name="" id="" class="form-control" v-model="model.sucursale_id" required>
-                                 <option value="" disabled selected>Seleccione una sucursal</option>
-                                 <option v-for="m in sucursales" :value="m.id">{{ m.departamento }}</option>
-                              </select>
-                           </div>
                            <div class="form-group col-12">
                               <label for="email"> * Email del Usuario</label>
                               <input type="email" v-model="model.email" class="form-control" id="email" required>
@@ -75,9 +68,7 @@ export default {
             name: '',
             email: '',
             password: '',
-            sucursale_id: '',
          },
-         sucursales: [],
          apiUrl: 'usuarios',
          page: 'Administracion',
          modulo: 'usuarios',
@@ -99,9 +90,6 @@ export default {
          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
          if (!this.model.email || !emailPattern.test(this.model.email)) {
             errors.push('El Email del Usuario es obligatorio.');
-         }
-         if (!this.model.sucursale_id || typeof this.model.sucursale_id !== 'number') {
-            errors.push('Debe seleccionar una Sucursal válida.');
          }
          if (!this.model.password) {
             errors.push('El Password del Usuario es obligatorio.');
@@ -176,16 +164,9 @@ export default {
    mounted() {
       this.$nextTick(async () => {
          try {
-            await Promise.all([this.GET_DATA('sucursales')]).then((v) => {
-               this.sucursales = v[0];
-
-               if (this.sucursales.length) {
-                  this.model.sucursale_id = this.sucursales[0].id;
-               }
-            });
-
+            
          } catch (e) {
-            console.error('Error al cargar sucursales:', e);
+            console.error('Error al cargar formulario de usuarios:', e);
          } finally {
             this.load = false
          }

@@ -26,8 +26,8 @@
                   <span>{{ roleLabel || 'Sin rol' }}</span>
                </div>
                <div class="context-pill">
-                  <i class="fas fa-map-marker-alt"></i>
-                  <span>{{ departmentName || 'Sin sucursal asignada' }}</span>
+                  <i class="fas fa-shield-alt"></i>
+                  <span>{{ accessLabel }}</span>
                </div>
             </div>
 
@@ -85,15 +85,13 @@ export default {
       userName() {
          return this.user && this.user.name ? this.user.name : '';
       },
-      departmentName() {
-         return this.user && this.user.sucursale && this.user.sucursale.departamento
-            ? this.user.sucursale.departamento
-            : '';
-      },
       roleLabel() {
          if (this.roles.includes('admin')) return 'Administrador';
          if (this.roles.includes('usuario')) return 'Operador';
          return this.role || '';
+      },
+      accessLabel() {
+         return this.roles.length ? 'Acceso configurado' : 'Acceso básico';
       },
    },
    methods: {

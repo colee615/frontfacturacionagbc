@@ -40,30 +40,6 @@
                     <span>Usuarios</span>
                   </nuxt-link>
                 </li>
-                <li class="nav-item" v-if="sucursalesAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/sucursales/">
-                    <i class="fas fa-building"></i>
-                    <span>Sucursales</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="clientesAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/clientes/">
-                    <i class="fas fa-address-book"></i>
-                    <span>Clientes</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="serviciosAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/servicios/">
-                    <i class="fas fa-box-open"></i>
-                    <span>Servicios</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="notificacionesAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/notificaciones/">
-                    <i class="fas fa-bell"></i>
-                    <span>Notificaciones</span>
-                  </nuxt-link>
-                </li>
                 <li class="nav-item" v-if="seguridadAccess">
                   <nuxt-link class="nav-link enterprise-sub-link" to="/panel/seguridad/">
                     <i class="fas fa-user-lock"></i>
@@ -74,7 +50,42 @@
             </div>
           </li>
 
-          <li class="nav-section" v-if="showReportsSection">
+
+          <li class="nav-section" v-if="showSalesSection">
+            <span class="nav-section-label">Ventas</span>
+          </li>
+          <li class="nav-item" v-if="showSalesSection">
+            <a data-bs-toggle="collapse" href="#ventas-cajero" class="nav-link enterprise-parent-link" aria-controls="ventas-cajero" role="button" aria-expanded="false">
+              <span class="nav-icon-shell"><i class="fas fa-cash-register"></i></span>
+              <span class="nav-link-text">Gestión de ventas</span>
+              <i class="fas fa-chevron-down nav-chevron"></i>
+            </a>
+            <div class="collapse" id="ventas-cajero">
+              <ul class="nav enterprise-subnav">
+                <li class="nav-item" v-if="ventasReadAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
+                    <i class="fas fa-list-ul"></i>
+                    <span>Lista de ventas realizadas</span>
+                  </nuxt-link>
+                </li>
+                <li class="nav-item" v-if="ventasAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/protocolo">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Operaciones de envío</span>
+                  </nuxt-link>
+                </li>
+                 <li class="nav-item" v-if="notificacionesAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/notificaciones/">
+                    <i class="fas fa-bell"></i>
+                    <span>Notificaciones</span>
+                  </nuxt-link>
+                </li>
+              </ul>
+            </div>
+          </li>
+
+
+            <li class="nav-section" v-if="showReportsSection">
             <span class="nav-section-label">Reportes</span>
           </li>
           <li class="nav-item" v-if="showReportsSection">
@@ -100,39 +111,6 @@
               </ul>
             </div>
           </li>
-
-          <li class="nav-section" v-if="showSalesSection">
-            <span class="nav-section-label">Ventas</span>
-          </li>
-          <li class="nav-item" v-if="showSalesSection">
-            <a data-bs-toggle="collapse" href="#ventas-cajero" class="nav-link enterprise-parent-link" aria-controls="ventas-cajero" role="button" aria-expanded="false">
-              <span class="nav-icon-shell"><i class="fas fa-cash-register"></i></span>
-              <span class="nav-link-text">Gestión de ventas</span>
-              <i class="fas fa-chevron-down nav-chevron"></i>
-            </a>
-            <div class="collapse" id="ventas-cajero">
-              <ul class="nav enterprise-subnav">
-                <li class="nav-item">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/">
-                    <i class="fas fa-plus-circle"></i>
-                    <span>Nueva venta</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="ventasReadAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
-                    <i class="fas fa-list-ul"></i>
-                    <span>Lista de ventas</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="ventasAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/protocolo">
-                    <i class="fas fa-paper-plane"></i>
-                    <span>Operaciones de envío</span>
-                  </nuxt-link>
-                </li>
-              </ul>
-            </div>
-          </li>
         </ul>
       </div>
     </div>
@@ -151,15 +129,6 @@ export default {
     usuariosAccess() {
       return this.hasAccess('usuarios.manage', 'usuarios');
     },
-    sucursalesAccess() {
-      return this.hasAccess('sucursales.manage', 'sucursales');
-    },
-    clientesAccess() {
-      return this.hasAccess('clientes.read', 'clientes');
-    },
-    serviciosAccess() {
-      return this.hasAccess('servicios.manage', 'servicios');
-    },
     notificacionesAccess() {
       return this.hasAccess('dashboard.view', 'dashboard');
     },
@@ -174,9 +143,6 @@ export default {
     },
     showAdminSection() {
       return this.usuariosAccess
-        || this.sucursalesAccess
-        || this.clientesAccess
-        || this.serviciosAccess
         || this.notificacionesAccess
         || this.seguridadAccess;
     },
