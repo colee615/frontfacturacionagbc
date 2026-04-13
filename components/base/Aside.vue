@@ -83,34 +83,6 @@
               </ul>
             </div>
           </li>
-
-
-            <li class="nav-section" v-if="showReportsSection">
-            <span class="nav-section-label">Reportes</span>
-          </li>
-          <li class="nav-item" v-if="showReportsSection">
-            <a data-bs-toggle="collapse" href="#reportes" class="nav-link enterprise-parent-link" aria-controls="reportes" role="button" aria-expanded="false">
-              <span class="nav-icon-shell"><i class="fas fa-chart-line"></i></span>
-              <span class="nav-link-text">Reportes de ventas</span>
-              <i class="fas fa-chevron-down nav-chevron"></i>
-            </a>
-            <div class="collapse" id="reportes">
-              <ul class="nav enterprise-subnav">
-                <li class="nav-item">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/reportes/sucursal/">
-                    <i class="fas fa-store"></i>
-                    <span>Por sucursal</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/reportes/usuarios">
-                    <i class="fas fa-user-tie"></i>
-                    <span>Por usuario</span>
-                  </nuxt-link>
-                </li>
-              </ul>
-            </div>
-          </li>
         </ul>
       </div>
     </div>
@@ -145,9 +117,6 @@ export default {
       return this.usuariosAccess
         || this.notificacionesAccess
         || this.seguridadAccess;
-    },
-    showReportsSection() {
-      return this.can('ventas.read') && this.canView('reportes');
     },
     showSalesSection() {
       return this.ventasAccess || this.ventasReadAccess;

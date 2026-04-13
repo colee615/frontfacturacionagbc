@@ -268,7 +268,6 @@ export default {
         { name: 'Dashboard', slug: 'dashboard', route: '/' },
         { name: 'Usuarios', slug: 'usuarios', route: '/panel/usuarios/' },
         { name: 'Ventas', slug: 'ventas', route: '/panel/ventas/' },
-        { name: 'Reportes', slug: 'reportes', route: '/panel/reportes/' },
         { name: 'Notificaciones', slug: 'notificaciones', route: '/panel/notificaciones/' },
         { name: 'Seguridad', slug: 'seguridad', route: '/panel/seguridad/' }
       ]
