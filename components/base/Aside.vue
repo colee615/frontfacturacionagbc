@@ -68,6 +68,12 @@
                     <span>Lista de ventas realizadas</span>
                   </nuxt-link>
                 </li>
+                <li class="nav-item" v-if="ventasReadAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/cierre">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Cierre diario</span>
+                  </nuxt-link>
+                </li>
                 <li class="nav-item" v-if="ventasAccess">
                   <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/protocolo">
                     <i class="fas fa-paper-plane"></i>

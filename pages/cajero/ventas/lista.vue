@@ -1,1059 +1,1096 @@
-<template>
-   <div>
-      <JcLoader :load="load"></JcLoader>
-      <AdminTemplate :page="page" :modulo="modulo">
-         <div slot="body">
+﻿<template>
+  <div>
+    <JcLoader :load="load" />
+    <AdminTemplate :page="page" :modulo="modulo">
+      <div slot="body" class="ventas-wrap">
+        <div class="ventas-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+          <div>
+            <h1 class="mb-1">Mis ventas</h1>
+            <p class="text-muted mb-0">Consulta tu historial de emisiones y accede a comprobantes desde una sola pantalla.</p>
+          </div>
+          <div class="ventas-header-badges mt-3 mt-lg-0">
+            <span class="ventas-mini-badge">Ventas: {{ numberFormat(summary.ventas) }}</span>
+            <span class="ventas-mini-badge ventas-mini-badge--success">Facturadas: {{ numberFormat(summary.facturadas) }}</span>
+            <span class="ventas-mini-badge ventas-mini-badge--warning">Pendientes: {{ numberFormat(summary.pendientes) }}</span>
+          </div>
+        </div>
+
+        <div class="card ventas-panel mb-4">
+          <div class="card-header ventas-panel__header">
+            <div>
+              <strong>Filtros de consulta</strong>
+              <div class="text-muted small">Ajusta criterios para encontrar ventas por codigo, cliente, fecha o estado.</div>
+            </div>
+          </div>
+          <div class="card-body">
             <div class="row">
-               <div class="col-12 mb-4">
-                  <div class="card sales-hero">
-                     <div class="card-body">
-                        <div class="sales-hero-head">
-                           <div>
-                              <p class="sales-kicker mb-2">Centro de Facturación</p>
-                              <h4 class="sales-title mb-2">Lista de ventas recepcionadas</h4>
-                              <p class="sales-subtitle mb-0">
-                                 Supervisa ventas enviadas al backend puente, revisa seguimiento y accede a sus acciones operativas.
-                              </p>
-                           </div>
-                           <div class="sales-badge">
-                              <i class="fas fa-file-invoice-dollar"></i>
-                              <span>{{ filteredList.length }} registros</span>
-                           </div>
-                        </div>
+              <div class="col-xl-4 col-lg-6 mb-3">
+                <label class="ventas-label">Buscar</label>
+                <input
+                  v-model.trim="filters.q"
+                  type="text"
+                  class="form-control ventas-control"
+                  placeholder="Codigo, seguimiento, cliente o documento"
+                  @input="onSearchInput"
+                  @keydown.enter.prevent="fetchVentas"
+                >
+              </div>
 
-                        <div class="sales-search-wrap mt-4">
-                           <i class="fas fa-search"></i>
-                           <input
-                              v-model.trim="searchQuery"
-                              type="text"
-                              class="form-control sales-search"
-                              placeholder="Buscar por código de seguimiento, cliente o documento"
-                           >
-                        </div>
+              <div class="col-xl-2 col-lg-3 col-md-4 mb-3">
+                <label class="ventas-label">Estado</label>
+                <select v-model="filters.estado" class="form-control ventas-control" @change="fetchVentas">
+                  <option value="all">Todos</option>
+                  <option value="emitido">Emitido</option>
+                  <option value="borrador">Borrador</option>
+                </select>
+              </div>
 
-                        <div class="row mt-4 g-3">
-                           <div class="col-md-3 col-sm-6">
-                              <div class="sales-stat">
-                                 <span class="sales-stat-label">Ventas listadas</span>
-                                 <strong>{{ filteredList.length }}</strong>
-                              </div>
-                           </div>
-                           <div class="col-md-3 col-sm-6">
-                              <div class="sales-stat">
-                                 <span class="sales-stat-label">Monto acumulado</span>
-                                 <strong>{{ formattedTotalAmount }}</strong>
-                              </div>
-                           </div>
-                           <div class="col-md-3 col-sm-6">
-                              <div class="sales-stat">
-                                 <span class="sales-stat-label">Con seguimiento</span>
-                                 <strong>{{ trackedCount }}</strong>
-                              </div>
-                           </div>
-                           <div class="col-md-3 col-sm-6">
-                              <div class="sales-stat">
-                                 <span class="sales-stat-label">Sin documento</span>
-                                 <strong>{{ missingDocumentCount }}</strong>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
+              <div class="col-xl-2 col-lg-3 col-md-4 mb-3">
+                <label class="ventas-label">Estado emision</label>
+                <select v-model="filters.estado_emision" class="form-control ventas-control" @change="fetchVentas">
+                  <option value="all">Todos</option>
+                  <option value="PROCESADA">Facturada</option>
+                  <option value="RECEPCIONADA">Pendiente</option>
+                  <option value="CONTINGENCIA_CREADA">Contingencia</option>
+                  <option value="OBSERVADA">Observada</option>
+                </select>
+              </div>
+
+              <div class="col-xl-2 col-lg-3 col-md-4 mb-3">
+                <label class="ventas-label">Desde</label>
+                <input v-model="filters.from" type="date" class="form-control ventas-control" @change="fetchVentas">
+              </div>
+
+              <div class="col-xl-2 col-lg-3 col-md-4 mb-3">
+                <label class="ventas-label">Hasta</label>
+                <input v-model="filters.to" type="date" class="form-control ventas-control" @change="fetchVentas">
+              </div>
+
+              <div class="col-xl-2 col-lg-3 col-md-4 mb-3">
+                <label class="ventas-label">Registros</label>
+                <select v-model.number="filters.per_page" class="form-control ventas-control" @change="onPerPageChange">
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                  <option :value="50">50</option>
+                  <option :value="100">100</option>
+                </select>
+              </div>
             </div>
 
-            <div class="row justify-content-end mb-2">
-               <div v-if="modalEdit" class="sales-modal-backdrop" @click="modalEdit = false"></div>
-               <div v-if="modalEdit" class="modal d-block sales-modal-visible" id="AjusteModal" tabindex="-1"
-                  role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="false">
-                  <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-                     <div class="modal-content sales-consult-modal">
-                        <div class="modal-header">
-                           <h5 class="modal-title" id="exampleModalLabel">Resultado de verificación</h5>
-                           <button type="button" class="btn-close text-dark" @click="modalEdit = false"
-                              data-bs-dismiss="modal" aria-label="Close">
-                              <span aria-hidden="true">&times;</span>
-                           </button>
-                        </div>
-                        <div class="modal-body sales-consult-body">
-                           <div v-if="ventaDetails">
-                              <div class="sales-consult-header mb-4">
-                                 <div>
-                                    <p class="sales-kicker mb-1">Consulta manual a SEFE</p>
-                                    <h4 class="mb-2">{{ consultaStatusLabel }}</h4>
-                                    <p class="mb-0 sales-subtitle">
-                                       {{ consultaStatusHelp }}
-                                    </p>
-                                 </div>
-                                 <span class="sales-status" :class="consultaStatusClass">
-                                    {{ consultaStatusLabel }}
-                                 </span>
-                              </div>
-
-                              <div class="row g-3 mb-4">
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">Código de seguimiento</span>
-                                       <strong>{{ ventaDetails.codFactura || consultedTracking }}</strong>
-                                    </div>
-                                 </div>
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">Número de factura</span>
-                                       <strong>{{ consultaCabecera.numeroFactura || ventaDetails.nroFactura || 'Pendiente' }}</strong>
-                                    </div>
-                                 </div>
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">CUF</span>
-                                       <strong class="sales-break">{{ ventaDetails.cuf || 'Pendiente' }}</strong>
-                                    </div>
-                                 </div>
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">Cliente</span>
-                                       <strong>{{ consultaCabecera.nombreRazonSocial || selectedVentaContext?.cliente?.razonSocial || 'N/A' }}</strong>
-                                    </div>
-                                 </div>
-                              </div>
-
-                              <div class="row g-3 mb-4">
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">Documento</span>
-                                       <strong>{{ consultaCabecera.numeroDocumento || selectedVentaContext?.cliente?.documentoIdentidad || 'N/A' }}</strong>
-                                    </div>
-                                 </div>
-                                 <div class="col-md-6">
-                                    <div class="sales-consult-card">
-                                       <span class="sales-consult-label">Total</span>
-                                       <strong>{{ consultaCabecera.montoTotal || selectedVentaContext?.total || '0.00' }}</strong>
-                                    </div>
-                                 </div>
-                              </div>
-
-                              <div class="sales-consult-actions">
-                                 <button class="btn btn-outline-primary me-2" @click="toggleConsultaDetalle">
-                                    <i class="fas fa-eye"></i> {{ showConsultaDetalle ? 'Ocultar detalle' : 'Ver detalle' }}
-                                 </button>
-                                 <a v-if="consultaPdfUrl" class="btn btn-outline-primary me-2" :href="consultaPdfUrl" target="_blank" rel="noopener">
-                                    <i class="fas fa-file-pdf"></i> Factura PDF
-                                 </a>
-                                 <button v-else class="btn btn-outline-secondary me-2" disabled>
-                                    <i class="fas fa-file-pdf"></i> PDF pendiente
-                                 </button>
-                                 <a v-if="consultaXmlUrl" class="btn btn-outline-primary" :href="consultaXmlUrl" target="_blank" rel="noopener">
-                                    <i class="fas fa-file-code"></i> Factura XML
-                                 </a>
-                                 <button v-else class="btn btn-outline-secondary" disabled>
-                                    <i class="fas fa-file-code"></i> XML pendiente
-                                 </button>
-                                 <button
-                                    v-if="canAnularFactura"
-                                    class="btn btn-outline-danger"
-                                    @click="toggleAnulacionPanel"
-                                 >
-                                    <i class="fas fa-ban"></i> {{ modalAnular ? 'Ocultar anulación' : 'Anular factura' }}
-                                 </button>
-                              </div>
-
-                              <div v-if="modalAnular" class="sales-anular-panel mt-4">
-                                 <div class="sales-anular-head">
-                                    <div>
-                                       <p class="sales-kicker mb-1">Acción sensible</p>
-                                       <h5 class="mb-1">Anular factura</h5>
-                                       <p class="mb-0 sales-subtitle">
-                                          Completa el motivo y el tipo de anulación antes de confirmar el envío a SEFE.
-                                       </p>
-                                    </div>
-                                 </div>
-
-                                 <div class="row g-3 mt-1">
-                                    <div class="col-md-12">
-                                       <label for="motivoAnulacion" class="form-label sales-form-label">Motivo de anulación</label>
-                                       <input type="text" class="form-control sales-form-control" id="motivoAnulacion" v-model="motivo">
-                                    </div>
-                                    <div class="col-md-12">
-                                       <label for="tipoAnulacion" class="form-label sales-form-label">Tipo de anulación</label>
-                                       <select class="form-control sales-form-control" id="tipoAnulacion" v-model="tipoAnulacion">
-                                          <option disabled value="">Seleccione una opción</option>
-                                          <option value="1">1 - Factura mal emitida</option>
-                                          <option value="2">2 - Nota de crédito-débito mal emitida</option>
-                                          <option value="3">3 - Datos de emisión incorrectos</option>
-                                          <option value="4">4 - Factura o nota devuelta</option>
-                                       </select>
-                                    </div>
-                                 </div>
-
-                                 <div class="sales-anular-actions mt-4">
-                                    <button type="button" @click="toggleAnulacionPanel" class="btn btn-outline-secondary">
-                                       Cerrar
-                                    </button>
-                                    <button type="button" @click="AnularFactura" class="btn btn-danger">
-                                       Confirmar anulación
-                                    </button>
-                                 </div>
-                              </div>
-
-                              <div v-if="showConsultaDetalle" class="sales-consult-detail mt-4">
-                                 <h6 class="mb-3">Detalle de la factura</h6>
-                                 <div v-if="consultaDetalle.length">
-                                    <div v-for="(item, index) in consultaDetalle" :key="index" class="sales-consult-item">
-                                       <strong>{{ item.descripcion || 'Sin descripción' }}</strong>
-                                       <span>{{ item.codigoProducto || item.codigo || 'S/C' }}</span>
-                                       <span>{{ item.cantidad }} x {{ item.precioUnitario }}</span>
-                                    </div>
-                                 </div>
-                                 <p v-else class="mb-0 text-muted">No hay detalle disponible en esta consulta.</p>
-                              </div>
-                           </div>
-                           <div v-else>
-                              <p>No se encontraron detalles de la venta.</p>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
-               <div class="col-12">
-                  <div class="card sales-card">
-                     <div class="card-body">
-                        <div class="table-responsive sales-table-wrap">
-                           <table class="table sales-table align-middle">
-                              <thead>
-                                 <tr>
-                                    <th class="py-1 px-2">#</th>
-                                    <th class="py-1 px-2">FECHA</th>
-                                    <th class="py-1 px-2">CLIENTE</th>
-                                    <th class="py-1 px-2">SEGUIMIENTO</th>
-                                    <th class="py-1 px-2">ESTADO</th>
-                                    <th class="py-1 px-2">DOCUMENTO</th>
-                                    <th class="py-1 px-2">TOTAL</th>
-                                    <th class="py-1 px-2">ACCIONES</th>
-                                 </tr>
-                              </thead>
-                              <tbody>
-                                 <tr v-for="(m, i) in paginatedList" :key="m.id">
-                                    <td class="py-2 px-2 sales-row-index">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
-                                    <td class="py-2 px-2">
-                                       <span class="sales-date">{{ m.fecha || 'N/A' }}</span>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <div class="sales-client-block">
-                                          <strong>{{ getClientName(m) }}</strong>
-                                          <small>{{ getClientCode(m) }}</small>
-                                       </div>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <span class="sales-tracking">{{ m.codigoSeguimiento || 'SIN SEGUIMIENTO' }}</span>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <span class="sales-status" :class="statusClass(m.status)">
-                                          {{ statusLabel(m.status) }}
-                                       </span>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <span class="sales-document">{{ getDocument(m) }}</span>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <span class="sales-total">{{ formatAmount(m.total) }}</span>
-                                    </td>
-                                    <td class="py-2 px-2">
-                                       <div class="sales-action-group">
-                                          <button type="button" @click="redirectTo(m.id)"
-                                             class="btn sales-icon-btn sales-icon-btn-info" title="Ver venta">
-                                             <i class="fas fa-eye"></i>
-                                          </button>
-                                          <button type="button" @click="ImprimirVenta(m)"
-                                             class="btn sales-icon-btn sales-icon-btn-warning" title="Imprimir venta">
-                                             <i class="fas fa-print"></i>
-                                          </button>
-                                          <button type="button" title="Consultar venta"
-                                             @click="ConsultarVenta(m)"
-                                             class="btn sales-icon-btn sales-icon-btn-danger">
-                                             <i class="fas fa-info-circle"></i>
-                                          </button>
-                                       </div>
-                                    </td>
-                                 </tr>
-                                 <tr v-if="!paginatedList.length">
-                                    <td colspan="8" class="py-4 text-center sales-empty">
-                                       No se encontraron ventas con ese criterio.
-                                    </td>
-                                 </tr>
-                              </tbody>
-                           </table>
-                        </div>
-
-                        <nav aria-label="Page navigation example" class="enterprise-pagination-nav">
-                           <ul class="pagination justify-content-center enterprise-pagination">
-                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)">Anterior</a>
-                              </li>
-                              <li class="page-item" v-for="pageNumber in totalPages" :key="`page-${pageNumber}`"
-                                 :class="{ active: currentPage === pageNumber }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(pageNumber)">{{ pageNumber }}</a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)">Siguiente</a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Último</a>
-                              </li>
-                           </ul>
-                        </nav>
-                     </div>
-                  </div>
-               </div>
+            <div class="d-flex flex-wrap">
+              <button class="btn btn-outline-primary mr-2 mb-2" @click="exportPdf" :disabled="load || !rows.length">
+                <i class="fas fa-file-pdf mr-1"></i> Reporte PDF
+              </button>
+              <button class="btn btn-outline-secondary mb-2" @click="resetFilters">
+                <i class="fas fa-undo mr-1"></i> Reiniciar
+              </button>
             </div>
-         </div>
-      </AdminTemplate>
-   </div>
+          </div>
+        </div>
+
+        <div class="ventas-summary-grid">
+          <button type="button" class="ventas-stat-card" @click="quickFilter('emitido', 'all')">
+            <div class="ventas-stat-card__label">Ventas emitidas</div>
+            <div class="ventas-stat-card__value">{{ numberFormat(summary.ventas) }}</div>
+            <div class="ventas-stat-card__meta">Registros cerrados y enviados a facturacion</div>
+          </button>
+
+          <button type="button" class="ventas-stat-card" @click="quickFilter('emitido', 'PROCESADA')">
+            <div class="ventas-stat-card__label">Facturadas</div>
+            <div class="ventas-stat-card__value">{{ numberFormat(summary.facturadas) }}</div>
+            <div class="ventas-stat-card__meta">Ventas con comprobante listo para entrega</div>
+          </button>
+
+          <button type="button" class="ventas-stat-card" @click="quickFilter('emitido', 'RECEPCIONADA')">
+            <div class="ventas-stat-card__label">Pendientes</div>
+            <div class="ventas-stat-card__value">{{ numberFormat(summary.pendientes) }}</div>
+            <div class="ventas-stat-card__meta">Emisiones en proceso o esperando actualizacion</div>
+          </button>
+
+          <button type="button" class="ventas-stat-card" @click="quickFilter('emitido', 'OBSERVADA')">
+            <div class="ventas-stat-card__label">Observadas</div>
+            <div class="ventas-stat-card__value">{{ numberFormat(summary.observadas) }}</div>
+            <div class="ventas-stat-card__meta">Ventas que requieren revision antes de reenviar</div>
+          </button>
+
+          <button type="button" class="ventas-stat-card" @click="quickFilter('borrador', 'all')">
+            <div class="ventas-stat-card__label">Borradores</div>
+            <div class="ventas-stat-card__value">0</div>
+            <div class="ventas-stat-card__meta">No disponibles en este modulo (backend puente)</div>
+          </button>
+
+          <button type="button" class="ventas-stat-card ventas-stat-card--accent" @click="quickFilter('emitido', 'all')">
+            <div class="ventas-stat-card__label">Total vendido</div>
+            <div class="ventas-stat-card__value">Bs {{ money(summary.totalVendido) }}</div>
+            <div class="ventas-stat-card__meta">Monto acumulado de las ventas emitidas</div>
+          </button>
+        </div>
+
+        <div class="card ventas-panel">
+          <div class="card-header ventas-panel__header d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Historial de ventas</strong>
+              <div class="text-muted small">Detalle de emisiones registradas para tu cuenta.</div>
+            </div>
+            <span class="ventas-table-count">{{ totalRows }} registros</span>
+          </div>
+
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table ventas-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Codigo orden</th>
+                    <th>Cliente</th>
+                    <th>Facturacion</th>
+                    <th>Estado</th>
+                    <th class="text-center">Items</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in paginatedRows" :key="row.id">
+                    <td>
+                      <div class="ventas-table__primary">{{ formatDate(row.fecha, 'date') }}</div>
+                      <div class="ventas-table__secondary">{{ formatDate(row.fecha, 'time') }}</div>
+                    </td>
+                    <td>
+                      <div class="ventas-table__primary">{{ row.codigoOrden || 'Sin codigo' }}</div>
+                      <div class="ventas-table__secondary">Doc: {{ row.documentoIdentidad || 'S/N' }} · Fact: {{ row.numeroFactura || 'S/N' }}</div>
+                    </td>
+                    <td>
+                      <div class="ventas-table__primary">{{ row.razonSocial || 'SIN NOMBRE' }}</div>
+                      <div class="ventas-table__secondary">{{ row.codigoCliente || 'SIN CLIENTE' }}</div>
+                    </td>
+                    <td>
+                      <span class="ventas-status-chip" :class="facturaChipClass(row.estadoSufe)">
+                        {{ facturaLabel(row.estadoSufe) }}
+                      </span>
+                      <div class="ventas-table__secondary mt-1">{{ facturaHelp(row.estadoSufe) }}</div>
+                    </td>
+                    <td>
+                      <span class="ventas-status-chip ventas-status-chip--primary">EMITIDO</span>
+                    </td>
+                    <td class="text-center">
+                      <button type="button" class="ventas-count-pill ventas-count-pill--button" @click="openItems(row)">
+                        {{ row.itemsCount !== null ? row.itemsCount : '?' }}
+                      </button>
+                    </td>
+                    <td class="text-right">
+                      <div class="ventas-table__amount">Bs {{ money(row.total) }}</div>
+                    </td>
+                    <td class="text-center">
+                      <div class="d-flex flex-wrap justify-content-center">
+                        <button
+                          v-if="row.codigoSeguimiento"
+                          type="button"
+                          class="btn btn-xs btn-outline-secondary mr-2 mb-2"
+                          @click="consultarVenta(row)"
+                        >
+                          {{ row.estadoSufe === 'RECEPCIONADA' || row.estadoSufe === 'CONTINGENCIA_CREADA' ? 'Actualizar estado' : 'Consultar' }}
+                        </button>
+
+                        <a
+                          v-if="pdfUrl(row)"
+                          :href="pdfUrl(row)"
+                          target="_blank"
+                          rel="noopener"
+                          class="btn btn-xs btn-outline-primary mr-2 mb-2"
+                        >
+                          PDF original
+                        </a>
+
+                        <button class="btn btn-xs btn-outline-dark mb-2" @click="goTicket(row)">
+                          Ticket
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr v-if="!paginatedRows.length">
+                    <td colspan="8" class="text-center py-5 text-muted">No se encontraron ventas con los filtros aplicados.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="totalPages > 1" class="card-footer clearfix">
+            <nav class="enterprise-pagination-nav">
+              <ul class="pagination justify-content-center enterprise-pagination mb-0">
+                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                  <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
+                </li>
+                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                  <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)">Anterior</a>
+                </li>
+                <li
+                  v-for="pageNumber in totalPages"
+                  :key="`p-${pageNumber}`"
+                  class="page-item"
+                  :class="{ active: currentPage === pageNumber }"
+                >
+                  <a class="page-link" href="#" @click.prevent="changePage(pageNumber)">{{ pageNumber }}</a>
+                </li>
+                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                  <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)">Siguiente</a>
+                </li>
+                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                  <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Ultimo</a>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+        <div v-if="itemsModal.open" class="ventas-modal-backdrop" @click="closeItems"></div>
+        <div v-if="itemsModal.open" class="modal d-block ventas-modal-visible" tabindex="-1" role="dialog" aria-hidden="false">
+          <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content ventas-items-modal">
+              <div class="modal-header ventas-items-modal__header">
+                <div>
+                  <h5 class="modal-title mb-1">Detalle de items</h5>
+                  <div class="ventas-items-modal__subtitle">
+                    Venta {{ itemsModal.row?.codigoOrden || ('#' + (itemsModal.row?.id || '')) }} · {{ itemsModal.loading ? '...' : itemsModal.items.length }} item(s)
+                  </div>
+                </div>
+                <button type="button" class="close" @click="closeItems" aria-label="Cerrar">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body p-0">
+                <div class="table-responsive">
+                  <table class="table ventas-items-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Codigo</th>
+                        <th>Detalle</th>
+                        <th class="text-center">Cant.</th>
+                        <th class="text-right">Base</th>
+                        <th class="text-right">Extras</th>
+                        <th class="text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(item, index) in itemsModal.items" :key="`it-${index}`">
+                        <td>
+                          <div class="ventas-table__primary">{{ item.codigo || ('ITEM-' + (index + 1)) }}</div>
+                          <div class="ventas-table__secondary">{{ item.origen_tipo || item.modelo || '' }}</div>
+                        </td>
+                        <td>
+                          <div class="ventas-table__primary">{{ item.descripcion || item.titulo || 'Sin detalle' }}</div>
+                          <div v-if="item.titulo && item.titulo !== item.descripcion" class="ventas-table__secondary">{{ item.titulo }}</div>
+                          <div v-if="item.subtitulo" class="ventas-table__secondary">{{ item.subtitulo }}</div>
+                        </td>
+                        <td class="text-center">
+                          <span class="ventas-items-table__qty">{{ item.cantidad || 1 }}</span>
+                        </td>
+                        <td class="text-right">Bs {{ money(itemBase(item)) }}</td>
+                        <td class="text-right">Bs {{ money(itemExtras(item)) }}</td>
+                        <td class="text-right ventas-items-table__total">Bs {{ money(itemTotal(item)) }}</td>
+                      </tr>
+
+                      <tr v-if="itemsModal.loading">
+                        <td colspan="6" class="text-center py-4 text-muted">Cargando items...</td>
+                      </tr>
+
+                      <tr v-else-if="!itemsModal.items.length">
+                        <td colspan="6" class="text-center py-4 text-muted">No hay items para esta venta.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="modal-footer ventas-items-modal__footer">
+                <div class="ventas-items-modal__summary">Total venta: Bs {{ money(itemsModal.row?.total || 0) }}</div>
+                <button type="button" class="btn btn-outline-primary" @click="closeItems">Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AdminTemplate>
+  </div>
 </template>
 
 <script>
 export default {
-   head() {
+  head() {
+    return { title: this.modulo };
+  },
+
+  data() {
+    return {
+      load: true,
+      page: 'Ventas',
+      modulo: 'Mis ventas',
+      filters: {
+        q: '',
+        estado: 'emitido',
+        estado_emision: 'all',
+        from: '',
+        to: '',
+        per_page: 20,
+      },
+      rows: [],
+      totalRows: 0,
+      summary: {
+        ventas: 0,
+        facturadas: 0,
+        pendientes: 0,
+        observadas: 0,
+        totalVendido: 0,
+      },
+      currentPage: 1,
+      searchTimer: null,
+      detailCache: {},
+      itemsModal: {
+        open: false,
+        row: null,
+        items: [],
+        loading: false,
+      },
+    };
+  },
+
+  computed: {
+    totalPages() {
+      return Math.max(1, Math.ceil(this.rows.length / this.filters.per_page));
+    },
+    paginatedRows() {
+      const start = (this.currentPage - 1) * this.filters.per_page;
+      return this.rows.slice(start, start + this.filters.per_page);
+    },
+    currentUserId() {
+      const user = this.$store?.state?.auth?.user || {};
+      return this.extractUserId(user);
+    },
+  },
+
+  watch: {
+    totalPages(newValue) {
+      if (this.currentPage > newValue) {
+        this.currentPage = newValue || 1;
+      }
+    },
+  },
+
+  methods: {
+    extractUserId(user) {
+      if (!user || typeof user !== 'object') return '';
+      const candidates = [
+        user.id,
+        user.usuario_id,
+        user.user_id,
+        user.usuarioId,
+        user.userId,
+        user.origen_usuario_id,
+        user.uid,
+      ];
+      const value = candidates.find((candidate) => candidate !== undefined && candidate !== null && String(candidate).trim() !== '');
+      return value !== undefined && value !== null ? String(value).trim() : '';
+    },
+
+    async resolveCurrentUserId() {
+      const localId = this.currentUserId;
+      if (localId) return localId;
+
+      try {
+        const me = await this.$admin.$get('me');
+        const remoteUser = me?.usuario || {};
+        const remoteId = this.extractUserId(remoteUser);
+        if (remoteId) {
+          this.$store.commit('auth/setUser', remoteUser);
+          return remoteId;
+        }
+      } catch (e) {
+      }
+
+      return '';
+    },
+
+    normalizeIdentityValue(value) {
+      return String(value || '').trim().toLowerCase();
+    },
+
+    normalizeCarnet(value) {
+      return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+    },
+
+    buildIdentityFromUser(user) {
+      const alias = this.normalizeIdentityValue(user?.alias || user?.alias_acceso);
+      const carnet = this.normalizeCarnet(user?.numero_carnet || user?.carnet || user?.ci);
+      const email = this.normalizeIdentityValue(user?.email);
+      const id = this.extractUserId(user);
+
       return {
-         title: this.modulo,
+        id: id || '',
+        alias: alias || '',
+        carnet: carnet || '',
+        email: email || '',
       };
-   },
+    },
 
-   data() {
-      return {
-         load: true,
-         list: [],
-         ventaDetails: {
-            detalleFactura: {
-               cabecera: {}
-            }
-         },
-         consultedTracking: '',
-         selectedVentaContext: null,
-         showConsultaDetalle: false,
-         showModal: false,
-         modalEdit: false,
-         modalAnular: false,
-         motivo: "",
-         tipoAnulacion: "",
-         apiUrl: "ventas/operables?scope=all",
-         page: "Ventas",
-         modulo: "Lista de ventas",
-         sucursal: {},
-         url_editar: "/cajero/ventas/invoice/",
-         searchQuery: '',
-         currentPage: 1,
-         itemsPerPage: 12,
+    async resolveUserIdentity() {
+      const localUser = this.$store?.state?.auth?.user || {};
+      let identity = this.buildIdentityFromUser(localUser);
+
+      try {
+        const me = await this.$admin.$get('me');
+        const remoteUser = me?.usuario || {};
+        if (remoteUser && Object.keys(remoteUser).length) {
+          this.$store.commit('auth/setUser', remoteUser);
+          identity = this.buildIdentityFromUser(remoteUser);
+        }
+      } catch (e) {
+      }
+
+      return identity;
+    },
+
+    ventaMatchesIdentity(venta, identity) {
+      const user = venta?.usuario || {};
+      const sameId = identity.id && String(user?.id || '').trim() === identity.id;
+      const sameAlias = identity.alias && this.normalizeIdentityValue(user?.alias) === identity.alias;
+      const sameCarnet = identity.carnet && this.normalizeCarnet(user?.carnet) === identity.carnet;
+      const sameEmail = identity.email && this.normalizeIdentityValue(user?.email) === identity.email;
+      return Boolean(sameId || sameAlias || sameCarnet || sameEmail);
+    },
+
+    mapKardexDetalleRows(detalle) {
+      return detalle.map((row) => ({
+        id: row.id,
+        fecha: row.fecha || '',
+        codigoOrden: row.codigoOrden || '',
+        numeroFactura: row.numeroFactura || row.nroFactura || '',
+        codigoSeguimiento: row.codigoSeguimiento || '',
+        razonSocial: row.razonSocial || '',
+        documentoIdentidad: row.documentoIdentidad || '',
+        codigoCliente: row.codigoCliente || '',
+        total: Number(row.total || 0),
+        estadoSufe: (row.estadoSufe || '').toUpperCase(),
+        cuf: row.cuf || '',
+        itemsCount: Number.isFinite(Number(row.itemsCount)) ? Number(row.itemsCount) : (this.detailCache[row.id]?.length ?? null),
+      }));
+    },
+
+    mapResumenRows(ventas) {
+      return ventas.map((row) => ({
+        id: row.id,
+        fecha: row.fecha || '',
+        codigoOrden: row.codigoOrden || '',
+        numeroFactura: row.numeroFactura || row.nroFactura || '',
+        codigoSeguimiento: row.codigoSeguimiento || '',
+        razonSocial: row?.cliente?.razonSocial || '',
+        documentoIdentidad: row?.cliente?.documentoIdentidad || '',
+        codigoCliente: row?.cliente?.codigoCliente || '',
+        total: Number(row.total || 0),
+        estadoSufe: (row.estadoSufe || '').toUpperCase(),
+        cuf: row.cuf || '',
+        itemsCount: Number.isFinite(Number(row.itemsCount))
+          ? Number(row.itemsCount)
+          : (Array.isArray(row.detalle) ? row.detalle.length : (this.detailCache[row.id]?.length ?? null)),
+      }));
+    },
+
+    buildSummaryFromRows(rows) {
+      const summary = {
+        ventas: rows.length,
+        facturadas: 0,
+        pendientes: 0,
+        observadas: 0,
+        totalVendido: 0,
       };
-   },
 
-   computed: {
-      filteredList() {
-         const term = (this.searchQuery || '').toString().toLowerCase();
-
-         return this.list.filter(item => {
-            const tracking = (item?.codigoSeguimiento || '').toString().toLowerCase();
-            const clientCode = (item?.cliente?.codigoCliente || '').toString().toLowerCase();
-            const clientName = (item?.cliente?.razonSocial || '').toString().toLowerCase();
-            const document = (item?.cliente?.documentoIdentidad || '').toString().toLowerCase();
-
-            return tracking.includes(term)
-               || clientCode.includes(term)
-               || clientName.includes(term)
-               || document.includes(term);
-         });
-      },
-      totalPages() {
-         return Math.max(1, Math.ceil(this.filteredList.length / this.itemsPerPage));
-      },
-      paginatedList() {
-         if (!Array.isArray(this.filteredList) || !this.filteredList.length) {
-            return [];
-         }
-
-         const safePage = Math.min(Math.max(Number(this.currentPage) || 1, 1), this.totalPages);
-         const safeSize = Math.max(Number(this.itemsPerPage) || 12, 1);
-         const start = (safePage - 1) * safeSize;
-
-         return this.filteredList.slice(start, start + safeSize);
-      },
-      trackedCount() {
-         return this.filteredList.filter(item => !!item?.codigoSeguimiento).length;
-      },
-      missingDocumentCount() {
-         return this.filteredList.filter(item => !item?.cliente?.documentoIdentidad).length;
-      },
-      totalAmount() {
-         return this.filteredList.reduce((sum, item) => {
-            const amount = Number(item?.total || 0);
-            return sum + (Number.isFinite(amount) ? amount : 0);
-         }, 0);
-      },
-      formattedTotalAmount() {
-         return this.formatAmount(this.totalAmount);
-      },
-      consultaCabecera() {
-         return this.ventaDetails?.detalleFactura?.cabecera || {};
-      },
-      consultaDetalle() {
-         return this.ventaDetails?.detalleFactura?.detalle || [];
-      },
-      consultaStatusLabel() {
-         const estado = (this.ventaDetails?.estado || '').toString().toUpperCase();
-         const labels = {
-            PROCESADO: 'Facturada',
-            PENDIENTE: 'En proceso',
-            OBSERVADO: 'Observada',
-            ANULADO: 'Anulada',
-         };
-
-         return labels[estado] || (estado || 'Sin estado');
-      },
-      consultaStatusClass() {
-         const estado = (this.ventaDetails?.estado || '').toString().toUpperCase();
-         const classes = {
-            PROCESADO: 'procesado',
-            PENDIENTE: 'recepcionada',
-            OBSERVADO: 'observado',
-            ANULADO: 'contingencia',
-         };
-
-         return classes[estado] || 'desconocido';
-      },
-      consultaStatusHelp() {
-         const estado = (this.ventaDetails?.estado || '').toString().toUpperCase();
-         const messages = {
-            PROCESADO: 'La factura ya fue confirmada correctamente por SEFE.',
-            PENDIENTE: 'La venta sigue en proceso de confirmación.',
-            OBSERVADO: 'La factura quedó observada y requiere revisión.',
-            ANULADO: 'La factura fue anulada en SEFE.',
-         };
-
-         return messages[estado] || 'Resultado devuelto por la consulta manual a SEFE.';
-      },
-      consultaPdfUrl() {
-         const cuf = this.ventaDetails?.cuf;
-         if (!cuf || this.consultaStatusLabel !== 'Facturada') return null;
-         return `https://sefe.demo.agetic.gob.bo/public/facturas_pdf/${cuf}.pdf`;
-      },
-      consultaXmlUrl() {
-         const xml = this.ventaDetails?.xml;
-         const cuf = this.ventaDetails?.cuf;
-
-         if (xml) {
-            return `https://sefe.demo.agetic.gob.bo/public/facturas_xml/${xml}`;
-         }
-
-         if (cuf && this.consultaStatusLabel === 'Facturada') {
-            return `https://sefe.demo.agetic.gob.bo/public/facturas_xml/${cuf}.xml`;
-         }
-
-         return null;
-      },
-      canAnularFactura() {
-         const estado = (this.ventaDetails?.estado || '').toString().toUpperCase();
-         const cuf = (this.ventaDetails?.cuf || '').toString().trim();
-
-         return Boolean(cuf) && estado === 'PROCESADO';
-      }
-   },
-
-   watch: {
-      searchQuery() {
-         this.currentPage = 1;
-      },
-      totalPages(newValue) {
-         if (this.currentPage > newValue) {
-            this.currentPage = newValue || 1;
-         }
-      }
-   },
-
-   methods: {
-      getClientCode(item) {
-         return item?.cliente?.codigoCliente || 'SIN CODIGO';
-      },
-      getClientName(item) {
-         return item?.cliente?.razonSocial || 'Cliente no identificado';
-      },
-      getDocument(item) {
-         return item?.cliente?.documentoIdentidad || 'N/A';
-      },
-      statusLabel(status) {
-         return status?.label || 'Sin estado';
-      },
-      statusClass(status) {
-         const key = status?.key || '';
-         const classes = {
-            PROCESADO: 'procesado',
-            RECEPCIONADA: 'recepcionada',
-            CONTINGENCIA_CREADA: 'contingencia',
-            OBSERVADO: 'observado',
-            PENDIENTE_CONFIRMACION: 'recepcionada',
-            PENDIENTE: 'pendiente',
-         };
-
-         return classes[key] || 'desconocido';
-      },
-      formatAmount(value) {
-         const amount = Number(value || 0);
-         if (!Number.isFinite(amount)) return '0.00';
-         return amount.toFixed(2);
-      },
-      changePage(page) {
-         if (page >= 1 && page <= this.totalPages) {
-            this.currentPage = page;
-         }
-      },
-      async GET_DATA(path) {
-         try {
-            const res = await this.$admin.$get(path);
-            return res;
-         } catch (error) {
-            console.error(`Error fetching data from ${path}:`, error);
-         }
-      },
-
-      async EliminarItem(id) {
-         this.load = true;
-         try {
-            await this.$admin.$delete(`${this.apiUrl}/${id}`);
-            const updatedList = await this.GET_DATA(this.apiUrl);
-            this.list = updatedList;
-         } catch (error) {
-            console.error(`Error deleting item ${id}:`, error);
-         } finally {
-            this.load = false;
-         }
-      },
-
-      Eliminar(id) {
-         this.$swal
-            .fire({
-               title: "Deseas Eliminar?",
-               showDenyButton: false,
-               showCancelButton: true,
-               confirmButtonText: "Eliminar",
-               cancelButtonText: `Cancelar`,
-            })
-            .then(async (result) => {
-               if (result.isConfirmed) {
-                  await this.EliminarItem(id);
-               }
-            });
-      },
-
-      async ImprimirVenta(venta) {
-         try {
-            let sucursal = this.sucursal;
-            sucursal.venta = venta;
-            const res = await this.$printer.$post(`${sucursal.impresora_url}venta`, sucursal);
-            console.log('Impresión de venta:', res);
-         } catch (error) {
-            console.error('Error al imprimir venta:', error);
-         }
-      },
-
-      async ConsultarVenta(item) {
-         try {
-            this.consultedTracking = item?.codigoSeguimiento || '';
-            this.selectedVentaContext = item || null;
-            this.showConsultaDetalle = false;
-            const res = await this.$admin.$get(`ventas/consultar/${this.consultedTracking}`);
-            console.log('Respuesta completa del API:', res);
-            this.ventaDetails = res;
-            this.list = await this.GET_DATA(this.apiUrl);
-            this.modalEdit = true;
-         } catch (error) {
-            console.error('Error al consultar venta:', error);
-         }
-      },
-
-      toggleConsultaDetalle() {
-         this.showConsultaDetalle = !this.showConsultaDetalle;
-      },
-
-      toggleAnulacionPanel() {
-         this.modalAnular = !this.modalAnular;
-
-         if (!this.modalAnular) {
-            this.motivo = '';
-            this.tipoAnulacion = '';
-         }
-      },
-
-      redirectTo(id) {
-         this.$router.push(`${this.url_editar}${id}`);
-      },
-
-      showAnularModal(cuf = null) {
-         if (cuf) {
-            this.ventaDetails.cuf = cuf;
-         }
-
-         this.motivo = '';
-         this.tipoAnulacion = '';
-         this.modalAnular = true;
-      },
-      extractErrorMessages(error) {
-         const messages = [];
-         const data = error?.response?.data || {};
-
-         if (data.message) {
-            messages.push(data.message);
-         }
-
-         if (data.error) {
-            messages.push(data.error);
-         }
-
-         if (data.errors && typeof data.errors === 'object') {
-            Object.values(data.errors).flat().forEach(message => messages.push(message));
-         }
-
-         if (data.details?.datos?.errores && Array.isArray(data.details.datos.errores)) {
-            data.details.datos.errores.forEach(message => messages.push(message));
-         }
-
-         if (data.details && typeof data.details === 'string') {
-            messages.push(data.details);
-         }
-
-         return [...new Set(messages.filter(Boolean))];
-      },
-      validateAnulacionForm() {
-         const errors = [];
-         const motivo = (this.motivo || '').trim();
-         const tipoAnulacion = String(this.tipoAnulacion || '').trim();
-
-         if (!motivo) {
-            errors.push('El motivo de anulación es obligatorio.');
-         } else if (!/^[A-Za-z0-9\s\-_.\/;,\\]+$/.test(motivo)) {
-            errors.push('El motivo de anulación contiene caracteres no permitidos por el protocolo.');
-         }
-
-         if (!['1', '2', '3', '4'].includes(tipoAnulacion)) {
-            errors.push('Debe seleccionar un tipo de anulación válido.');
-         }
-
-         if (errors.length) {
-            this.$swal.fire({
-               icon: 'error',
-               title: 'La anulación no cumple las validaciones',
-               html: `<ul style="text-align:left;">${errors.map(error => `<li>${error}</li>`).join('')}</ul>`,
-            });
-            return false;
-         }
-
-         return true;
-      },
-
-      async AnularFactura() {
-         if (!this.validateAnulacionForm()) return;
-
-         try {
-            const res = await this.$admin.$patch(`ventas/anular/${this.ventaDetails.cuf}`, {
-               motivo: this.motivo.trim(),
-               tipoAnulacion: Number(this.tipoAnulacion)
-            });
-
-            this.$swal.fire('Éxito', res?.message || 'La factura ha sido anulada correctamente.', 'success');
-
-            this.modalAnular = false;
-            this.motivo = '';
-            this.tipoAnulacion = '';
-
-            const refreshedConsulta = await this.$admin.$get(`ventas/consultar/${this.consultedTracking}`);
-            this.ventaDetails = refreshedConsulta;
-            this.list = await this.GET_DATA(this.apiUrl);
-
-         } catch (error) {
-            console.error('Error al anular factura:', error);
-            const messages = this.extractErrorMessages(error);
-            this.$swal.fire({
-               icon: 'error',
-               title: 'Hubo un problema al anular la factura.',
-               html: messages.length
-                  ? `<ul style="text-align:left;">${messages.map(message => `<li>${message}</li>`).join('')}</ul>`
-                  : null,
-               text: messages.length ? null : 'Revise los datos enviados o la respuesta del servicio.',
-            });
-         }
-      }
-   },
-
-   mounted() {
-      this.$nextTick(async () => {
-         try {
-            const data = await this.GET_DATA(this.apiUrl);
-            this.list = Array.isArray(data) ? data : [];
-         } catch (error) {
-            console.error('Error al montar los datos:', error);
-         } finally {
-            this.load = false;
-         }
+      rows.forEach((row) => {
+        const estado = (row.estadoSufe || '').toUpperCase();
+        summary.totalVendido += Number(row.total || 0);
+        if (estado === 'PROCESADA') summary.facturadas += 1;
+        if (estado === 'OBSERVADA') summary.observadas += 1;
+        if (estado === 'RECEPCIONADA' || estado === 'CONTINGENCIA_CREADA') summary.pendientes += 1;
       });
-   },
+
+      return summary;
+    },
+
+    async fetchVentas() {
+      if (this.filters.estado === 'borrador') {
+        this.rows = [];
+        this.totalRows = 0;
+        this.summary = { ventas: 0, facturadas: 0, pendientes: 0, observadas: 0, totalVendido: 0 };
+        this.currentPage = 1;
+        this.load = false;
+        return;
+      }
+
+      this.load = true;
+      try {
+        const identity = await this.resolveUserIdentity();
+        if (!identity.id && !identity.alias && !identity.carnet && !identity.email) {
+          this.rows = [];
+          this.totalRows = 0;
+          this.summary = { ventas: 0, facturadas: 0, pendientes: 0, observadas: 0, totalVendido: 0 };
+          return;
+        }
+
+        const params = {
+          origen_usuario_alias: identity.alias || undefined,
+          origen_usuario_carnet: identity.carnet || undefined,
+          origen_usuario_email: identity.email || undefined,
+          fechaInicio: this.filters.from || undefined,
+          fechaFin: this.filters.to || undefined,
+          estado_sufe: this.filters.estado_emision !== 'all' ? this.filters.estado_emision : undefined,
+          q: this.filters.q || undefined,
+          limite: 500,
+        };
+
+        const response = await this.$admin.$get('ventas/reportes/kardex-usuarios', { params });
+        const detalle = Array.isArray(response?.detalle) ? response.detalle : [];
+        const resumen = response?.resumen || {};
+
+        const rows = this.mapKardexDetalleRows(detalle);
+        const summary = {
+          ventas: Number(resumen.ventas || 0),
+          facturadas: Number(resumen.facturadas || 0),
+          pendientes: Number(resumen.pendientes || 0),
+          observadas: Number(resumen.observadas || 0),
+          totalVendido: Number(resumen.totalVendido || 0),
+        };
+
+        this.rows = rows;
+        this.totalRows = rows.length;
+        this.summary = summary;
+
+        this.currentPage = 1;
+      } catch (error) {
+        const msg = error?.response?.data?.message || 'No se pudo cargar Mis ventas.';
+        this.$swal.fire('Error', msg, 'error');
+      } finally {
+        this.load = false;
+      }
+    },
+
+    onSearchInput() {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.fetchVentas();
+      }, 450);
+    },
+
+    onPerPageChange() {
+      this.currentPage = 1;
+    },
+
+    quickFilter(estado, estadoEmision) {
+      this.filters.estado = estado;
+      this.filters.estado_emision = estadoEmision;
+      this.fetchVentas();
+    },
+
+    resetFilters() {
+      this.filters = {
+        q: '',
+        estado: 'emitido',
+        estado_emision: 'all',
+        from: '',
+        to: '',
+        per_page: 20,
+      };
+      this.fetchVentas();
+    },
+
+    changePage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page;
+      }
+    },
+
+    formatDate(value, part) {
+      if (!value) return '-';
+      const date = new Date(value.replace(' ', 'T'));
+      if (Number.isNaN(date.getTime())) return '-';
+      if (part === 'time') {
+        return date.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+      }
+      return date.toLocaleDateString('es-BO');
+    },
+
+    money(value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+    },
+
+    itemBase(item) {
+      const base = Number(item?.monto_base);
+      if (Number.isFinite(base)) return base;
+      return Number(item?.precio || 0);
+    },
+
+    itemExtras(item) {
+      const extras = Number(item?.monto_extras);
+      return Number.isFinite(extras) ? extras : 0;
+    },
+
+    itemTotal(item) {
+      const totalLinea = Number(item?.total_linea);
+      if (Number.isFinite(totalLinea)) return totalLinea;
+      const cantidad = Number(item?.cantidad || 1);
+      return (this.itemBase(item) + this.itemExtras(item)) * (Number.isFinite(cantidad) ? cantidad : 1);
+    },
+
+    numberFormat(value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? n.toLocaleString('es-BO') : '0';
+    },
+
+    facturaLabel(estado) {
+      const map = {
+        PROCESADA: 'FACTURADA',
+        RECEPCIONADA: 'PENDIENTE',
+        CONTINGENCIA_CREADA: 'PENDIENTE',
+        OBSERVADA: 'RECHAZADA',
+      };
+      return map[(estado || '').toUpperCase()] || ((estado || 'SIN ESTADO').toUpperCase());
+    },
+
+    facturaHelp(estado) {
+      const key = (estado || '').toUpperCase();
+      if (key === 'PROCESADA') return 'Factura emitida correctamente.';
+      if (key === 'RECEPCIONADA' || key === 'CONTINGENCIA_CREADA') return 'Emision en proceso de confirmacion.';
+      if (key === 'OBSERVADA') return 'Requiere revision antes de reenviar.';
+      return 'Sin observaciones registradas.';
+    },
+
+    facturaChipClass(estado) {
+      const key = this.facturaLabel(estado);
+      if (key === 'FACTURADA') return 'ventas-status-chip--success';
+      if (key === 'PENDIENTE') return 'ventas-status-chip--warning';
+      if (key === 'RECHAZADA') return 'ventas-status-chip--danger';
+      return 'ventas-status-chip--muted';
+    },
+
+    pdfUrl(row) {
+      if (!row?.cuf || this.facturaLabel(row.estadoSufe) !== 'FACTURADA') return null;
+      return `https://sefe.demo.agetic.gob.bo/public/facturas_pdf/${row.cuf}.pdf`;
+    },
+
+    goTicket(row) {
+      if (!row?.id) return;
+      this.$router.push(`/cajero/ventas/invoice/${row.id}`);
+    },
+
+    async consultarVenta(row) {
+      if (!row?.codigoSeguimiento) return;
+      this.load = true;
+      try {
+        const res = await this.$admin.$get(`ventas/consultar/${row.codigoSeguimiento}`);
+        this.$swal.fire('Estado actualizado', res?.message || 'Consulta realizada correctamente.', 'success');
+        await this.fetchVentas();
+      } catch (error) {
+        const msg = error?.response?.data?.message || 'No se pudo consultar la venta.';
+        this.$swal.fire('Error', msg, 'error');
+      } finally {
+        this.load = false;
+      }
+    },
+
+    async openItems(row) {
+      this.itemsModal.open = true;
+      this.itemsModal.row = row;
+      this.itemsModal.loading = true;
+
+      if (this.detailCache[row.id]) {
+        this.itemsModal.items = this.detailCache[row.id];
+        this.itemsModal.loading = false;
+        return;
+      }
+
+      this.itemsModal.items = [];
+      try {
+        const detail = await this.$admin.$get(`ventas/${row.id}`);
+        const items = Array.isArray(detail?.detalle) ? detail.detalle : [];
+        this.detailCache[row.id] = items;
+        this.itemsModal.items = items;
+
+        const idx = this.rows.findIndex((x) => x.id === row.id);
+        if (idx !== -1) {
+          this.$set(this.rows[idx], 'itemsCount', items.length);
+        }
+      } catch (error) {
+        const msg = error?.response?.data?.message || 'No se pudo cargar detalle de items.';
+        this.$swal.fire('Error', msg, 'error');
+      } finally {
+        this.itemsModal.loading = false;
+      }
+    },
+
+    closeItems() {
+      this.itemsModal.open = false;
+      this.itemsModal.row = null;
+      this.itemsModal.items = [];
+      this.itemsModal.loading = false;
+    },
+
+    async exportPdf() {
+      try {
+        const identity = await this.resolveUserIdentity();
+        const params = {
+          origen_usuario_alias: identity.alias || undefined,
+          origen_usuario_carnet: identity.carnet || undefined,
+          origen_usuario_email: identity.email || undefined,
+          fechaInicio: this.filters.from || undefined,
+          fechaFin: this.filters.to || undefined,
+          estado_sufe: this.filters.estado_emision !== 'all' ? this.filters.estado_emision : undefined,
+          q: this.filters.q || undefined,
+          limite: 500,
+        };
+
+        const response = await this.$admin.get('ventas/reportes/kardex-pdf', {
+          params,
+          responseType: 'blob',
+        });
+
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const contentDisposition = response.headers?.['content-disposition'] || '';
+        const fileNameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+        const fileName = (fileNameMatch && fileNameMatch[1]) ? fileNameMatch[1] : `kardex-mis-ventas-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        this.$swal.fire('Error', 'No se pudo generar el PDF del reporte.', 'error');
+      }
+    },
+  },
+
+  mounted() {
+    this.fetchVentas();
+  },
 };
 </script>
 
 <style scoped>
-.sales-modal-backdrop {
-   position: fixed;
-   inset: 0;
-   background: rgba(15, 23, 42, 0.38);
-   backdrop-filter: blur(2px);
-   z-index: 2050;
+.ventas-wrap {
+  padding-bottom: 1rem;
 }
 
-.sales-modal-visible {
-   z-index: 2060;
+.ventas-header {
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
-.sales-modal-visible .modal-dialog {
-   margin: 2rem 2rem 2rem auto;
-   max-width: min(1180px, calc(100vw - 420px));
+.ventas-header h1 {
+  font-weight: 700;
+  color: #173b73;
 }
 
-.sales-consult-modal {
-   border-radius: 24px;
-   overflow: hidden;
-   border: 1px solid rgba(220, 228, 238, 0.95);
-   box-shadow: 0 30px 70px rgba(15, 23, 42, 0.16);
+.ventas-header-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.sales-consult-body {
-   max-height: 78vh;
-   overflow-y: auto;
-   padding: 1.5rem;
+.ventas-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(254, 204, 54, 0.18);
+  color: #173b73;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
-.sales-consult-header {
-   display: flex;
-   align-items: flex-start;
-   justify-content: space-between;
-   gap: 1rem;
+.ventas-mini-badge--success {
+  background: rgba(40, 167, 69, 0.14);
+  color: #1f7a35;
 }
 
-.sales-consult-card {
-   height: 100%;
-   padding: 1rem 1.1rem;
-   border-radius: 18px;
-   background: #fffaf0;
-   border: 1px solid rgba(234, 205, 132, 0.35);
+.ventas-mini-badge--warning {
+  background: rgba(255, 193, 7, 0.18);
+  color: #9a6b00;
 }
 
-.sales-consult-label {
-   display: block;
-   margin-bottom: 0.45rem;
-   font-size: 0.76rem;
-   font-weight: 800;
-   letter-spacing: 0.08em;
-   text-transform: uppercase;
-   color: #9a6c07;
+.ventas-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
-.sales-consult-card strong {
-   color: #24324d;
-   font-size: 1rem;
+.ventas-stat-card {
+  text-align: left;
+  width: 100%;
+  border: 1px solid rgba(32, 83, 154, 0.12);
+  border-top: 4px solid #fecc36;
+  border-radius: 12px;
+  padding: 1rem 1.05rem;
+  box-shadow: 0 8px 24px rgba(16, 43, 84, 0.06);
+  min-height: 142px;
+  background: #fff;
+  cursor: pointer;
 }
 
-.sales-consult-actions {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.75rem;
+.ventas-stat-card--accent {
+  border-top-color: #20539a;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
 }
 
-.sales-consult-detail {
-   padding: 1rem 1.1rem;
-   border-radius: 18px;
-   background: #f8fafc;
-   border: 1px solid rgba(221, 228, 236, 0.95);
+.ventas-stat-card__label {
+  color: #5f7290;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 0.65rem;
 }
 
-.sales-anular-panel {
-   padding: 1.25rem;
-   border-radius: 20px;
-   background: linear-gradient(180deg, #fff8f8 0%, #fff 100%);
-   border: 1px solid rgba(248, 184, 184, 0.65);
-   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+.ventas-stat-card__value {
+  color: #173b73;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 800;
+  margin-bottom: 0.7rem;
 }
 
-.sales-anular-head {
-   display: flex;
-   align-items: flex-start;
-   justify-content: space-between;
-   gap: 1rem;
+.ventas-stat-card__meta {
+  color: #74839b;
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
-.sales-form-label {
-   font-weight: 800;
-   color: #425375;
+.ventas-panel {
+  border: 1px solid rgba(32, 83, 154, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(16, 43, 84, 0.05);
+  overflow: hidden;
 }
 
-.sales-form-control {
-   min-height: 50px;
-   border-radius: 14px;
+.ventas-panel__header {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  padding: 1rem 1.25rem;
 }
 
-.sales-anular-actions {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.75rem;
-   flex-wrap: wrap;
+.ventas-label {
+  color: #294b7c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.sales-consult-item {
-   display: flex;
-   flex-wrap: wrap;
-   gap: 0.75rem;
-   padding: 0.7rem 0;
-   border-bottom: 1px solid rgba(221, 228, 236, 0.95);
-   color: #51627f;
+.ventas-control {
+  min-height: 44px;
+  border-radius: 10px;
+  border-color: rgba(32, 83, 154, 0.18);
+  box-shadow: none;
 }
 
-.sales-consult-item:last-child {
-   border-bottom: 0;
+.ventas-control:focus {
+  border-color: rgba(32, 83, 154, 0.42);
+  box-shadow: 0 0 0 0.18rem rgba(32, 83, 154, 0.09);
 }
 
-.sales-break {
-   word-break: break-all;
+.ventas-table-count {
+  color: #6f819d;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
-.sales-hero {
-   border-radius: 24px;
-   background:
-      radial-gradient(circle at top right, rgba(255, 216, 79, 0.22), transparent 26%),
-      linear-gradient(135deg, #ffffff 0%, #fffaf0 100%);
+.ventas-table thead th {
+  background: #f7f9fc;
+  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  color: #38557f;
+  font-size: 0.79rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.sales-hero-head {
-   display: flex;
-   align-items: flex-start;
-   justify-content: space-between;
-   gap: 1rem;
+.ventas-table td {
+  vertical-align: top;
+  border-top: 1px solid rgba(32, 83, 154, 0.08);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
-.sales-kicker {
-   color: #b78916;
-   font-size: 0.8rem;
-   font-weight: 800;
-   letter-spacing: 0.12em;
-   text-transform: uppercase;
+.ventas-table__primary {
+  color: #173b73;
+  font-weight: 700;
 }
 
-.sales-title {
-   color: #24324d;
-   font-weight: 800;
+.ventas-table__secondary {
+  color: #74839b;
+  font-size: 0.83rem;
+  margin-top: 0.25rem;
 }
 
-.sales-subtitle {
-   color: #6b7a90;
-   max-width: 760px;
+.ventas-table__amount {
+  color: #0f2f61;
+  font-weight: 800;
+  font-size: 1.05rem;
 }
 
-.sales-badge {
-   display: inline-flex;
-   align-items: center;
-   gap: 0.65rem;
-   padding: 0.8rem 1rem;
-   border-radius: 16px;
-   background: #fff;
-   border: 1px solid rgba(215, 224, 236, 0.9);
-   color: #4a5b79;
-   font-weight: 800;
-   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+.ventas-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: rgba(32, 83, 154, 0.08);
+  color: #20539a;
+  font-weight: 800;
 }
 
-.sales-search-wrap {
-   position: relative;
+.ventas-count-pill--button {
+  border: 1px solid transparent;
+  cursor: pointer;
 }
 
-.sales-search-wrap i {
-   position: absolute;
-   left: 16px;
-   top: 50%;
-   transform: translateY(-50%);
-   color: #94a3b8;
+.ventas-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.58rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
 }
 
-.sales-search {
-   height: 54px;
-   padding-left: 46px !important;
-   border-radius: 16px !important;
+.ventas-status-chip--primary {
+  background: rgba(254, 204, 54, 0.18);
+  color: #7c5b00;
+  border-color: rgba(254, 204, 54, 0.45);
 }
 
-.sales-stat {
-   padding: 1rem 1.1rem;
-   border-radius: 18px;
-   background: rgba(255, 255, 255, 0.84);
-   border: 1px solid rgba(223, 230, 240, 0.92);
+.ventas-status-chip--success {
+  background: rgba(40, 167, 69, 0.14);
+  color: #1f7a35;
+  border-color: rgba(40, 167, 69, 0.28);
 }
 
-.sales-stat-label {
-   display: block;
-   color: #7b8aa3;
-   font-size: 0.84rem;
-   font-weight: 700;
-   margin-bottom: 0.35rem;
+.ventas-status-chip--warning {
+  background: rgba(255, 193, 7, 0.18);
+  color: #9a6b00;
+  border-color: rgba(255, 193, 7, 0.3);
 }
 
-.sales-stat strong {
-   color: #22314d;
-   font-size: 1.5rem;
-   font-weight: 800;
+.ventas-status-chip--danger {
+  background: rgba(220, 53, 69, 0.12);
+  color: #b02a37;
+  border-color: rgba(220, 53, 69, 0.24);
 }
 
-.sales-card {
-   border-radius: 24px;
+.ventas-status-chip--muted {
+  background: rgba(108, 117, 125, 0.1);
+  color: #66707a;
+  border-color: rgba(108, 117, 125, 0.22);
 }
 
-.sales-table-wrap {
-   border-radius: 18px;
-   overflow-x: auto;
-   overflow-y: hidden;
-   padding-bottom: 0.35rem;
-   -webkit-overflow-scrolling: touch;
+.ventas-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 2050;
 }
 
-.sales-table {
-   margin-bottom: 0;
-   min-width: 980px;
+.ventas-modal-visible {
+  z-index: 2060;
 }
 
-.sales-row-index {
-   color: #94a3b8;
-   font-weight: 700;
+.ventas-items-modal {
+  border-radius: 18px;
+  overflow: hidden;
 }
 
-.sales-date,
-.sales-document {
-   color: #4b5b76;
-   font-weight: 600;
+.ventas-items-modal__header {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
 }
 
-.sales-client-block {
-   display: flex;
-   flex-direction: column;
-   gap: 0.18rem;
+.ventas-items-modal__subtitle {
+  margin-top: 0.25rem;
+  color: #74839b;
+  font-size: 0.85rem;
 }
 
-.sales-client-block strong {
-   color: #24324d;
+.ventas-items-table thead th {
+  background: #f7f9fc;
+  color: #38557f;
+  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
-.sales-client-block small {
-   color: #94a3b8;
-   font-weight: 700;
+.ventas-items-table td {
+  vertical-align: top;
+  border-top: 1px solid rgba(32, 83, 154, 0.08);
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
 }
 
-.sales-tracking {
-   display: inline-flex;
-   align-items: center;
-   padding: 0.48rem 0.8rem;
-   border-radius: 999px;
-   background: #f8fafc;
-   color: #334155;
-   font-family: Consolas, Monaco, monospace;
-   font-weight: 700;
+.ventas-items-table__qty {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(254, 204, 54, 0.22);
+  color: #7c5b00;
+  font-weight: 800;
 }
 
-.sales-total {
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   padding: 0.46rem 0.8rem;
-   border-radius: 999px;
-   background: #ecfdf3;
-   color: #157347;
-   font-weight: 800;
+.ventas-items-table__total {
+  color: #173b73;
+  font-weight: 800;
 }
 
-.sales-status {
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   padding: 0.46rem 0.8rem;
-   border-radius: 999px;
-   font-size: 0.82rem;
-   font-weight: 800;
-   letter-spacing: 0.02em;
-   white-space: nowrap;
+.ventas-items-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
-.sales-status.procesado {
-   background: #ecfdf3;
-   color: #157347;
+.ventas-items-modal__summary {
+  color: #173b73;
+  font-weight: 800;
 }
 
-.sales-status.recepcionada {
-   background: #eff6ff;
-   color: #1d4ed8;
+@media (max-width: 1399.98px) {
+  .ventas-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-.sales-status.contingencia {
-   background: #fff8e1;
-   color: #a16207;
-}
+@media (max-width: 767.98px) {
+  .ventas-summary-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
 
-.sales-status.observado {
-   background: #fff5f5;
-   color: #c2410c;
-}
+  .ventas-stat-card {
+    min-height: auto;
+  }
 
-.sales-status.pendiente,
-.sales-status.desconocido {
-   background: #f1f5f9;
-   color: #475569;
-}
-
-.sales-action-group {
-   display: flex;
-   gap: 0.45rem;
-   flex-wrap: wrap;
-}
-
-.sales-icon-btn {
-   width: 38px;
-   height: 38px;
-   border-radius: 12px;
-   display: inline-flex;
-   align-items: center;
-   justify-content: center;
-   border: none;
-   color: #fff;
-   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
-}
-
-.sales-icon-btn-info {
-   background: linear-gradient(135deg, #22c1dc 0%, #0891b2 100%);
-}
-
-.sales-icon-btn-warning {
-   background: linear-gradient(135deg, #f9dd74 0%, #f7c94b 100%);
-   color: #5b4300;
-}
-
-.sales-icon-btn-danger {
-   background: linear-gradient(135deg, #ff4d4f 0%, #dc2626 100%);
-}
-
-.sales-empty {
-   color: #7b8aa3;
-   font-weight: 700;
-}
-
-@media (max-width: 991px) {
-   .sales-modal-visible .modal-dialog {
-      margin: 1rem auto;
-      max-width: calc(100vw - 2rem);
-   }
-
-   .sales-hero-head {
-      flex-direction: column;
-   }
+  .ventas-items-modal__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>
