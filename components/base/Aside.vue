@@ -1,10 +1,11 @@
 <template>
-  <aside class="enterprise-sidenav sidenav navbar navbar-vertical navbar-expand-xs border-0 my-3 fixed-start ms-3" id="sidenav-main">
+  <aside class="enterprise-sidenav" id="sidenav-main">
     <div class="sidenav-header">
       <i
-        class="fas fa-times p-3 cursor-pointer text-white opacity-7 position-absolute end-0 top-0 d-none d-xl-none"
+        class="fas fa-times p-3 cursor-pointer text-secondary opacity-7 position-absolute end-0 top-0 d-none d-xl-none"
         aria-hidden="true"
         id="iconSidenav"
+        @click="closeMobileAside"
       ></i>
 
       <a class="brand-card" href="javascript:void(0)">
@@ -14,13 +15,13 @@
         <div class="brand-copy">
           <span class="brand-kicker">AGBC</span>
           <strong class="brand-title">Facturación</strong>
-          <small class="brand-subtitle">Panel administrativo</small>
+          <small class="brand-subtitle">Back office</small>
         </div>
       </a>
     </div>
 
     <div class="sidenav-body">
-      <div class="collapse navbar-collapse w-auto h-auto" id="sidenav-collapse-main">
+      <div class="sidenav-menu" id="sidenav-collapse-main">
         <ul class="navbar-nav">
           <li class="nav-section" v-if="showAdminSection">
             <span class="nav-section-label">Administración</span>
@@ -72,6 +73,12 @@
                   <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/cierre">
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Cierre diario</span>
+                  </nuxt-link>
+                </li>
+                <li class="nav-item" v-if="ventasReadAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/caja">
+                    <i class="fas fa-boxes"></i>
+                    <span>Caja y fichas</span>
                   </nuxt-link>
                 </li>
                 <li class="nav-item" v-if="ventasAccess">
@@ -129,6 +136,12 @@ export default {
     }
   },
   methods: {
+    closeMobileAside() {
+      const side = document.getElementById('sidenav-main');
+      if (side) {
+        side.classList.add('d-none');
+      }
+    },
     hasAccess(permission, viewSlug) {
       return this.can(permission) && this.canView(viewSlug);
     },
@@ -144,36 +157,45 @@ export default {
 
 <style scoped>
 .enterprise-sidenav {
-  width: 270px !important;
-  max-width: 270px !important;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #ffd84f 0%, #f3c228 100%);
-  border: 1px solid rgba(176, 121, 0, 0.18);
-  box-shadow: 0 24px 48px rgba(120, 85, 10, 0.16);
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
+  z-index: 1040;
+  width: 320px !important;
+  max-width: 320px !important;
+  height: calc(100vh - 32px);
+  margin: 0;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(215, 222, 235, 0.92);
+  box-shadow: 0 24px 70px rgba(24, 39, 75, 0.10);
   overflow: hidden;
+  backdrop-filter: blur(18px);
+  transition: width 0.22s ease, max-width 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease;
 }
 
 .sidenav-header {
-  padding: 18px 18px 10px;
+  padding: 20px 18px 12px;
 }
 
 .brand-card {
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(176, 121, 0, 0.14);
+  padding: 12px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e6ebf3;
   text-decoration: none;
-  box-shadow: 0 12px 24px rgba(120, 85, 10, 0.1);
 }
 
 .brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.34);
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e1e7f0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -182,7 +204,7 @@ export default {
 }
 
 .brand-mark img {
-  width: 30px;
+  width: 29px;
   height: auto;
 }
 
@@ -196,35 +218,36 @@ export default {
 .brand-kicker {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: rgba(92, 61, 0, 0.68);
+  letter-spacing: 0.16em;
+  color: #8a95a8;
+  font-weight: 800;
 }
 
 .brand-title {
-  color: #463000 !important;
-  font-size: 20px;
+  color: #1f2937 !important;
+  font-size: 19px;
   font-weight: 800;
 }
 
 .brand-subtitle {
-  color: rgba(92, 61, 0, 0.78);
-  font-size: 11px;
+  color: #667085;
+  font-size: 12px;
 }
 
 .sidenav-body {
-  padding: 10px 14px 22px;
+  padding: 8px 14px 22px;
 }
 
 .nav-section {
-  margin: 18px 0 10px;
-  padding: 0 12px;
+  margin: 22px 0 9px;
+  padding: 0 14px;
 }
 
 .nav-section-label {
-  color: rgba(92, 61, 0, 0.72);
-  font-size: 11px;
+  color: #98a2b3;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
 }
 
@@ -232,42 +255,42 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 4px 4px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  color: #5e470e !important;
+  margin: 4px 2px;
+  padding: 11px 12px;
+  border-radius: 15px;
+  color: #4b5565 !important;
   transition: all 0.2s ease;
 }
 
 .enterprise-parent-link:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #4d3908 !important;
+  background: #f5f7fb;
+  color: #243b6b !important;
 }
 
 .nav-icon-shell {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.22);
-  color: #b88200 !important;
+  background: #eef2ff;
+  color: #5967d8 !important;
   flex-shrink: 0;
 }
 
 .nav-link-text {
   flex: 1;
-  font-weight: 650;
+  font-weight: 700;
   font-size: 14px;
-  color: #5e470e !important;
+  color: #4b5565 !important;
   opacity: 1 !important;
 }
 
 .nav-chevron {
-  font-size: 12px;
-  opacity: 0.8;
-  color: rgba(134, 103, 25, 0.78);
+  font-size: 11px;
+  opacity: 0.65;
+  color: #8a95a8;
 }
 
 .enterprise-parent-link::after {
@@ -277,20 +300,20 @@ export default {
 
 .enterprise-subnav {
   margin: 0;
-  padding: 4px 4px 10px 8px;
+  padding: 7px 4px 11px 14px;
 }
 
 .enterprise-sub-link {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 3px 0;
-  padding: 9px 14px 9px 16px;
+  margin: 2px 0;
+  padding: 10px 12px 10px 14px;
   border-radius: 14px;
-  color: rgba(103, 79, 20, 0.92) !important;
+  color: #667085 !important;
   transition: all 0.2s ease;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 650;
   opacity: 1 !important;
   position: relative;
 }
@@ -298,40 +321,40 @@ export default {
 .enterprise-sub-link i {
   width: 16px;
   text-align: center;
-  color: #c08a00 !important;
+  color: #98a2b3 !important;
 }
 
 .enterprise-sub-link:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #4d3908 !important;
+  background: #f5f7fb;
+  color: #243b6b !important;
 }
 
 .enterprise-sub-link.nuxt-link-active,
 .enterprise-sub-link.nuxt-link-exact-active {
-  background: #ffffff;
-  color: #4d3908 !important;
+  background: #eef2ff;
+  color: #3442a8 !important;
   font-weight: 700;
-  box-shadow: 0 10px 22px rgba(181, 145, 43, 0.14);
 }
 
 .enterprise-sub-link.nuxt-link-active i,
 .enterprise-sub-link.nuxt-link-exact-active i {
-  color: #d19800 !important;
+  color: #5967d8 !important;
 }
 
 .enterprise-parent-link.router-link-active,
 .enterprise-parent-link.router-link-exact-active,
 .enterprise-parent-link[aria-expanded="true"] {
-  background: rgba(255, 255, 255, 0.22);
-  color: #4d3908 !important;
-  box-shadow: inset 0 0 0 1px rgba(201, 154, 35, 0.14);
+  background: #f5f7fb;
+  color: #243b6b !important;
+  box-shadow: inset 0 0 0 1px #e6ebf3;
 }
 
 .enterprise-parent-link.router-link-active .nav-icon-shell,
 .enterprise-parent-link.router-link-exact-active .nav-icon-shell,
 .enterprise-parent-link[aria-expanded="true"] .nav-icon-shell {
-  background: rgba(255, 255, 255, 0.8);
-  color: #d19800 !important;
+  background: #ffffff;
+  color: #3442a8 !important;
+  box-shadow: 0 8px 22px rgba(89, 103, 216, 0.12);
 }
 
 .enterprise-sub-link.nuxt-link-active::before,
@@ -339,11 +362,11 @@ export default {
   content: "";
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 9px;
+  bottom: 9px;
   width: 3px;
   border-radius: 999px;
-  background: #f2be22;
+  background: #5967d8;
 }
 
 .enterprise-sidenav .nav-link,
@@ -354,7 +377,16 @@ export default {
   opacity: 1 !important;
 }
 
-.navbar-vertical.navbar-expand-xs .navbar-collapse {
+.sidenav-menu {
   overflow: hidden;
+}
+
+@media (max-width: 1199.98px) {
+  .enterprise-sidenav {
+    left: 12px;
+    top: 12px;
+    bottom: 12px;
+    height: calc(100vh - 24px);
+  }
 }
 </style>

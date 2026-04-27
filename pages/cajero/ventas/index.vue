@@ -452,13 +452,21 @@ export default {
          return errors;
       },
       buildClientePayload() {
+         const documentoIdentidad = (this.model.documentoIdentidad || '').trim();
          return {
             razonSocial: (this.model.razonSocial || '').trim(),
-            documentoIdentidad: (this.model.documentoIdentidad || '').trim(),
+            documentoIdentidad,
+            codigoCliente: this.codigoClienteFromDocumento(documentoIdentidad),
             complemento: this.model.complemento ? this.model.complemento.trim() : '',
             tipoDocumentoIdentidad: this.model.tipoDocumentoIdentidad,
             correo: this.model.correo ? this.model.correo.trim() : '',
          };
+      },
+      codigoClienteFromDocumento(documentoIdentidad) {
+         return String(documentoIdentidad || '')
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9\-_]/g, '');
       },
       async Savecliente() {
          const errors = this.validateClienteFields();

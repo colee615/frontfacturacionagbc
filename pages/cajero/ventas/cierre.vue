@@ -12,6 +12,7 @@
             <span class="cierre-mini-badge">Fecha: {{ filters.fecha || '-' }}</span>
             <span class="cierre-mini-badge cierre-mini-badge--success">Cajeros: {{ numberFormat(kardexResumen.usuarios) }}</span>
             <span class="cierre-mini-badge cierre-mini-badge--warning">Ventas: {{ numberFormat(kardexResumen.ventas) }}</span>
+            <span class="cierre-mini-badge cierre-mini-badge--info">Cajas: {{ numberFormat(cajaResumen.cajas) }}</span>
           </div>
         </div>
 
@@ -74,6 +75,78 @@
           </div>
         </div>
 
+        <div class="cierre-summary-grid mb-4">
+          <div class="cierre-stat-card cierre-stat-card--success">
+            <div class="cierre-stat-card__label">Cajas cerradas</div>
+            <div class="cierre-stat-card__value">{{ numberFormat(cajaResumen.cerradas) }}</div>
+            <div class="cierre-stat-card__meta">Abiertas: {{ numberFormat(cajaResumen.abiertas) }}</div>
+          </div>
+          <div class="cierre-stat-card">
+            <div class="cierre-stat-card__label">Dif. efectivo</div>
+            <div class="cierre-stat-card__value" :class="diffClass(cajaResumen.diferenciaEfectivo)">Bs {{ money(cajaResumen.diferenciaEfectivo) }}</div>
+            <div class="cierre-stat-card__meta">Esperado vs declarado en caja</div>
+          </div>
+          <div class="cierre-stat-card">
+            <div class="cierre-stat-card__label">Dif. fichas</div>
+            <div class="cierre-stat-card__value" :class="diffClass(cajaResumen.diferenciaFichas)">Bs {{ money(cajaResumen.diferenciaFichas) }}</div>
+            <div class="cierre-stat-card__meta">Cantidad: {{ numberFormat(cajaResumen.diferenciaCantidadFichas) }}</div>
+          </div>
+          <div class="cierre-stat-card">
+            <div class="cierre-stat-card__label">Fichas consumidas</div>
+            <div class="cierre-stat-card__value">{{ numberFormat(cajaResumen.cantidadFichasConsumidas) }}</div>
+            <div class="cierre-stat-card__meta">Bs {{ money(cajaResumen.montoFichasConsumidas) }}</div>
+          </div>
+        </div>
+
+        <div class="card cierre-panel mb-4">
+          <div class="card-header cierre-panel__header d-flex justify-content-between align-items-center">
+            <div>
+              <strong>Cierre por cajera</strong>
+              <div class="text-muted small">Diferencias operativas de efectivo y fichas para el dia seleccionado.</div>
+            </div>
+            <span class="cierre-table-count">{{ cajaCajeros.length }} cajas</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table cierre-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Cajera</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-right">Efec. esperado</th>
+                    <th class="text-right">Efec. declarado</th>
+                    <th class="text-right">Dif. efectivo</th>
+                    <th class="text-right">Dif. fichas</th>
+                    <th class="text-center">Dif. cant.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in cajaCajeros" :key="`${row.usuarioId}-${row.codigoSucursal}-${row.puntoVenta}`">
+                    <td>
+                      <div class="cierre-table__primary">{{ row.usuarioNombre || 'SIN USUARIO' }}</div>
+                      <div class="cierre-table__secondary">Sucursal {{ row.codigoSucursal }} | Punto {{ row.puntoVenta }}</div>
+                    </td>
+                    <td class="text-center">
+                      <span class="cierre-state" :class="row.estado === 'CERRADA' ? 'is-closed' : 'is-open'">{{ row.estado }}</span>
+                    </td>
+                    <td class="text-right">Bs {{ money(row.montoCierreEsperado) }}</td>
+                    <td class="text-right">Bs {{ money(row.montoCierreDeclarado) }}</td>
+                    <td class="text-right"><strong :class="diffClass(row.diferenciaEfectivo)">Bs {{ money(row.diferenciaEfectivo) }}</strong></td>
+                    <td class="text-right">
+                      <div :class="diffClass(row.diferenciaFichas)">Bs {{ money(row.diferenciaFichas) }}</div>
+                      <div class="cierre-table__secondary">{{ numberFormat(row.cantidadFichasCierreDeclarado) }} / {{ numberFormat(row.cantidadFichasCierreEsperado) }}</div>
+                    </td>
+                    <td class="text-center"><strong :class="diffClass(row.diferenciaCantidadFichas)">{{ numberFormat(row.diferenciaCantidadFichas) }}</strong></td>
+                  </tr>
+                  <tr v-if="!cajaCajeros.length">
+                    <td colspan="7" class="text-center py-4 text-muted">No hay cajas diarias registradas para este cierre.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="card cierre-panel mb-4">
           <div class="card-header cierre-panel__header d-flex justify-content-between align-items-center">
             <div>
@@ -119,10 +192,10 @@
         <div class="card cierre-panel">
           <div class="card-header cierre-panel__header d-flex justify-content-between align-items-center">
             <div>
-              <strong>Reporte por sucursal</strong>
-              <div class="text-muted small">Consolidado final para control por oficina y punto de venta.</div>
+              <strong>Cierre por sucursal</strong>
+              <div class="text-muted small">Consolidado final de caja, efectivo y fichas por oficina y punto de venta.</div>
             </div>
-            <span class="cierre-table-count">{{ sucursales.length }} sucursales</span>
+            <span class="cierre-table-count">{{ cajaSucursales.length }} sucursales</span>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive">
@@ -131,21 +204,28 @@
                   <tr>
                     <th>Sucursal</th>
                     <th class="text-center">Punto venta</th>
-                    <th class="text-center">Cantidad</th>
-                    <th class="text-right">Total</th>
+                    <th class="text-center">Cajas</th>
+                    <th class="text-right">Ventas</th>
+                    <th class="text-right">Dif. efectivo</th>
+                    <th class="text-right">Dif. fichas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in sucursales" :key="`${row.codigoSucursal}-${row.puntoVenta}`">
+                  <tr v-for="row in cajaSucursales" :key="`${row.codigoSucursal}-${row.puntoVenta}`">
                     <td>
                       <div class="cierre-table__primary">Sucursal {{ row.codigoSucursal }}</div>
                     </td>
                     <td class="text-center">{{ row.puntoVenta }}</td>
-                    <td class="text-center">{{ numberFormat(row.cantidad) }}</td>
-                    <td class="text-right"><strong>Bs {{ money(row.total) }}</strong></td>
+                    <td class="text-center">{{ numberFormat(row.cajas) }}</td>
+                    <td class="text-right"><strong>Bs {{ money(row.montoVentas) }}</strong></td>
+                    <td class="text-right"><strong :class="diffClass(row.diferenciaEfectivo)">Bs {{ money(row.diferenciaEfectivo) }}</strong></td>
+                    <td class="text-right">
+                      <div :class="diffClass(row.diferenciaFichas)">Bs {{ money(row.diferenciaFichas) }}</div>
+                      <div class="cierre-table__secondary">{{ numberFormat(row.diferenciaCantidadFichas) }}</div>
+                    </td>
                   </tr>
-                  <tr v-if="!sucursales.length">
-                    <td colspan="4" class="text-center py-4 text-muted">No hay consolidado por sucursal para este cierre.</td>
+                  <tr v-if="!cajaSucursales.length">
+                    <td colspan="6" class="text-center py-4 text-muted">No hay consolidado de caja por sucursal para este cierre.</td>
                   </tr>
                 </tbody>
               </table>
@@ -181,6 +261,18 @@ export default {
       },
       cajeros: [],
       sucursales: [],
+      cajaResumen: {
+        cajas: 0,
+        abiertas: 0,
+        cerradas: 0,
+        cantidadFichasConsumidas: 0,
+        montoFichasConsumidas: 0,
+        diferenciaEfectivo: 0,
+        diferenciaFichas: 0,
+        diferenciaCantidadFichas: 0,
+      },
+      cajaCajeros: [],
+      cajaSucursales: [],
     };
   },
   methods: {
@@ -195,9 +287,10 @@ export default {
           limite: 500,
         };
 
-        const [kardexResp, resumenResp] = await Promise.all([
+        const [kardexResp, resumenResp, cajaResp] = await Promise.all([
           this.$admin.$get('ventas/reportes/kardex-usuarios', { params }),
           this.$admin.$get('ventas/reportes/resumen', { params }),
+          this.$admin.$get('caja/reporte-diario', { params: { fecha: this.filters.fecha } }),
         ]);
 
         const kardexResumen = kardexResp?.resumen || {};
@@ -212,6 +305,18 @@ export default {
 
         this.cajeros = Array.isArray(kardexResp?.usuarios) ? kardexResp.usuarios : [];
         this.sucursales = Array.isArray(resumenResp?.porSucursal) ? resumenResp.porSucursal : [];
+        this.cajaResumen = {
+          cajas: Number(cajaResp?.resumen?.cajas || 0),
+          abiertas: Number(cajaResp?.resumen?.abiertas || 0),
+          cerradas: Number(cajaResp?.resumen?.cerradas || 0),
+          cantidadFichasConsumidas: Number(cajaResp?.resumen?.cantidadFichasConsumidas || 0),
+          montoFichasConsumidas: Number(cajaResp?.resumen?.montoFichasConsumidas || 0),
+          diferenciaEfectivo: Number(cajaResp?.resumen?.diferenciaEfectivo || 0),
+          diferenciaFichas: Number(cajaResp?.resumen?.diferenciaFichas || 0),
+          diferenciaCantidadFichas: Number(cajaResp?.resumen?.diferenciaCantidadFichas || 0),
+        };
+        this.cajaCajeros = Array.isArray(cajaResp?.porCajero) ? cajaResp.porCajero : [];
+        this.cajaSucursales = Array.isArray(cajaResp?.porSucursal) ? cajaResp.porSucursal : [];
       } catch (error) {
         const msg = error?.response?.data?.message || 'No se pudo cargar el cierre diario.';
         this.$swal.fire('Error', msg, 'error');
@@ -240,6 +345,12 @@ export default {
     numberFormat(value) {
       const n = Number(value || 0);
       return Number.isFinite(n) ? n.toLocaleString('es-BO') : '0';
+    },
+
+    diffClass(value) {
+      const n = Number(value || 0);
+      if (n === 0) return 'cierre-diff--ok';
+      return n > 0 ? 'cierre-diff--up' : 'cierre-diff--down';
     },
   },
   mounted() {
@@ -290,6 +401,11 @@ export default {
   color: #9a6b00;
 }
 
+.cierre-mini-badge--info {
+  background: rgba(23, 59, 115, 0.12);
+  color: #173b73;
+}
+
 .cierre-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -305,6 +421,10 @@ export default {
   box-shadow: 0 8px 24px rgba(16, 43, 84, 0.06);
   min-height: 130px;
   background: #fff;
+}
+
+.cierre-stat-card--success {
+  border-top-color: #28a745;
 }
 
 .cierre-stat-card__label {
@@ -396,6 +516,39 @@ export default {
   color: #74839b;
   font-size: 0.83rem;
   margin-top: 0.25rem;
+}
+
+.cierre-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.cierre-state.is-open {
+  background: rgba(255, 193, 7, 0.16);
+  color: #9a6b00;
+}
+
+.cierre-state.is-closed {
+  background: rgba(40, 167, 69, 0.14);
+  color: #1f7a35;
+}
+
+.cierre-diff--ok {
+  color: #1f7a35;
+}
+
+.cierre-diff--up {
+  color: #20539a;
+}
+
+.cierre-diff--down {
+  color: #b02a37;
 }
 
 @media (max-width: 991.98px) {

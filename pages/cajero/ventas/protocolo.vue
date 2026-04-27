@@ -229,6 +229,11 @@
                                        @click="runSingleAction('cafc', venta)">
                                        CAFC
                                     </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                       :disabled="!canAnular(venta)"
+                                       @click="runSingleAction('annul', venta)">
+                                       Anular
+                                    </button>
                                     <button class="btn btn-sm btn-outline-secondary"
                                        @click="focusResponse(venta)">
                                        Detalle
@@ -533,6 +538,9 @@ export default {
             PENDIENTE_CONFIRMACION: 'chip-info',
             OBSERVADO: 'chip-observed',
             PROCESADO: 'chip-success',
+            ANULADA: 'chip-neutral',
+            ANULACION_SOLICITADA: 'chip-contingency',
+            ANULACION_OBSERVADA: 'chip-observed',
             CONTINGENCIA_CREADA: 'chip-contingency',
             ENVIADO_SIN_NOTIFICACION: 'chip-info',
          };
@@ -710,6 +718,69 @@ export default {
 
          if (action === 'cafc') {
             this.openCafcModal(venta);
+            return;
+         }
+
+         if (action === 'annul') {
+            await this.anularVenta(venta);
+         }
+      },
+      canAnular(venta) {
+         return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
+      },
+      async promptAnulacion() {
+         const { value } = await this.$swal.fire({
+            title: 'Anular factura',
+            html: `
+               <div class="text-left">
+                  <label class="d-block small font-weight-bold mb-1">Motivo</label>
+                  <input id="annul-motivo" class="swal2-input" value="DATOS ERRONEOS EN LA FACTURA">
+                  <label class="d-block small font-weight-bold mt-3 mb-1">Tipo de anulacion</label>
+                  <select id="annul-tipo" class="swal2-select">
+                     <option value="1">1 - Factura mal emitida</option>
+                     <option value="2">2 - Nota credito-debito mal emitida</option>
+                     <option value="3" selected>3 - Datos de emision incorrectos</option>
+                     <option value="4">4 - Factura o nota devuelta</option>
+                  </select>
+               </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Solicitar anulacion',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+               const motivo = document.getElementById('annul-motivo')?.value?.trim();
+               const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
+               if (!motivo) {
+                  this.$swal.showValidationMessage('El motivo es obligatorio.');
+                  return false;
+               }
+               return { motivo, tipoAnulacion };
+            },
+         });
+
+         return value || null;
+      },
+      async anularVenta(venta) {
+         if (!this.canAnular(venta)) {
+            this.$swal.fire('No disponible', 'Solo se puede anular una factura procesada y con CUF.', 'warning');
+            return;
+         }
+
+         const payload = await this.promptAnulacion();
+         if (!payload) return;
+
+         this.load = true;
+         try {
+            const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
+            this.showResponse(response);
+            this.$swal.fire('Solicitud enviada', response?.message || 'La anulacion fue recepcionada correctamente.', 'success');
+            await this.loadOperables();
+         } catch (error) {
+            this.showResponse(error?.response?.data || { error: error.message });
+            this.$swal.fire('Error', this.collectMessages(error).join('\n') || 'No se pudo solicitar la anulacion.', 'error');
+         } finally {
+            this.load = false;
          }
       },
       async consultarPaquete() {

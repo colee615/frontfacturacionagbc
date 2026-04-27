@@ -2,16 +2,21 @@
    <div>
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
-         <div slot="body">
+         <div slot="body" class="users-page">
             <div class="row">
                <div class="col-12 mb-4">
                   <div class="card users-hero">
                      <div class="card-body">
                         <div class="users-hero-head">
-                           <div>
-                              <p class="users-kicker mb-2">Centro de Accesos</p>
-                              <h4 class="users-title mb-2">Gestión de usuarios</h4>
-                              <p class="users-subtitle mb-0">Controla credenciales, estado operativo y accesos del equipo desde una sola vista.</p>
+                           <div class="users-heading">
+                              <span class="users-heading-icon">
+                                 <i class="fas fa-users-cog"></i>
+                              </span>
+                              <div>
+                                 <p class="users-kicker mb-2">Centro de Accesos</p>
+                                 <h4 class="users-title mb-2">Gestión de usuarios</h4>
+                                 <p class="users-subtitle mb-0">Controla credenciales, estado operativo y accesos del equipo desde una sola vista.</p>
+                              </div>
                            </div>
                            <div class="users-badge">
                               <i class="fas fa-user-shield"></i>
@@ -44,16 +49,22 @@
                <div class="col-12">
                   <div class="card users-card">
                      <div class="card-body">
+                        <div class="users-card-head">
+                           <div>
+                              <h6 class="mb-1">Directorio de usuarios</h6>
+                              <p class="mb-0">Consulta, edita o exporta los usuarios registrados.</p>
+                           </div>
+                        </div>
                         <div class="users-toolbar">
                            <div class="users-search-wrap">
                               <i class="fas fa-search"></i>
                               <input v-model="search" type="text" class="form-control users-search" placeholder="Buscar por nombre o correo">
                            </div>
                            <div class="users-actions">
-                              <nuxtLink v-if="canCreateUsuarios" :to="url_nuevo" class="btn users-btn users-btn-primary">
+                              <button v-if="canCreateUsuarios" type="button" class="btn users-btn users-btn-primary" @click="openCreateModal">
                                  <i class="fas fa-plus"></i>
                                  <span>Nuevo usuario</span>
-                              </nuxtLink>
+                              </button>
                               <button @click="generateReport('excel')" class="btn users-btn users-btn-success">
                                  <i class="fas fa-file-excel"></i>
                                  <span>Excel</span>
@@ -69,34 +80,44 @@
                            <table class="table users-table align-middle">
                               <thead>
                                  <tr>
-                                    <th class="py-1 px-2">#</th>
-                                    <th class="py-1 px-2">NOMBRE</th>
-                                    <th class="py-1 px-2">EMAIL</th>
-                                    <th class="py-1 px-2">ESTADO</th>
-                                    <th class="py-1 px-2">ACCIONES</th>
+                                    <th class="py-3 px-3 users-table-number">#</th>
+                                    <th class="py-3 px-3">Nombre</th>
+                                    <th class="py-3 px-3">Email</th>
+                                    <th class="py-3 px-3">Rol</th>
+                                    <th class="py-3 px-3">Estado</th>
+                                    <th class="py-3 px-3 text-end">Acciones</th>
                                  </tr>
                               </thead>
                               <tbody>
                                  <tr v-for="(m, i) in paginatedList" :key="m.id">
-                                    <td class="py-2 px-2 users-row-index">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
-                                    <td class="py-2 px-2">
+                                    <td class="py-3 px-3 users-row-index">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
+                                    <td class="py-3 px-3">
                                        <div class="users-name-block">
                                           <strong>{{ m.name }}</strong>
                                        </div>
                                     </td>
-                                    <td class="py-2 px-2">
+                                    <td class="py-3 px-3">
                                        <span class="users-email">{{ m.email }}</span>
                                     </td>
-                                    <td class="py-2 px-2">
+                                    <td class="py-3 px-3">
+                                       <div class="users-role-list">
+                                          <span v-for="role in userRoles(m)" :key="role.id || role.slug" class="users-role-chip">
+                                             <i class="fas fa-user-tag"></i>
+                                             {{ role.name || role.slug }}
+                                          </span>
+                                          <span v-if="!userRoles(m).length" class="users-role-empty">Sin rol</span>
+                                       </div>
+                                    </td>
+                                    <td class="py-3 px-3">
                                        <span class="users-state" :class="estadoBadgeClass(m.estado)">
                                           {{ estadoLabel(m.estado) }}
                                        </span>
                                     </td>
-                                    <td class="py-2 px-2">
+                                    <td class="py-3 px-3">
                                        <div class="users-action-group">
-                                          <nuxt-link v-if="canUpdateUsuarios" :to="`${url_editar}${m.id}`" class="btn users-icon-btn users-icon-btn-info">
+                                          <button v-if="canUpdateUsuarios" type="button" class="btn users-icon-btn users-icon-btn-info" @click="openEditModal(m)">
                                              <i class="fas fa-pen"></i>
-                                          </nuxt-link>
+                                          </button>
                                           <button v-if="canDeleteUsuarios && m.estado === 1" type="button" @click="Eliminar(m.id)"
                                              class="btn users-icon-btn users-icon-btn-danger">
                                              <i class="fas fa-trash"></i>
@@ -109,34 +130,115 @@
                                     </td>
                                  </tr>
                                  <tr v-if="!paginatedList.length">
-                                    <td colspan="5" class="py-4 text-center users-empty">
+                                    <td colspan="6" class="py-4 text-center users-empty">
                                        No se encontraron usuarios con ese criterio de búsqueda.
                                     </td>
                                  </tr>
                               </tbody>
                            </table>
                         </div>
-                        <nav aria-label="Page navigation example" class="enterprise-pagination-nav">
+                        <nav v-if="filteredList.length" aria-label="Paginación de usuarios" class="enterprise-pagination-nav users-pagination-nav">
                            <ul class="pagination justify-content-center enterprise-pagination">
                               <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
+                                 <a class="page-link" href="#" @click.prevent="changePage(1)" aria-label="Primera pagina" title="Primera pagina">
+                                    <i class="fas fa-angle-double-left"></i>
+                                 </a>
                               </li>
                               <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)">Anterior</a>
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)" aria-label="Pagina anterior" title="Pagina anterior">
+                                    <i class="fas fa-angle-left"></i>
+                                 </a>
                               </li>
                               <li class="page-item" v-for="page in totalPages" :key="page"
                                  :class="{ active: currentPage === page }">
                                  <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
                               </li>
                               <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)">Siguiente</a>
+                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)" aria-label="Pagina siguiente" title="Pagina siguiente">
+                                    <i class="fas fa-angle-right"></i>
+                                 </a>
                               </li>
                               <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Último</a>
+                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)" aria-label="Ultima pagina" title="Ultima pagina">
+                                    <i class="fas fa-angle-double-right"></i>
+                                 </a>
                               </li>
                            </ul>
                         </nav>
                      </div>
+                  </div>
+               </div>
+            </div>
+
+            <div v-if="showUserModal" class="users-modal-backdrop" @click.self="closeUserModal">
+               <div class="users-modal" role="dialog" aria-modal="true" aria-labelledby="users-modal-title">
+                  <div class="users-modal-header">
+                     <div class="users-modal-title-block">
+                        <span class="users-modal-icon">
+                           <i :class="isEditMode ? 'fas fa-user-edit' : 'fas fa-user-plus'"></i>
+                        </span>
+                        <div>
+                           <p class="users-kicker mb-1">{{ isEditMode ? 'Editar acceso' : 'Nuevo acceso' }}</p>
+                           <h5 id="users-modal-title" class="mb-0">{{ isEditMode ? 'Actualizar usuario' : 'Crear usuario' }}</h5>
+                        </div>
+                     </div>
+                     <button type="button" class="users-modal-close" @click="closeUserModal" aria-label="Cerrar">
+                        <i class="fas fa-times"></i>
+                     </button>
+                  </div>
+
+                  <div class="users-modal-body">
+                     <div class="users-form-note">
+                        <i class="fas fa-info-circle"></i>
+                        <span>{{ isEditMode ? 'La contraseña solo se cambia si escribes una nueva.' : 'Completa los datos obligatorios para registrar el acceso.' }}</span>
+                     </div>
+
+                     <div class="row g-3">
+                        <div class="form-group col-12">
+                           <label for="modal-user-name">Nombre del usuario <span>*</span></label>
+                           <div class="users-field">
+                              <i class="fas fa-user"></i>
+                              <input id="modal-user-name" v-model="userForm.name" type="text" class="form-control" placeholder="Ej. Juan Perez">
+                           </div>
+                        </div>
+                        <div class="form-group col-12">
+                           <label for="modal-user-email">Correo electronico <span>*</span></label>
+                           <div class="users-field">
+                              <i class="fas fa-envelope"></i>
+                              <input id="modal-user-email" v-model="userForm.email" type="email" class="form-control" placeholder="usuario@dominio.com">
+                           </div>
+                        </div>
+                        <div class="form-group col-12">
+                           <label for="modal-user-role">Rol del usuario <span>*</span></label>
+                           <div class="users-field">
+                              <i class="fas fa-user-tag"></i>
+                              <select id="modal-user-role" v-model.number="userForm.role_id" class="form-control users-select">
+                                 <option :value="null" disabled>Seleccione un rol</option>
+                                 <option v-for="role in rolesCatalog" :key="role.id" :value="role.id">
+                                    {{ role.name }} ({{ role.slug }})
+                                 </option>
+                              </select>
+                           </div>
+                        </div>
+                        <div class="form-group col-12">
+                           <label for="modal-user-password">Contraseña <span v-if="!isEditMode">*</span></label>
+                           <div class="users-field">
+                              <i class="fas fa-lock"></i>
+                              <input id="modal-user-password" v-model="userForm.password" type="password" class="form-control" :placeholder="isEditMode ? 'Dejar en blanco para conservarla' : 'Contraseña de acceso'">
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div class="users-modal-footer">
+                     <button type="button" class="btn users-modal-secondary" @click="closeUserModal" :disabled="savingUser">
+                        Cancelar
+                     </button>
+                     <button type="button" class="btn users-modal-primary" @click="saveUser" :disabled="savingUser">
+                        <i v-if="savingUser" class="fas fa-spinner fa-spin"></i>
+                        <i v-else :class="isEditMode ? 'fas fa-save' : 'fas fa-plus'"></i>
+                        <span>{{ savingUser ? 'Guardando...' : isEditMode ? 'Guardar cambios' : 'Crear usuario' }}</span>
+                     </button>
                   </div>
                </div>
             </div>
@@ -162,6 +264,7 @@ export default {
       return {
          load: true,
          list: [],
+         rolesCatalog: [],
          search: '',
          apiUrl: 'usuarios',
          page: 'Panel',
@@ -169,7 +272,17 @@ export default {
          url_nuevo: '/panel/usuarios/nuevo',
          url_editar: '/panel/usuarios/editar/',
          currentPage: 1,
-         itemsPerPage: 14
+         itemsPerPage: 14,
+         showUserModal: false,
+         userFormMode: 'create',
+         savingUser: false,
+         userForm: {
+            id: null,
+            name: '',
+            email: '',
+            role_id: null,
+            password: '',
+         }
       };
    },
    computed: {
@@ -191,6 +304,9 @@ export default {
       canManageUsuarios() {
          return this.permissions.includes('usuarios.manage');
       },
+      isEditMode() {
+         return this.userFormMode === 'edit';
+      },
       activeCount() {
          return this.list.filter(item => item.estado === 1).length;
       },
@@ -202,11 +318,12 @@ export default {
          return this.list.filter(item => {
             const name = ((item && item.name) ? item.name : '').toString().toLowerCase();
             const email = ((item && item.email) ? item.email : '').toString().toLowerCase();
-            return name.includes(term) || email.includes(term);
+            const roles = this.userRoles(item).map(role => `${role.name || ''} ${role.slug || ''}`).join(' ').toLowerCase();
+            return name.includes(term) || email.includes(term) || roles.includes(term);
          });
       },
       totalPages() {
-         return Math.ceil(this.filteredList.length / this.itemsPerPage);
+         return Math.max(1, Math.ceil(this.filteredList.length / this.itemsPerPage));
       },
       paginatedList() {
          const start = (this.currentPage - 1) * this.itemsPerPage;
@@ -214,7 +331,237 @@ export default {
          return this.filteredList.slice(start, end);
       }
    },
+   watch: {
+      search() {
+         this.currentPage = 1;
+      },
+      filteredList() {
+         if (this.currentPage > this.totalPages) {
+            this.currentPage = this.totalPages;
+         }
+      }
+   },
    methods: {
+      emptyUserForm() {
+         return {
+            id: null,
+            name: '',
+            email: '',
+            role_id: null,
+            password: '',
+         };
+      },
+      resetUserForm() {
+         this.userForm = this.emptyUserForm();
+      },
+      openCreateModal() {
+         if (!this.canCreateUsuarios) return;
+         this.userFormMode = 'create';
+         this.resetUserForm();
+         this.showUserModal = true;
+      },
+      async openEditModal(user) {
+         if (!this.canUpdateUsuarios || !user) return;
+         this.userFormMode = 'edit';
+         this.userForm = {
+            id: user.id,
+            name: user.name || '',
+            email: user.email || '',
+            role_id: this.primaryRoleId(user),
+            password: '',
+         };
+         this.showUserModal = true;
+
+         try {
+            this.savingUser = true;
+            const data = await this.GET_DATA(this.apiUrl + "/" + user.id);
+            this.userForm = {
+               ...this.userForm,
+               ...data,
+               role_id: this.primaryRoleId(data),
+               password: '',
+            };
+         } catch (e) {
+            console.error(e);
+         } finally {
+            this.savingUser = false;
+         }
+      },
+      closeUserModal() {
+         if (this.savingUser) return;
+         this.showUserModal = false;
+         this.resetUserForm();
+      },
+      validateUserForm() {
+         const errors = [];
+         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+         const name = this.userForm.name ? this.userForm.name.trim() : '';
+         const email = this.userForm.email ? this.userForm.email.trim() : '';
+         const password = this.userForm.password ? this.userForm.password.trim() : '';
+
+         if (!name || name.length > 255) {
+            errors.push('El nombre del usuario es obligatorio.');
+         }
+         if (!email || !emailPattern.test(email) || email.length > 255) {
+            errors.push('El correo electronico del usuario no es valido.');
+         }
+         if (!this.userForm.role_id) {
+            errors.push('Seleccione un rol para el usuario.');
+         }
+         if (!this.isEditMode && !password) {
+            errors.push('La contraseña del usuario es obligatoria.');
+         }
+
+         return errors;
+      },
+      userPayload() {
+         const payload = {
+            name: this.userForm.name ? this.userForm.name.trim() : '',
+            email: this.userForm.email ? this.userForm.email.trim() : '',
+            role_ids: this.userForm.role_id ? [this.userForm.role_id] : [],
+         };
+         const password = this.userForm.password ? this.userForm.password.trim() : '';
+
+         if (!this.isEditMode || password) {
+            payload.password = password;
+         }
+
+         return payload;
+      },
+      showFormErrors(errors) {
+         this.notify({
+            icon: 'error',
+            title: 'Datos incompletos',
+            text: 'Revisa los campos marcados antes de continuar.',
+            html: `<ul class="users-toast-list">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`,
+            timer: 4200,
+         });
+      },
+      notify({ icon = 'success', title = '', text = '', html = '', timer = 2400 }) {
+         return this.$swal.fire({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            icon,
+            title,
+            text,
+            html,
+            timer,
+            timerProgressBar: true,
+            showClass: {
+               popup: 'animate__animated animate__fadeInRight'
+            },
+            hideClass: {
+               popup: 'animate__animated animate__fadeOutRight'
+            },
+            customClass: {
+               popup: 'users-toast',
+               title: 'users-toast-title',
+               htmlContainer: 'users-toast-body',
+               timerProgressBar: 'users-toast-progress'
+            }
+         });
+      },
+      confirmAction({ icon = 'warning', title = '', text = '', confirmText = 'Confirmar', confirmClass = 'users-swal-confirm' }) {
+         return this.$swal.fire({
+            toast: false,
+            position: 'center',
+            showConfirmButton: true,
+            showCancelButton: true,
+            reverseButtons: true,
+            icon,
+            title,
+            text,
+            confirmButtonText: confirmText,
+            cancelButtonText: 'Cancelar',
+            buttonsStyling: false,
+            customClass: {
+               popup: 'users-swal',
+               title: 'users-swal-title',
+               htmlContainer: 'users-swal-body',
+               confirmButton: `users-swal-button ${confirmClass}`,
+               cancelButton: 'users-swal-button users-swal-cancel',
+               actions: 'users-swal-actions'
+            }
+         });
+      },
+      showBackendError(e, fallback) {
+         const backendErrors = e.response?.data?.errors;
+         const backendMessage = e.response?.data?.message || e.response?.data?.error;
+
+         if (backendErrors && typeof backendErrors === 'object') {
+            const items = Object.values(backendErrors).flat().map(err => `<li>${err}</li>`).join('');
+            this.notify({
+               showConfirmButton: false,
+               icon: 'error',
+               title: fallback,
+               text: 'El servidor devolvio observaciones.',
+               html: `<ul class="users-toast-list">${items}</ul>`,
+               timer: 5200,
+            });
+            return;
+         }
+
+         this.notify({
+            icon: 'error',
+            title: backendMessage || fallback,
+            text: 'Intenta nuevamente o verifica los datos enviados.',
+            timer: 4200,
+         });
+      },
+      async refreshUsers() {
+         const data = await this.GET_DATA(this.apiUrl);
+         this.list = data;
+      },
+      async refreshRoles() {
+         const roles = await this.GET_DATA('rbac/roles');
+         this.rolesCatalog = Array.isArray(roles) ? roles : [];
+      },
+      userRoles(user) {
+         return Array.isArray(user && user.roles) ? user.roles : [];
+      },
+      primaryRoleId(user) {
+         const roles = this.userRoles(user);
+         if (roles.length && roles[0].id) {
+            return roles[0].id;
+         }
+         return null;
+      },
+      async saveUser() {
+         if (this.isEditMode && !this.canUpdateUsuarios) return;
+         if (!this.isEditMode && !this.canCreateUsuarios) return;
+
+         const errors = this.validateUserForm();
+         if (errors.length) {
+            this.showFormErrors(errors);
+            return;
+         }
+
+         this.savingUser = true;
+         try {
+            const payload = this.userPayload();
+
+            if (this.isEditMode) {
+               await this.$admin.$put(this.apiUrl + "/" + this.userForm.id, payload);
+            } else {
+               await this.$admin.$post(this.apiUrl, payload);
+            }
+
+            await this.refreshUsers();
+            this.notify({
+               icon: 'success',
+               title: this.isEditMode ? 'Usuario actualizado' : 'Usuario creado',
+               text: this.isEditMode ? 'Los datos y el rol quedaron guardados.' : 'El nuevo acceso ya esta disponible.',
+            });
+            this.showUserModal = false;
+            this.resetUserForm();
+         } catch (e) {
+            console.error(e);
+            this.showBackendError(e, this.isEditMode ? 'No se pudo actualizar el usuario' : 'No se pudo crear el usuario');
+         } finally {
+            this.savingUser = false;
+         }
+      },
       estadoLabel(estado) {
          if (estado === 1) return 'Activo';
          if (estado === 2) return 'Inactivo';
@@ -239,24 +586,17 @@ export default {
                this.list = v[0];
             });
 
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
+            this.notify({
                icon: 'success',
-               title: 'Usuario eliminado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
+               title: 'Usuario desactivado',
+               text: 'El acceso fue retirado del listado activo.',
             });
          } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
+            this.notify({
                icon: 'error',
-               title: 'Hubo un problema al eliminar al Usuario. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
+               title: 'No se pudo desactivar',
+               text: 'El usuario no fue modificado. Intenta nuevamente.',
+               timer: 4200,
             });
          } finally {
             this.load = false;
@@ -265,17 +605,12 @@ export default {
       Eliminar(id) {
          if (!this.canDeleteUsuarios) return;
          let self = this;
-         this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Eliminar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas eliminar al Usuario?</div></div>',
+         this.confirmAction({
             icon: 'warning',
-            dangerMode: true,
+            title: 'Desactivar usuario',
+            text: 'El usuario perdera el acceso hasta que vuelvas a activarlo.',
+            confirmText: 'Desactivar',
+            confirmClass: 'users-swal-confirm-danger'
          }).then(async (result) => {
             if (result.isConfirmed) {
                await self.EliminarItem(id);
@@ -290,24 +625,17 @@ export default {
             await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
                this.list = v[0];
             });
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
+            this.notify({
                icon: 'success',
-               title: 'Usuario activado exitosamente',
-               timer: 2000,
-               timerProgressBar: true,
+               title: 'Usuario activado',
+               text: 'El acceso vuelve a estar disponible.',
             });
          } catch (e) {
-            this.$swal.fire({
-               toast: true,
-               position: 'center',
-               showConfirmButton: false,
+            this.notify({
                icon: 'error',
-               title: 'Hubo un problema al activar al Usuario. Intente nuevamente.',
-               timer: 2000,
-               timerProgressBar: true,
+               title: 'No se pudo activar',
+               text: 'El usuario no fue modificado. Intenta nuevamente.',
+               timer: 4200,
             });
          } finally {
             this.load = false;
@@ -315,17 +643,12 @@ export default {
       },
       Activar(id) {
          if (!this.canUpdateUsuarios) return;
-         this.$swal.fire({
-            toast: false,
-            position: 'center',
-            showConfirmButton: true,
-            showCancelButton: true,
-            confirmButtonText: '<span style="font-weight: bold;">Sí, Activar</span>',
-            cancelButtonText: '<span style="font-weight: bold;">No, Cancelar</span>',
-            title: "",
-            html: '<div style="text-align: center;"><div style="font-size: 20px;">¿Deseas activar al Usuario?</div></div>',
+         this.confirmAction({
             icon: 'warning',
-            dangerMode: true,
+            title: 'Activar usuario',
+            text: 'El usuario recuperara el acceso al sistema.',
+            confirmText: 'Activar',
+            confirmClass: 'users-swal-confirm-success'
          }).then(async (result) => {
             if (result.isConfirmed) {
                await this.ActivarItem(id);
@@ -434,8 +757,12 @@ export default {
    mounted() {
       this.$nextTick(async () => {
          try {
-            await Promise.all([this.GET_DATA(this.apiUrl)]).then((v) => {
-               this.list = v[0]
+            await Promise.all([
+               this.GET_DATA(this.apiUrl),
+               this.GET_DATA('rbac/roles')
+            ]).then((v) => {
+               this.list = Array.isArray(v[0]) ? v[0] : [];
+               this.rolesCatalog = Array.isArray(v[1]) ? v[1] : [];
             })
          } catch (e) {
 
@@ -446,75 +773,130 @@ export default {
    },
 };
 </script>
-<style scoped>
+<style>
+.users-page {
+   color: #344054;
+}
+
+.users-hero,
+.users-card {
+   border-radius: 18px;
+   overflow: hidden;
+}
+
 .users-hero {
-   border-radius: 24px;
-   background:
-      radial-gradient(circle at top right, rgba(255, 216, 79, 0.22), transparent 26%),
-      linear-gradient(135deg, #ffffff 0%, #fffaf0 100%);
+   background: rgba(255, 255, 255, 0.98);
+}
+
+.users-hero .card-body,
+.users-card .card-body {
+   padding: 1.55rem 1.65rem;
 }
 
 .users-hero-head {
    display: flex;
-   align-items: flex-start;
+   align-items: center;
    justify-content: space-between;
    gap: 1rem;
 }
 
+.users-heading {
+   display: flex;
+   align-items: flex-start;
+   gap: 1rem;
+   min-width: 0;
+}
+
+.users-heading-icon {
+   width: 46px;
+   height: 46px;
+   border-radius: 16px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
+   background: #eef2ff;
+   color: #5967d8;
+   border: 1px solid #e0e7ff;
+}
+
 .users-kicker {
-   color: #b78916;
-   font-size: 0.8rem;
+   color: #98a2b3;
+   font-size: 0.72rem;
    font-weight: 800;
-   letter-spacing: 0.12em;
+   letter-spacing: 0.16em;
    text-transform: uppercase;
 }
 
 .users-title {
-   color: #24324d;
+   color: #1f2937;
+   font-size: 1.35rem;
    font-weight: 800;
 }
 
 .users-subtitle {
-   color: #6b7a90;
+   color: #667085;
    max-width: 720px;
+   font-size: 0.96rem;
 }
 
 .users-badge {
    display: inline-flex;
    align-items: center;
-   gap: 0.65rem;
-   padding: 0.8rem 1rem;
-   border-radius: 16px;
-   background: #fff;
-   border: 1px solid rgba(215, 224, 236, 0.9);
-   color: #4a5b79;
+   gap: 0.55rem;
+   padding: 0.72rem 0.95rem;
+   border-radius: 999px;
+   background: #f8fafc;
+   border: 1px solid #e6ebf3;
+   color: #4b5565;
    font-weight: 800;
-   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+   white-space: nowrap;
 }
 
 .users-stat {
+   min-height: 94px;
    padding: 1rem 1.1rem;
-   border-radius: 18px;
-   background: rgba(255, 255, 255, 0.84);
-   border: 1px solid rgba(223, 230, 240, 0.92);
+   border-radius: 16px;
+   background: #f8fafc;
+   border: 1px solid #e6ebf3;
+   display: flex;
+   flex-direction: column;
+   justify-content: center;
 }
 
 .users-stat-label {
    display: block;
-   color: #7b8aa3;
-   font-size: 0.84rem;
+   color: #667085;
+   font-size: 0.78rem;
    font-weight: 700;
-   margin-bottom: 0.35rem;
+   margin-bottom: 0.45rem;
 }
 
 .users-stat strong {
-   color: #22314d;
-   font-size: 1.5rem;
+   color: #1f2937;
+   font-size: 1.35rem;
    font-weight: 800;
 }
 
-.users-card {
-   border-radius: 24px;
+.users-card-head {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 1rem;
+   padding-bottom: 1.1rem;
+   margin-bottom: 1.1rem;
+   border-bottom: 1px solid rgba(230, 235, 243, 0.95);
+}
+
+.users-card-head h6 {
+   color: #1f2937;
+   font-size: 1rem;
+   font-weight: 800;
+}
+
+.users-card-head p {
+   color: #667085;
+   font-size: 0.88rem;
 }
 
 .users-toolbar {
@@ -522,7 +904,7 @@ export default {
    align-items: center;
    justify-content: space-between;
    gap: 1rem;
-   margin-bottom: 1.5rem;
+   margin-bottom: 1.2rem;
    flex-wrap: wrap;
 }
 
@@ -533,21 +915,23 @@ export default {
 
 .users-search-wrap i {
    position: absolute;
-   left: 16px;
+   left: 15px;
    top: 50%;
    transform: translateY(-50%);
    color: #94a3b8;
+   z-index: 2;
 }
 
 .users-search {
-   height: 54px;
-   padding-left: 46px !important;
-   border-radius: 16px !important;
+   height: 46px;
+   padding-left: 44px !important;
+   border-radius: 14px !important;
+   font-size: 0.92rem;
 }
 
 .users-actions {
    display: flex;
-   gap: 0.75rem;
+   gap: 0.55rem;
    flex-wrap: wrap;
 }
 
@@ -555,41 +939,84 @@ export default {
    display: inline-flex;
    align-items: center;
    justify-content: center;
-   gap: 0.55rem;
-   min-height: 48px;
-   padding: 0.8rem 1.2rem;
+   gap: 0.48rem;
+   min-height: 44px;
+   padding: 0.72rem 1rem;
    border-radius: 14px;
-   border: none;
+   border: 1px solid transparent;
+   font-size: 0.78rem;
    font-weight: 800;
-   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+   letter-spacing: 0;
+   text-transform: uppercase;
+   box-shadow: none;
+   transition: all 0.18s ease;
+}
+
+.users-btn:hover {
+   transform: translateY(-1px);
 }
 
 .users-btn-primary {
-   background: #344258;
+   background: #1f2937;
    color: #fff;
+   border-color: rgba(31, 41, 55, 0.16);
 }
 
 .users-btn-success {
-   background: linear-gradient(135deg, #f9dd74 0%, #f7c94b 100%);
-   color: #5b4300;
+   background: #fff7df;
+   color: #8a6100;
+   border-color: #f6d77a;
 }
 
 .users-btn-danger {
-   background: linear-gradient(135deg, #ff4d4f 0%, #dc2626 100%);
-   color: #fff;
+   background: #fff1f0;
+   color: #b42318;
+   border-color: #f5b3ad;
 }
 
 .users-table-wrap {
-   border-radius: 18px;
+   border: 1px solid #e6ebf3;
+   border-radius: 16px;
    overflow: hidden;
+   background: #ffffff;
 }
 
 .users-table {
    margin-bottom: 0;
 }
 
+.users-table thead {
+   background: #f8fafc;
+}
+
+.users-table thead th {
+   border-bottom: 1px solid #e6ebf3 !important;
+   color: #667085 !important;
+   font-size: 0.76rem;
+   font-weight: 800 !important;
+   letter-spacing: 0.08em;
+   text-transform: uppercase;
+   white-space: nowrap;
+}
+
+.users-table tbody tr {
+   border-bottom: 1px solid #eef2f7;
+}
+
+.users-table tbody tr:last-child {
+   border-bottom: 0;
+}
+
+.users-table tbody tr:hover {
+   background: #fbfcff;
+}
+
+.users-table-number {
+   width: 60px;
+}
+
 .users-row-index {
-   color: #94a3b8;
+   color: #667085;
    font-weight: 700;
 }
 
@@ -600,74 +1027,120 @@ export default {
 }
 
 .users-name-block strong {
-   color: #24324d;
-}
-
-.users-name-block small {
-   color: #94a3b8;
-   font-weight: 700;
+   color: #24324d !important;
+   font-size: 0.93rem;
+   font-weight: 800;
 }
 
 .users-email {
-   color: #4b5b76;
+   color: #4b5565 !important;
+   font-size: 0.92rem;
    font-weight: 600;
+}
+
+.users-role-list {
+   display: flex;
+   align-items: center;
+   gap: 0.45rem;
+   flex-wrap: wrap;
+}
+
+.users-role-chip {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.38rem;
+   min-height: 30px;
+   padding: 0.32rem 0.62rem;
+   border-radius: 999px;
+   background: #eef2ff;
+   border: 1px solid #dfe5ff;
+   color: #3442a8;
+   font-size: 0.76rem;
+   font-weight: 800;
+   white-space: nowrap;
+}
+
+.users-role-chip i {
+   font-size: 0.72rem;
+}
+
+.users-role-empty {
+   color: #98a2b3 !important;
+   font-size: 0.82rem;
+   font-weight: 700;
 }
 
 .users-state {
    display: inline-flex;
    align-items: center;
    justify-content: center;
-   padding: 0.46rem 0.8rem;
+   min-width: 78px;
+   padding: 0.38rem 0.7rem;
    border-radius: 999px;
-   font-size: 0.82rem;
+   border: 1px solid transparent;
+   font-size: 0.78rem;
    font-weight: 800;
-   letter-spacing: 0.02em;
+   letter-spacing: 0;
    white-space: nowrap;
 }
 
 .users-state.activo {
    background: #ecfdf3;
-   color: #157347;
+   color: #067647 !important;
+   border-color: #abefc6;
 }
 
 .users-state.inactivo {
    background: #fff5f5;
-   color: #c2410c;
+   color: #b42318 !important;
+   border-color: #fecdc9;
 }
 
 .users-state.desconocido {
    background: #f1f5f9;
-   color: #475569;
+   color: #475569 !important;
+   border-color: #e2e8f0;
 }
 
 .users-action-group {
    display: flex;
-   gap: 0.45rem;
+   gap: 0.5rem;
    flex-wrap: wrap;
+   justify-content: flex-end;
 }
 
 .users-icon-btn {
-   width: 38px;
-   height: 38px;
+   width: 36px;
+   height: 36px;
    border-radius: 12px;
    display: inline-flex;
    align-items: center;
    justify-content: center;
-   border: none;
-   color: #fff;
-   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+   border: 1px solid transparent;
+   box-shadow: none;
+   transition: all 0.18s ease;
+}
+
+.users-icon-btn:hover {
+   transform: translateY(-1px);
 }
 
 .users-icon-btn-info {
-   background: linear-gradient(135deg, #22c1dc 0%, #0891b2 100%);
+   background: #eef2ff;
+   border-color: #d9defd;
+   color: #3442a8;
 }
 
 .users-icon-btn-danger {
-   background: linear-gradient(135deg, #ff4d4f 0%, #dc2626 100%);
+   background: #fff1f0;
+   border-color: #f5b3ad;
+   color: #b42318;
 }
 
 .users-icon-btn-success {
-   background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+   background: #ecfdf3;
+   border-color: #abefc6;
+   color: #067647;
 }
 
 .users-empty {
@@ -675,9 +1148,615 @@ export default {
    font-weight: 700;
 }
 
+.users-pagination-nav {
+   display: flex;
+   justify-content: center;
+   margin-top: 1.3rem;
+   padding-top: 0.2rem;
+}
+
+.users-pagination-nav .enterprise-pagination {
+   gap: 0.4rem;
+   padding: 0.35rem;
+   border-radius: 16px;
+   background: #f8fafc;
+   border: 1px solid #e6ebf3;
+}
+
+.users-pagination-nav .enterprise-pagination .page-link {
+   min-width: 36px !important;
+   width: 36px !important;
+   height: 36px !important;
+   padding: 0 !important;
+   border-radius: 12px !important;
+   border: 1px solid transparent !important;
+   background: transparent !important;
+   box-shadow: none !important;
+   color: #667085 !important;
+   font-size: 0.82rem !important;
+   font-weight: 800 !important;
+}
+
+.users-pagination-nav .enterprise-pagination .page-link i {
+   font-size: 0.78rem;
+   line-height: 1;
+}
+
+.users-pagination-nav .enterprise-pagination .page-link:hover {
+   transform: none !important;
+   background: #eef2ff !important;
+   border-color: #dfe5ff !important;
+   color: #3442a8 !important;
+}
+
+.users-pagination-nav .enterprise-pagination .page-item.active .page-link {
+   background: #5967d8 !important;
+   border-color: #5967d8 !important;
+   color: #ffffff !important;
+   box-shadow: none !important;
+}
+
+.users-pagination-nav .enterprise-pagination .page-item.disabled .page-link {
+   background: transparent !important;
+   border-color: transparent !important;
+   color: #aab4c6 !important;
+   opacity: 0.7;
+}
+
+.users-modal-backdrop {
+   position: fixed;
+   inset: 0;
+   z-index: 2050;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 1.25rem;
+   background: rgba(15, 23, 42, 0.48);
+   backdrop-filter: blur(8px);
+}
+
+.users-modal {
+   width: min(100%, 560px);
+   border-radius: 22px;
+   background: #ffffff;
+   border: 1px solid rgba(215, 222, 235, 0.95);
+   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+   overflow: hidden;
+}
+
+.users-modal-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 1rem;
+   padding: 1.25rem 1.35rem;
+   background: #f8fafc;
+   border-bottom: 1px solid #e6ebf3;
+}
+
+.users-modal-title-block {
+   display: flex;
+   align-items: center;
+   gap: 0.85rem;
+   min-width: 0;
+}
+
+.users-modal-title-block h5 {
+   color: #1f2937;
+   font-size: 1.1rem;
+   font-weight: 800;
+}
+
+.users-modal-icon {
+   width: 44px;
+   height: 44px;
+   border-radius: 15px;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   background: #eef2ff;
+   color: #5967d8;
+   border: 1px solid #dfe5ff;
+   flex-shrink: 0;
+}
+
+.users-modal-close {
+   width: 38px;
+   height: 38px;
+   border-radius: 12px;
+   border: 1px solid #e6ebf3;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   background: #ffffff;
+   color: #667085;
+   transition: all 0.18s ease;
+}
+
+.users-modal-close:hover {
+   background: #fff1f0;
+   border-color: #fecdc9;
+   color: #b42318;
+}
+
+.users-modal-body {
+   padding: 1.35rem;
+}
+
+.users-form-note {
+   display: flex;
+   align-items: flex-start;
+   gap: 0.6rem;
+   padding: 0.85rem 0.95rem;
+   margin-bottom: 1.15rem;
+   border-radius: 14px;
+   background: #f8fafc;
+   border: 1px solid #e6ebf3;
+   color: #667085;
+   font-size: 0.88rem;
+   font-weight: 650;
+}
+
+.users-form-note i {
+   color: #5967d8;
+   margin-top: 0.16rem;
+}
+
+.users-modal label {
+   color: #344054;
+   font-size: 0.83rem;
+   font-weight: 800;
+   margin-bottom: 0.45rem;
+}
+
+.users-modal label span {
+   color: #b42318;
+}
+
+.users-field {
+   position: relative;
+}
+
+.users-field i {
+   position: absolute;
+   left: 14px;
+   top: 50%;
+   transform: translateY(-50%);
+   z-index: 2;
+   color: #98a2b3;
+   font-size: 0.9rem;
+}
+
+.users-field .form-control {
+   height: 46px;
+   padding-left: 42px !important;
+   border-radius: 14px !important;
+   font-size: 0.92rem;
+}
+
+.users-field .users-select {
+   appearance: auto;
+   padding-right: 1.95rem !important;
+}
+
+.users-modal-footer {
+   display: flex;
+   align-items: center;
+   justify-content: flex-end;
+   gap: 0.75rem;
+   padding: 1rem 1.35rem 1.25rem;
+   background: #ffffff;
+   border-top: 1px solid #eef2f7;
+}
+
+.users-modal-secondary,
+.users-modal-primary {
+   min-height: 44px;
+   border-radius: 14px;
+   padding: 0.72rem 1rem;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   gap: 0.48rem;
+   font-size: 0.82rem;
+   font-weight: 800;
+   box-shadow: none;
+}
+
+.users-modal-secondary {
+   background: #ffffff;
+   border: 1px solid #d8e0ec;
+   color: #4b5565;
+}
+
+.users-modal-primary {
+   background: #1f2937;
+   border: 1px solid rgba(31, 41, 55, 0.16);
+   color: #ffffff;
+}
+
+.users-modal-secondary:disabled,
+.users-modal-primary:disabled {
+   opacity: 0.72;
+   cursor: not-allowed;
+}
+
+.users-toast {
+   width: min(420px, calc(100vw - 24px)) !important;
+   padding: 0.95rem 1rem !important;
+   border-radius: 16px !important;
+   background: #ffffff !important;
+   border: 1px solid #e6ebf3 !important;
+   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16) !important;
+}
+
+.users-toast-title {
+   color: #1f2937 !important;
+   font-size: 0.95rem !important;
+   font-weight: 800 !important;
+   line-height: 1.25 !important;
+}
+
+.users-toast-body {
+   color: #667085 !important;
+   font-size: 0.86rem !important;
+   font-weight: 600 !important;
+   margin-top: 0.25rem !important;
+}
+
+.users-toast-list {
+   margin: 0.4rem 0 0 !important;
+   padding-left: 1.05rem !important;
+   text-align: left !important;
+}
+
+.users-toast-list li + li {
+   margin-top: 0.25rem;
+}
+
+.users-toast-progress {
+   background: rgba(89, 103, 216, 0.22) !important;
+}
+
+.users-swal {
+   width: min(440px, calc(100vw - 28px)) !important;
+   padding: 1.5rem !important;
+   border-radius: 20px !important;
+   background: #ffffff !important;
+   border: 1px solid #e6ebf3 !important;
+   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22) !important;
+}
+
+.users-swal-title {
+   color: #1f2937 !important;
+   font-size: 1.15rem !important;
+   font-weight: 800 !important;
+}
+
+.users-swal-body {
+   color: #667085 !important;
+   font-size: 0.92rem !important;
+   font-weight: 600 !important;
+}
+
+.users-swal-actions {
+   gap: 0.7rem !important;
+   margin-top: 1.25rem !important;
+}
+
+.users-swal-button {
+   min-width: 116px;
+   min-height: 42px;
+   border-radius: 13px;
+   border: 1px solid transparent;
+   padding: 0.68rem 1rem;
+   font-size: 0.82rem;
+   font-weight: 800;
+}
+
+.users-swal-cancel {
+   background: #ffffff;
+   border-color: #d8e0ec;
+   color: #4b5565;
+}
+
+.users-swal-confirm,
+.users-swal-confirm-danger,
+.users-swal-confirm-success {
+   color: #ffffff;
+}
+
+.users-swal-confirm {
+   background: #5967d8;
+   border-color: #5967d8;
+}
+
+.users-swal-confirm-danger {
+   background: #b42318;
+   border-color: #b42318;
+}
+
+.users-swal-confirm-success {
+   background: #067647;
+   border-color: #067647;
+}
+
+body.enterprise-dark .users-page .users-hero,
+body.enterprise-dark .users-page .users-card,
+body.enterprise-dark .users-modal {
+   background: #151e2b !important;
+   border-color: rgba(82, 99, 128, 0.78) !important;
+   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.enterprise-dark .users-title,
+body.enterprise-dark .users-card-head h6,
+body.enterprise-dark .users-modal-title-block h5,
+body.enterprise-dark .users-stat strong,
+body.enterprise-dark .users-name-block strong {
+   color: #f8fafc !important;
+}
+
+body.enterprise-dark .users-subtitle,
+body.enterprise-dark .users-card-head p,
+body.enterprise-dark .users-stat-label,
+body.enterprise-dark .users-email,
+body.enterprise-dark .users-row-index,
+body.enterprise-dark .users-role-empty,
+body.enterprise-dark .users-empty {
+   color: #94a3b8 !important;
+}
+
+body.enterprise-dark .users-kicker {
+   color: #aab4c6 !important;
+}
+
+body.enterprise-dark .users-heading-icon,
+body.enterprise-dark .users-modal-icon {
+   background: rgba(89, 103, 216, 0.18) !important;
+   border-color: rgba(129, 140, 248, 0.28) !important;
+   color: #c7d2fe !important;
+}
+
+body.enterprise-dark .users-badge,
+body.enterprise-dark .users-stat,
+body.enterprise-dark .users-form-note {
+   background: #101827 !important;
+   border-color: rgba(82, 99, 128, 0.78) !important;
+   color: #cbd5e1 !important;
+}
+
+body.enterprise-dark .users-card-head,
+body.enterprise-dark .users-modal-header,
+body.enterprise-dark .users-modal-footer {
+   background: transparent !important;
+   border-color: rgba(82, 99, 128, 0.72) !important;
+}
+
+body.enterprise-dark .users-search,
+body.enterprise-dark .users-field .form-control {
+   background: #0f1726 !important;
+   border-color: rgba(82, 99, 128, 0.86) !important;
+   color: #e5e7eb !important;
+}
+
+body.enterprise-dark .users-search::placeholder,
+body.enterprise-dark .users-field .form-control::placeholder {
+   color: #728198 !important;
+}
+
+body.enterprise-dark .users-search-wrap i,
+body.enterprise-dark .users-field i {
+   color: #8ea0bb !important;
+}
+
+body.enterprise-dark .users-btn-primary,
+body.enterprise-dark .users-modal-primary {
+   background: #f8fafc !important;
+   border-color: rgba(248, 250, 252, 0.2) !important;
+   color: #111827 !important;
+}
+
+body.enterprise-dark .users-btn-success {
+   background: rgba(245, 158, 11, 0.16) !important;
+   border-color: rgba(245, 158, 11, 0.32) !important;
+   color: #fbbf24 !important;
+}
+
+body.enterprise-dark .users-btn-danger {
+   background: rgba(239, 68, 68, 0.14) !important;
+   border-color: rgba(239, 68, 68, 0.3) !important;
+   color: #fca5a5 !important;
+}
+
+body.enterprise-dark .users-table-wrap {
+   background: #101827 !important;
+   border-color: rgba(82, 99, 128, 0.78) !important;
+}
+
+body.enterprise-dark .users-table thead {
+   background: #111b2a !important;
+}
+
+body.enterprise-dark .users-table thead th {
+   border-color: rgba(82, 99, 128, 0.72) !important;
+   color: #aab4c6 !important;
+}
+
+body.enterprise-dark .users-table tbody tr {
+   border-color: rgba(82, 99, 128, 0.48) !important;
+}
+
+body.enterprise-dark .users-table tbody tr:hover {
+   background: rgba(30, 41, 59, 0.58) !important;
+}
+
+body.enterprise-dark .users-state.activo {
+   background: rgba(34, 197, 94, 0.14) !important;
+   border-color: rgba(34, 197, 94, 0.28) !important;
+   color: #86efac !important;
+}
+
+body.enterprise-dark .users-state.inactivo {
+   background: rgba(239, 68, 68, 0.14) !important;
+   border-color: rgba(239, 68, 68, 0.28) !important;
+   color: #fca5a5 !important;
+}
+
+body.enterprise-dark .users-state.desconocido {
+   background: rgba(148, 163, 184, 0.12) !important;
+   border-color: rgba(148, 163, 184, 0.24) !important;
+   color: #cbd5e1 !important;
+}
+
+body.enterprise-dark .users-role-chip {
+   background: rgba(89, 103, 216, 0.18) !important;
+   border-color: rgba(129, 140, 248, 0.3) !important;
+   color: #c7d2fe !important;
+}
+
+body.enterprise-dark .users-icon-btn-info {
+   background: rgba(89, 103, 216, 0.18) !important;
+   border-color: rgba(129, 140, 248, 0.3) !important;
+   color: #c7d2fe !important;
+}
+
+body.enterprise-dark .users-icon-btn-danger {
+   background: rgba(239, 68, 68, 0.14) !important;
+   border-color: rgba(239, 68, 68, 0.32) !important;
+   color: #fca5a5 !important;
+}
+
+body.enterprise-dark .users-icon-btn-success {
+   background: rgba(34, 197, 94, 0.14) !important;
+   border-color: rgba(34, 197, 94, 0.28) !important;
+   color: #86efac !important;
+}
+
+body.enterprise-dark .users-modal-backdrop {
+   background: rgba(3, 7, 18, 0.68) !important;
+}
+
+body.enterprise-dark .users-modal-close,
+body.enterprise-dark .users-modal-secondary {
+   background: #101827 !important;
+   border-color: rgba(82, 99, 128, 0.78) !important;
+   color: #cbd5e1 !important;
+}
+
+body.enterprise-dark .users-modal label {
+   color: #e5e7eb !important;
+}
+
+body.enterprise-dark .users-toast,
+body.enterprise-dark .users-swal {
+   background: #151e2b !important;
+   border-color: rgba(82, 99, 128, 0.78) !important;
+   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38) !important;
+}
+
+body.enterprise-dark .users-toast-title,
+body.enterprise-dark .users-swal-title {
+   color: #f8fafc !important;
+}
+
+body.enterprise-dark .users-toast-body,
+body.enterprise-dark .users-swal-body {
+   color: #aab4c6 !important;
+}
+
+body.enterprise-dark .users-swal-cancel {
+   background: #101827;
+   border-color: rgba(82, 99, 128, 0.78);
+   color: #cbd5e1;
+}
+
+body.enterprise-dark .users-pagination-nav .enterprise-pagination {
+   background: #101827 !important;
+   border-color: rgba(82, 99, 128, 0.72) !important;
+}
+
+body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-link {
+   background: transparent !important;
+   border-color: transparent !important;
+   color: #94a3b8 !important;
+   box-shadow: none !important;
+}
+
+body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-link:hover {
+   background: rgba(89, 103, 216, 0.16) !important;
+   border-color: rgba(129, 140, 248, 0.24) !important;
+   color: #e0e7ff !important;
+}
+
+body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-item.active .page-link {
+   background: #5967d8 !important;
+   border-color: #5967d8 !important;
+   color: #ffffff !important;
+}
+
+body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-item.disabled .page-link {
+   background: transparent !important;
+   border-color: transparent !important;
+   color: #5f6f86 !important;
+   opacity: 1;
+}
+
 @media (max-width: 991px) {
    .users-hero-head {
       flex-direction: column;
+      align-items: stretch;
+   }
+
+   .users-badge {
+      width: fit-content;
+   }
+}
+
+@media (max-width: 767px) {
+   .users-hero .card-body,
+   .users-card .card-body {
+      padding: 1.2rem;
+   }
+
+   .users-heading {
+      gap: 0.75rem;
+   }
+
+   .users-heading-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+   }
+
+   .users-actions,
+   .users-btn,
+   .users-search-wrap {
+      width: 100%;
+   }
+
+   .users-action-group {
+      justify-content: flex-start;
+   }
+
+   .users-modal {
+      border-radius: 18px;
+   }
+
+   .users-modal-header,
+   .users-modal-body,
+   .users-modal-footer {
+      padding-left: 1rem;
+      padding-right: 1rem;
+   }
+
+   .users-modal-footer {
+      flex-direction: column-reverse;
+   }
+
+   .users-modal-secondary,
+   .users-modal-primary {
+      width: 100%;
    }
 }
 </style>

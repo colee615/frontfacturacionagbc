@@ -3,15 +3,25 @@
     <JcLoader :load="load" />
     <AdminTemplate :page="page" :modulo="modulo">
       <div slot="body" class="ventas-wrap">
-        <div class="ventas-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
-          <div>
-            <h1 class="mb-1">Mis ventas</h1>
-            <p class="text-muted mb-0">Consulta tu historial de emisiones y accede a comprobantes desde una sola pantalla.</p>
+        <div class="card ventas-hero mb-4">
+          <div class="card-body">
+            <div class="ventas-header d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+          <div class="ventas-heading">
+            <span class="ventas-heading-icon">
+              <i class="fas fa-receipt"></i>
+            </span>
+            <div>
+              <p class="ventas-kicker mb-2">Centro de ventas</p>
+              <h1 class="mb-1">Mis ventas</h1>
+              <p class="text-muted mb-0">Consulta tu historial de emisiones y accede a comprobantes desde una sola pantalla.</p>
+            </div>
           </div>
           <div class="ventas-header-badges mt-3 mt-lg-0">
-            <span class="ventas-mini-badge">Ventas: {{ numberFormat(summary.ventas) }}</span>
-            <span class="ventas-mini-badge ventas-mini-badge--success">Facturadas: {{ numberFormat(summary.facturadas) }}</span>
-            <span class="ventas-mini-badge ventas-mini-badge--warning">Pendientes: {{ numberFormat(summary.pendientes) }}</span>
+            <span class="ventas-mini-badge"><i class="fas fa-list-ul"></i> {{ numberFormat(summary.ventas) }}</span>
+            <span class="ventas-mini-badge ventas-mini-badge--success"><i class="fas fa-check"></i> {{ numberFormat(summary.facturadas) }}</span>
+            <span class="ventas-mini-badge ventas-mini-badge--warning"><i class="fas fa-clock"></i> {{ numberFormat(summary.pendientes) }}</span>
+          </div>
+            </div>
           </div>
         </div>
 
@@ -50,9 +60,12 @@
                 <select v-model="filters.estado_emision" class="form-control ventas-control" @change="fetchVentas">
                   <option value="all">Todos</option>
                   <option value="PROCESADA">Facturada</option>
+                  <option value="ANULACION_SOLICITADA">Anulacion solicitada</option>
+                  <option value="ANULADA">Anulada</option>
                   <option value="RECEPCIONADA">Pendiente</option>
                   <option value="CONTINGENCIA_CREADA">Contingencia</option>
                   <option value="OBSERVADA">Observada</option>
+                  <option value="ANULACION_OBSERVADA">Anulacion observada</option>
                 </select>
               </div>
 
@@ -78,11 +91,13 @@
             </div>
 
             <div class="d-flex flex-wrap">
-              <button class="btn btn-outline-primary mr-2 mb-2" @click="exportPdf" :disabled="load || !rows.length">
-                <i class="fas fa-file-pdf mr-1"></i> Reporte PDF
+              <button class="btn ventas-action-btn ventas-action-btn-danger mr-2 mb-2" @click="exportPdf" :disabled="load || !rows.length">
+                <i class="fas fa-file-pdf"></i>
+                <span>Reporte PDF</span>
               </button>
-              <button class="btn btn-outline-secondary mb-2" @click="resetFilters">
-                <i class="fas fa-undo mr-1"></i> Reiniciar
+              <button class="btn ventas-action-btn mb-2" @click="resetFilters">
+                <i class="fas fa-undo"></i>
+                <span>Reiniciar</span>
               </button>
             </div>
           </div>
@@ -182,14 +197,25 @@
                       <div class="ventas-table__amount">Bs {{ money(row.total) }}</div>
                     </td>
                     <td class="text-center">
-                      <div class="d-flex flex-wrap justify-content-center">
+                      <div class="ventas-table-actions">
                         <button
                           v-if="row.codigoSeguimiento"
                           type="button"
-                          class="btn btn-xs btn-outline-secondary mr-2 mb-2"
+                          class="ventas-icon-action"
                           @click="consultarVenta(row)"
+                          :title="row.estadoSufe === 'RECEPCIONADA' || row.estadoSufe === 'CONTINGENCIA_CREADA' ? 'Actualizar estado' : 'Consultar estado'"
                         >
-                          {{ row.estadoSufe === 'RECEPCIONADA' || row.estadoSufe === 'CONTINGENCIA_CREADA' ? 'Actualizar estado' : 'Consultar' }}
+                          <i class="fas fa-sync-alt"></i>
+                        </button>
+
+                        <button
+                          v-if="canAnular(row)"
+                          type="button"
+                          class="ventas-icon-action ventas-icon-action-danger"
+                          @click="anularVenta(row)"
+                          title="Anular factura"
+                        >
+                          <i class="fas fa-ban"></i>
                         </button>
 
                         <a
@@ -197,13 +223,14 @@
                           :href="pdfUrl(row)"
                           target="_blank"
                           rel="noopener"
-                          class="btn btn-xs btn-outline-primary mr-2 mb-2"
+                          class="ventas-icon-action ventas-icon-action-pdf"
+                          title="PDF original"
                         >
-                          PDF original
+                          <i class="fas fa-file-pdf"></i>
                         </a>
 
-                        <button class="btn btn-xs btn-outline-dark mb-2" @click="goTicket(row)">
-                          Ticket
+                        <button class="ventas-icon-action ventas-icon-action-dark" @click="goTicket(row)" title="Ver ticket">
+                          <i class="fas fa-ticket-alt"></i>
                         </button>
                       </div>
                     </td>
@@ -221,10 +248,14 @@
             <nav class="enterprise-pagination-nav">
               <ul class="pagination justify-content-center enterprise-pagination mb-0">
                 <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                  <a class="page-link" href="#" @click.prevent="changePage(1)">Primero</a>
+                  <a class="page-link" href="#" @click.prevent="changePage(1)" title="Primera página" aria-label="Primera página">
+                    <i class="fas fa-angle-double-left"></i>
+                  </a>
                 </li>
                 <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                  <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)">Anterior</a>
+                  <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)" title="Página anterior" aria-label="Página anterior">
+                    <i class="fas fa-angle-left"></i>
+                  </a>
                 </li>
                 <li
                   v-for="pageNumber in totalPages"
@@ -235,10 +266,14 @@
                   <a class="page-link" href="#" @click.prevent="changePage(pageNumber)">{{ pageNumber }}</a>
                 </li>
                 <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                  <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)">Siguiente</a>
+                  <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)" title="Página siguiente" aria-label="Página siguiente">
+                    <i class="fas fa-angle-right"></i>
+                  </a>
                 </li>
                 <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                  <a class="page-link" href="#" @click.prevent="changePage(totalPages)">Ultimo</a>
+                  <a class="page-link" href="#" @click.prevent="changePage(totalPages)" title="Última página" aria-label="Última página">
+                    <i class="fas fa-angle-double-right"></i>
+                  </a>
                 </li>
               </ul>
             </nav>
@@ -250,18 +285,29 @@
           <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content ventas-items-modal">
               <div class="modal-header ventas-items-modal__header">
-                <div>
-                  <h5 class="modal-title mb-1">Detalle de items</h5>
+                <div class="ventas-items-modal__title">
+                  <span class="ventas-items-modal__icon">
+                    <i class="fas fa-box-open"></i>
+                  </span>
+                  <div>
+                  <p class="ventas-kicker mb-1">Detalle de venta</p>
+                  <h5 class="modal-title mb-1">Ítems registrados</h5>
                   <div class="ventas-items-modal__subtitle">
                     Venta {{ itemsModal.row?.codigoOrden || ('#' + (itemsModal.row?.id || '')) }} · {{ itemsModal.loading ? '...' : itemsModal.items.length }} item(s)
                   </div>
+                  </div>
                 </div>
-                <button type="button" class="close" @click="closeItems" aria-label="Cerrar">
-                  <span aria-hidden="true">&times;</span>
+                <button type="button" class="ventas-items-modal__close" @click="closeItems" aria-label="Cerrar" title="Cerrar">
+                  <i class="fas fa-times"></i>
                 </button>
               </div>
-              <div class="modal-body p-0">
-                <div class="table-responsive">
+              <div class="modal-body ventas-items-modal__body">
+                <div class="ventas-items-modal__meta">
+                  <span><i class="fas fa-receipt"></i> {{ itemsModal.row?.numeroFactura || 'Factura S/N' }}</span>
+                  <span><i class="fas fa-id-card"></i> {{ itemsModal.row?.documentoIdentidad || 'Documento S/N' }}</span>
+                  <strong>Bs {{ money(itemsModal.row?.total || 0) }}</strong>
+                </div>
+                <div class="table-responsive ventas-items-table-wrap">
                   <table class="table ventas-items-table mb-0">
                     <thead>
                       <tr>
@@ -276,7 +322,7 @@
                     <tbody>
                       <tr v-for="(item, index) in itemsModal.items" :key="`it-${index}`">
                         <td>
-                          <div class="ventas-table__primary">{{ item.codigo || ('ITEM-' + (index + 1)) }}</div>
+                          <span class="ventas-item-code">{{ item.codigo || ('ITEM-' + (index + 1)) }}</span>
                           <div class="ventas-table__secondary">{{ item.origen_tipo || item.modelo || '' }}</div>
                         </td>
                         <td>
@@ -293,11 +339,23 @@
                       </tr>
 
                       <tr v-if="itemsModal.loading">
-                        <td colspan="6" class="text-center py-4 text-muted">Cargando items...</td>
+                        <td colspan="6" class="text-center py-5">
+                          <div class="ventas-items-empty">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <strong>Cargando ítems</strong>
+                            <span>Estamos recuperando el detalle de la venta.</span>
+                          </div>
+                        </td>
                       </tr>
 
                       <tr v-else-if="!itemsModal.items.length">
-                        <td colspan="6" class="text-center py-4 text-muted">No hay items para esta venta.</td>
+                        <td colspan="6" class="text-center py-5">
+                          <div class="ventas-items-empty">
+                            <i class="fas fa-inbox"></i>
+                            <strong>Sin ítems registrados</strong>
+                            <span>No hay detalle disponible para esta venta.</span>
+                          </div>
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -305,7 +363,10 @@
               </div>
               <div class="modal-footer ventas-items-modal__footer">
                 <div class="ventas-items-modal__summary">Total venta: Bs {{ money(itemsModal.row?.total || 0) }}</div>
-                <button type="button" class="btn btn-outline-primary" @click="closeItems">Cerrar</button>
+                <button type="button" class="btn ventas-action-btn" @click="closeItems">
+                  <i class="fas fa-check"></i>
+                  <span>Cerrar</span>
+                </button>
               </div>
             </div>
           </div>
@@ -508,8 +569,8 @@ export default {
         const estado = (row.estadoSufe || '').toUpperCase();
         summary.totalVendido += Number(row.total || 0);
         if (estado === 'PROCESADA') summary.facturadas += 1;
-        if (estado === 'OBSERVADA') summary.observadas += 1;
-        if (estado === 'RECEPCIONADA' || estado === 'CONTINGENCIA_CREADA') summary.pendientes += 1;
+        if (estado === 'OBSERVADA' || estado === 'ANULACION_OBSERVADA') summary.observadas += 1;
+        if (estado === 'RECEPCIONADA' || estado === 'CONTINGENCIA_CREADA' || estado === 'ANULACION_SOLICITADA') summary.pendientes += 1;
       });
 
       return summary;
@@ -566,7 +627,7 @@ export default {
         this.currentPage = 1;
       } catch (error) {
         const msg = error?.response?.data?.message || 'No se pudo cargar Mis ventas.';
-        this.$swal.fire('Error', msg, 'error');
+        this.notify('error', 'No se pudo cargar', msg);
       } finally {
         this.load = false;
       }
@@ -648,6 +709,9 @@ export default {
     facturaLabel(estado) {
       const map = {
         PROCESADA: 'FACTURADA',
+        ANULADA: 'ANULADA',
+        ANULACION_SOLICITADA: 'PENDIENTE ANULACION',
+        ANULACION_OBSERVADA: 'ANULACION OBSERVADA',
         RECEPCIONADA: 'PENDIENTE',
         CONTINGENCIA_CREADA: 'PENDIENTE',
         OBSERVADA: 'RECHAZADA',
@@ -658,6 +722,9 @@ export default {
     facturaHelp(estado) {
       const key = (estado || '').toUpperCase();
       if (key === 'PROCESADA') return 'Factura emitida correctamente.';
+      if (key === 'ANULADA') return 'Factura anulada correctamente.';
+      if (key === 'ANULACION_SOLICITADA') return 'Anulacion enviada; esperando notificacion final.';
+      if (key === 'ANULACION_OBSERVADA') return 'La solicitud de anulacion fue observada.';
       if (key === 'RECEPCIONADA' || key === 'CONTINGENCIA_CREADA') return 'Emision en proceso de confirmacion.';
       if (key === 'OBSERVADA') return 'Requiere revision antes de reenviar.';
       return 'Sin observaciones registradas.';
@@ -666,9 +733,16 @@ export default {
     facturaChipClass(estado) {
       const key = this.facturaLabel(estado);
       if (key === 'FACTURADA') return 'ventas-status-chip--success';
+      if (key === 'ANULADA') return 'ventas-status-chip--muted';
       if (key === 'PENDIENTE') return 'ventas-status-chip--warning';
+      if (key === 'PENDIENTE ANULACION') return 'ventas-status-chip--warning';
       if (key === 'RECHAZADA') return 'ventas-status-chip--danger';
+      if (key === 'ANULACION OBSERVADA') return 'ventas-status-chip--danger';
       return 'ventas-status-chip--muted';
+    },
+
+    canAnular(row) {
+      return Boolean(row?.cuf) && (row?.estadoSufe || '').toUpperCase() === 'PROCESADA';
     },
 
     pdfUrl(row) {
@@ -686,11 +760,72 @@ export default {
       this.load = true;
       try {
         const res = await this.$admin.$get(`ventas/consultar/${row.codigoSeguimiento}`);
-        this.$swal.fire('Estado actualizado', res?.message || 'Consulta realizada correctamente.', 'success');
+        this.notify('success', 'Estado actualizado', res?.message || 'Consulta realizada correctamente.');
         await this.fetchVentas();
       } catch (error) {
         const msg = error?.response?.data?.message || 'No se pudo consultar la venta.';
-        this.$swal.fire('Error', msg, 'error');
+        this.notify('error', 'No se pudo consultar', msg);
+      } finally {
+        this.load = false;
+      }
+    },
+
+    async anularVenta(row) {
+      if (!this.canAnular(row)) {
+        this.notify('warning', 'No disponible', 'Solo se puede anular una factura procesada y con CUF.');
+        return;
+      }
+
+      const { value: formValues } = await this.$swal.fire({
+        title: 'Anular factura',
+        html: `
+          <div class="text-left">
+            <label class="d-block small font-weight-bold mb-1">Motivo</label>
+            <input id="annul-motivo" class="swal2-input" value="DATOS ERRONEOS EN LA FACTURA">
+            <label class="d-block small font-weight-bold mt-3 mb-1">Tipo de anulacion</label>
+            <select id="annul-tipo" class="swal2-select">
+              <option value="1">1 - Factura mal emitida</option>
+              <option value="2">2 - Nota credito-debito mal emitida</option>
+              <option value="3" selected>3 - Datos de emision incorrectos</option>
+              <option value="4">4 - Factura o nota devuelta</option>
+            </select>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Solicitar anulacion',
+        cancelButtonText: 'Cancelar',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'ventas-swal',
+          title: 'ventas-swal-title',
+          htmlContainer: 'ventas-swal-body',
+          confirmButton: 'ventas-swal-button ventas-swal-confirm-danger',
+          cancelButton: 'ventas-swal-button ventas-swal-cancel',
+          actions: 'ventas-swal-actions'
+        },
+        preConfirm: () => {
+          const motivo = document.getElementById('annul-motivo')?.value?.trim();
+          const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
+          if (!motivo) {
+            this.$swal.showValidationMessage('El motivo es obligatorio.');
+            return false;
+          }
+          return { motivo, tipoAnulacion };
+        },
+      });
+
+      if (!formValues) return;
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$patch(`ventas/anular/${row.cuf}`, formValues);
+        this.notify('success', 'Solicitud enviada', response?.message || 'La anulacion fue recepcionada correctamente.');
+        await this.fetchVentas();
+      } catch (error) {
+        const data = error?.response?.data || {};
+        const msg = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulacion.';
+        this.notify('error', 'No se pudo anular', msg);
       } finally {
         this.load = false;
       }
@@ -720,7 +855,7 @@ export default {
         }
       } catch (error) {
         const msg = error?.response?.data?.message || 'No se pudo cargar detalle de items.';
-        this.$swal.fire('Error', msg, 'error');
+        this.notify('error', 'No se cargaron los items', msg);
       } finally {
         this.itemsModal.loading = false;
       }
@@ -765,9 +900,28 @@ export default {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+        this.notify('success', 'Reporte generado', 'El PDF se descargó correctamente.');
       } catch (error) {
-        this.$swal.fire('Error', 'No se pudo generar el PDF del reporte.', 'error');
+        this.notify('error', 'No se pudo generar el PDF', 'Intenta nuevamente con otros filtros.');
       }
+    },
+    notify(icon, title, text = '') {
+      return this.$swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        icon,
+        title,
+        text,
+        timer: icon === 'error' ? 4200 : 2400,
+        timerProgressBar: true,
+        customClass: {
+          popup: 'ventas-toast',
+          title: 'ventas-toast-title',
+          htmlContainer: 'ventas-toast-body',
+          timerProgressBar: 'ventas-toast-progress'
+        }
+      });
     },
   },
 
@@ -777,19 +931,57 @@ export default {
 };
 </script>
 
-<style scoped>
+<style>
 .ventas-wrap {
   padding-bottom: 1rem;
 }
 
+.ventas-hero {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  overflow: hidden;
+}
+
+.ventas-hero .card-body,
+.ventas-panel .card-body {
+  padding: 1.55rem 1.65rem;
+}
+
 .ventas-header {
   gap: 1rem;
-  margin-bottom: 1rem;
+}
+
+.ventas-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.ventas-heading-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eef2ff;
+  color: #5967d8;
+  border: 1px solid #e0e7ff;
+}
+
+.ventas-kicker {
+  color: #98a2b3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .ventas-header h1 {
-  font-weight: 700;
-  color: #173b73;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1f2937;
 }
 
 .ventas-header-badges {
@@ -801,22 +993,26 @@ export default {
 .ventas-mini-badge {
   display: inline-flex;
   align-items: center;
+  gap: 0.45rem;
   padding: 0.45rem 0.8rem;
   border-radius: 999px;
-  background: rgba(254, 204, 54, 0.18);
-  color: #173b73;
+  background: #eef2ff;
+  border: 1px solid #dfe5ff;
+  color: #3442a8;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .ventas-mini-badge--success {
-  background: rgba(40, 167, 69, 0.14);
-  color: #1f7a35;
+  background: #ecfdf3;
+  border-color: #abefc6;
+  color: #067647;
 }
 
 .ventas-mini-badge--warning {
-  background: rgba(255, 193, 7, 0.18);
-  color: #9a6b00;
+  background: #fff7df;
+  border-color: #f6d77a;
+  color: #8a6100;
 }
 
 .ventas-summary-grid {
@@ -829,87 +1025,112 @@ export default {
 .ventas-stat-card {
   text-align: left;
   width: 100%;
-  border: 1px solid rgba(32, 83, 154, 0.12);
-  border-top: 4px solid #fecc36;
-  border-radius: 12px;
+  border: 1px solid #e6ebf3;
+  border-radius: 16px;
   padding: 1rem 1.05rem;
-  box-shadow: 0 8px 24px rgba(16, 43, 84, 0.06);
+  box-shadow: none;
   min-height: 142px;
-  background: #fff;
+  background: #ffffff;
   cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ventas-stat-card:hover {
+  border-color: #d9defd;
+  transform: translateY(-1px);
 }
 
 .ventas-stat-card--accent {
-  border-top-color: #20539a;
-  background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+  background: #f8fafc;
 }
 
 .ventas-stat-card__label {
-  color: #5f7290;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 0.65rem;
 }
 
 .ventas-stat-card__value {
-  color: #173b73;
-  font-size: 2rem;
+  color: #1f2937;
+  font-size: 1.55rem;
   line-height: 1;
   font-weight: 800;
   margin-bottom: 0.7rem;
 }
 
 .ventas-stat-card__meta {
-  color: #74839b;
+  color: #667085;
   font-size: 0.82rem;
   line-height: 1.35;
 }
 
 .ventas-panel {
-  border: 1px solid rgba(32, 83, 154, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(16, 43, 84, 0.05);
+  border: 1px solid #e6ebf3;
+  border-radius: 18px;
+  box-shadow: none;
   overflow: hidden;
+  background: #ffffff;
 }
 
 .ventas-panel__header {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  background: #f8fafc;
+  border-bottom: 1px solid #e6ebf3;
   padding: 1rem 1.25rem;
 }
 
 .ventas-label {
-  color: #294b7c;
+  color: #344054;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .ventas-control {
   min-height: 44px;
-  border-radius: 10px;
-  border-color: rgba(32, 83, 154, 0.18);
+  border-radius: 14px;
+  border-color: #d8e0ec;
   box-shadow: none;
 }
 
 .ventas-control:focus {
-  border-color: rgba(32, 83, 154, 0.42);
-  box-shadow: 0 0 0 0.18rem rgba(32, 83, 154, 0.09);
+  border-color: #5967d8;
+  box-shadow: 0 0 0 0.18rem rgba(89, 103, 216, 0.12);
+}
+
+.ventas-action-btn {
+  min-height: 42px;
+  border-radius: 13px;
+  border: 1px solid #d8e0ec;
+  background: #ffffff;
+  color: #4b5565;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.ventas-action-btn-danger {
+  background: #fff1f0;
+  border-color: #f5b3ad;
+  color: #b42318;
 }
 
 .ventas-table-count {
-  color: #6f819d;
+  color: #667085;
   font-size: 0.86rem;
   font-weight: 600;
 }
 
 .ventas-table thead th {
   background: #f7f9fc;
-  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
-  color: #38557f;
+  border-bottom: 1px solid #e6ebf3;
+  color: #667085;
   font-size: 0.79rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -919,24 +1140,24 @@ export default {
 
 .ventas-table td {
   vertical-align: top;
-  border-top: 1px solid rgba(32, 83, 154, 0.08);
+  border-top: 1px solid #eef2f7;
   padding-top: 1rem;
   padding-bottom: 1rem;
 }
 
 .ventas-table__primary {
-  color: #173b73;
+  color: #24324d;
   font-weight: 700;
 }
 
 .ventas-table__secondary {
-  color: #74839b;
+  color: #667085;
   font-size: 0.83rem;
   margin-top: 0.25rem;
 }
 
 .ventas-table__amount {
-  color: #0f2f61;
+  color: #1f2937;
   font-weight: 800;
   font-size: 1.05rem;
 }
@@ -949,14 +1170,52 @@ export default {
   height: 34px;
   padding: 0 0.6rem;
   border-radius: 999px;
-  background: rgba(32, 83, 154, 0.08);
-  color: #20539a;
+  background: #eef2ff;
+  border: 1px solid #dfe5ff;
+  color: #3442a8;
   font-weight: 800;
 }
 
 .ventas-count-pill--button {
-  border: 1px solid transparent;
   cursor: pointer;
+}
+
+.ventas-table-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ventas-icon-action {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid #d8e0ec;
+  background: #ffffff;
+  color: #4b5565;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.ventas-icon-action-danger {
+  background: #fff1f0;
+  border-color: #f5b3ad;
+  color: #b42318;
+}
+
+.ventas-icon-action-pdf {
+  background: #fff7df;
+  border-color: #f6d77a;
+  color: #8a6100;
+}
+
+.ventas-icon-action-dark {
+  background: #1f2937;
+  border-color: rgba(31, 41, 55, 0.16);
+  color: #ffffff;
 }
 
 .ventas-status-chip {
@@ -971,39 +1230,40 @@ export default {
 }
 
 .ventas-status-chip--primary {
-  background: rgba(254, 204, 54, 0.18);
-  color: #7c5b00;
-  border-color: rgba(254, 204, 54, 0.45);
+  background: #eef2ff;
+  color: #3442a8;
+  border-color: #dfe5ff;
 }
 
 .ventas-status-chip--success {
-  background: rgba(40, 167, 69, 0.14);
-  color: #1f7a35;
-  border-color: rgba(40, 167, 69, 0.28);
+  background: #ecfdf3;
+  color: #067647;
+  border-color: #abefc6;
 }
 
 .ventas-status-chip--warning {
-  background: rgba(255, 193, 7, 0.18);
-  color: #9a6b00;
-  border-color: rgba(255, 193, 7, 0.3);
+  background: #fff7df;
+  color: #8a6100;
+  border-color: #f6d77a;
 }
 
 .ventas-status-chip--danger {
-  background: rgba(220, 53, 69, 0.12);
-  color: #b02a37;
-  border-color: rgba(220, 53, 69, 0.24);
+  background: #fff1f0;
+  color: #b42318;
+  border-color: #f5b3ad;
 }
 
 .ventas-status-chip--muted {
-  background: rgba(108, 117, 125, 0.1);
-  color: #66707a;
-  border-color: rgba(108, 117, 125, 0.22);
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
 }
 
 .ventas-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(8px);
   z-index: 2050;
 }
 
@@ -1014,23 +1274,114 @@ export default {
 .ventas-items-modal {
   border-radius: 18px;
   overflow: hidden;
+  border: 1px solid #e6ebf3;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
 }
 
 .ventas-items-modal__header {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  background: #f8fafc;
+  border-bottom: 1px solid #e6ebf3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.35rem;
+}
+
+.ventas-items-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.ventas-items-modal__title h5 {
+  color: #1f2937;
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.ventas-items-modal__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #eef2ff;
+  border: 1px solid #dfe5ff;
+  color: #5967d8;
+}
+
+.ventas-items-modal__close {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid #e6ebf3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #ffffff;
+  color: #667085;
+}
+
+.ventas-items-modal__close:hover {
+  background: #fff1f0;
+  border-color: #fecdc9;
+  color: #b42318;
 }
 
 .ventas-items-modal__subtitle {
   margin-top: 0.25rem;
-  color: #74839b;
+  color: #667085;
   font-size: 0.85rem;
+}
+
+.ventas-items-modal__body {
+  padding: 1.2rem;
+}
+
+.ventas-items-modal__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.ventas-items-modal__meta span,
+.ventas-items-modal__meta strong {
+  min-height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.75rem;
+  border: 1px solid #e6ebf3;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.ventas-items-modal__meta strong {
+  background: #eef2ff;
+  border-color: #dfe5ff;
+  color: #3442a8;
+}
+
+.ventas-items-table-wrap {
+  border: 1px solid #e6ebf3;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .ventas-items-table thead th {
   background: #f7f9fc;
-  color: #38557f;
-  border-bottom: 1px solid rgba(32, 83, 154, 0.1);
+  color: #667085;
+  border-bottom: 1px solid #e6ebf3;
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -1039,9 +1390,22 @@ export default {
 
 .ventas-items-table td {
   vertical-align: top;
-  border-top: 1px solid rgba(32, 83, 154, 0.08);
+  border-top: 1px solid #eef2f7;
   padding-top: 0.9rem;
   padding-bottom: 0.9rem;
+}
+
+.ventas-item-code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.3rem 0.62rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  border: 1px solid #dfe5ff;
+  color: #3442a8;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .ventas-items-table__qty {
@@ -1051,14 +1415,44 @@ export default {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(254, 204, 54, 0.22);
-  color: #7c5b00;
+  background: #fff7df;
+  color: #8a6100;
   font-weight: 800;
 }
 
 .ventas-items-table__total {
-  color: #173b73;
+  color: #1f2937;
   font-weight: 800;
+}
+
+.ventas-items-empty {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: #667085;
+}
+
+.ventas-items-empty i {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 1px solid #e6ebf3;
+  color: #5967d8;
+}
+
+.ventas-items-empty strong {
+  color: #1f2937;
+  font-weight: 800;
+}
+
+.ventas-items-empty span {
+  color: #667085;
+  font-size: 0.9rem;
 }
 
 .ventas-items-modal__footer {
@@ -1066,11 +1460,269 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1rem 1.2rem 1.15rem;
+  border-top: 1px solid #e6ebf3;
+  background: #ffffff;
 }
 
 .ventas-items-modal__summary {
-  color: #173b73;
+  color: #1f2937;
   font-weight: 800;
+}
+
+.ventas-panel .card-footer {
+  background: #ffffff;
+  border-top: 1px solid #e6ebf3;
+}
+
+.ventas-panel .enterprise-pagination {
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e6ebf3;
+}
+
+.ventas-panel .enterprise-pagination .page-link {
+  min-width: 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #667085 !important;
+  font-size: 0.82rem !important;
+  font-weight: 800 !important;
+}
+
+.ventas-panel .enterprise-pagination .page-item.active .page-link {
+  background: #5967d8 !important;
+  border-color: #5967d8 !important;
+  color: #ffffff !important;
+}
+
+.ventas-panel .enterprise-pagination .page-item.disabled .page-link {
+  color: #aab4c6 !important;
+  opacity: 0.72;
+}
+
+.ventas-toast,
+.ventas-swal {
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid #e6ebf3 !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16) !important;
+}
+
+.ventas-toast {
+  width: min(420px, calc(100vw - 24px)) !important;
+  padding: 0.95rem 1rem !important;
+}
+
+.ventas-toast-title,
+.ventas-swal-title {
+  color: #1f2937 !important;
+  font-weight: 800 !important;
+}
+
+.ventas-toast-body,
+.ventas-swal-body {
+  color: #667085 !important;
+  font-weight: 600 !important;
+}
+
+.ventas-toast-progress {
+  background: rgba(89, 103, 216, 0.22) !important;
+}
+
+.ventas-swal {
+  width: min(460px, calc(100vw - 28px)) !important;
+  padding: 1.5rem !important;
+}
+
+.ventas-swal-actions {
+  gap: 0.7rem !important;
+}
+
+.ventas-swal-button {
+  min-width: 132px;
+  min-height: 42px;
+  border-radius: 13px;
+  border: 1px solid transparent;
+  padding: 0.68rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.ventas-swal-cancel {
+  background: #ffffff;
+  border-color: #d8e0ec;
+  color: #4b5565;
+}
+
+.ventas-swal-confirm-danger {
+  background: #b42318;
+  border-color: #b42318;
+  color: #ffffff;
+}
+
+body.enterprise-dark .ventas-hero,
+body.enterprise-dark .ventas-panel,
+body.enterprise-dark .ventas-stat-card,
+body.enterprise-dark .ventas-items-modal,
+body.enterprise-dark .ventas-toast,
+body.enterprise-dark .ventas-swal {
+  background: #151e2b !important;
+  border-color: rgba(82, 99, 128, 0.78) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25) !important;
+}
+
+body.enterprise-dark .ventas-header h1,
+body.enterprise-dark .ventas-stat-card__value,
+body.enterprise-dark .ventas-table__primary,
+body.enterprise-dark .ventas-table__amount,
+body.enterprise-dark .ventas-items-modal__title h5,
+body.enterprise-dark .ventas-items-empty strong,
+body.enterprise-dark .ventas-items-table__total,
+body.enterprise-dark .ventas-items-modal__summary,
+body.enterprise-dark .ventas-toast-title,
+body.enterprise-dark .ventas-swal-title {
+  color: #f8fafc !important;
+}
+
+body.enterprise-dark .ventas-kicker,
+body.enterprise-dark .ventas-stat-card__label,
+body.enterprise-dark .ventas-table thead th,
+body.enterprise-dark .ventas-items-table thead th {
+  color: #aab4c6 !important;
+}
+
+body.enterprise-dark .ventas-wrap .text-muted,
+body.enterprise-dark .ventas-stat-card__meta,
+body.enterprise-dark .ventas-table__secondary,
+body.enterprise-dark .ventas-items-modal__subtitle,
+body.enterprise-dark .ventas-items-empty,
+body.enterprise-dark .ventas-items-empty span,
+body.enterprise-dark .ventas-toast-body,
+body.enterprise-dark .ventas-swal-body,
+body.enterprise-dark .ventas-table-count {
+  color: #94a3b8 !important;
+}
+
+body.enterprise-dark .ventas-heading-icon {
+  background: rgba(89, 103, 216, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  color: #c7d2fe !important;
+}
+
+body.enterprise-dark .ventas-items-modal__icon,
+body.enterprise-dark .ventas-items-empty i,
+body.enterprise-dark .ventas-item-code {
+  background: rgba(89, 103, 216, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  color: #c7d2fe !important;
+}
+
+body.enterprise-dark .ventas-panel__header,
+body.enterprise-dark .ventas-table thead th,
+body.enterprise-dark .ventas-items-modal__header,
+body.enterprise-dark .ventas-items-table thead th,
+body.enterprise-dark .ventas-panel .card-footer,
+body.enterprise-dark .ventas-items-modal__footer {
+  background: #111b2a !important;
+  border-color: rgba(82, 99, 128, 0.72) !important;
+}
+
+body.enterprise-dark .ventas-control,
+body.enterprise-dark .swal2-input,
+body.enterprise-dark .swal2-select {
+  background: #0f1726 !important;
+  border-color: rgba(82, 99, 128, 0.86) !important;
+  color: #e5e7eb !important;
+}
+
+body.enterprise-dark .ventas-control::placeholder {
+  color: #728198 !important;
+}
+
+body.enterprise-dark .ventas-label {
+  color: #e5e7eb !important;
+}
+
+body.enterprise-dark .ventas-table td,
+body.enterprise-dark .ventas-items-table td {
+  border-color: rgba(82, 99, 128, 0.48) !important;
+}
+
+body.enterprise-dark .ventas-action-btn,
+body.enterprise-dark .ventas-icon-action,
+body.enterprise-dark .ventas-count-pill,
+body.enterprise-dark .ventas-panel .enterprise-pagination,
+body.enterprise-dark .ventas-items-modal__close,
+body.enterprise-dark .ventas-items-modal__meta span,
+body.enterprise-dark .ventas-items-table-wrap {
+  background: #101827 !important;
+  border-color: rgba(82, 99, 128, 0.78) !important;
+  color: #cbd5e1 !important;
+}
+
+body.enterprise-dark .ventas-items-modal__meta strong {
+  background: rgba(89, 103, 216, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  color: #c7d2fe !important;
+}
+
+body.enterprise-dark .ventas-icon-action-danger,
+body.enterprise-dark .ventas-status-chip--danger {
+  background: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  color: #fca5a5 !important;
+}
+
+body.enterprise-dark .ventas-icon-action-pdf,
+body.enterprise-dark .ventas-status-chip--warning,
+body.enterprise-dark .ventas-mini-badge--warning,
+body.enterprise-dark .ventas-items-table__qty {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border-color: rgba(245, 158, 11, 0.32) !important;
+  color: #fbbf24 !important;
+}
+
+body.enterprise-dark .ventas-status-chip--success,
+body.enterprise-dark .ventas-mini-badge--success {
+  background: rgba(34, 197, 94, 0.14) !important;
+  border-color: rgba(34, 197, 94, 0.28) !important;
+  color: #86efac !important;
+}
+
+body.enterprise-dark .ventas-status-chip--primary,
+body.enterprise-dark .ventas-mini-badge {
+  background: rgba(89, 103, 216, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.3) !important;
+  color: #c7d2fe !important;
+}
+
+body.enterprise-dark .ventas-status-chip--muted {
+  background: rgba(148, 163, 184, 0.12) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #cbd5e1 !important;
+}
+
+body.enterprise-dark .ventas-panel .enterprise-pagination .page-link {
+  color: #94a3b8 !important;
+}
+
+body.enterprise-dark .ventas-panel .enterprise-pagination .page-item.active .page-link {
+  background: #5967d8 !important;
+  color: #ffffff !important;
+}
+
+body.enterprise-dark .ventas-swal-cancel {
+  background: #101827;
+  border-color: rgba(82, 99, 128, 0.78);
+  color: #cbd5e1;
 }
 
 @media (max-width: 1399.98px) {

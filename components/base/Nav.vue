@@ -1,10 +1,10 @@
 <template>
    <nav
-      class="enterprise-topbar navbar navbar-main navbar-expand-lg position-sticky mt-4 top-1 px-0 mx-4 z-index-sticky"
+      class="enterprise-topbar"
       id="navbarBlur"
       data-scroll="true"
    >
-      <div class="container-fluid py-2 px-3">
+      <div class="container-fluid p-0">
          <div class="topbar-shell">
             <div class="topbar-left">
                <div class="breadcrumb-chip">
@@ -13,9 +13,9 @@
                </div>
 
                <div class="topbar-heading">
-                  <h5 class="mb-1">{{ modulo }}</h5>
+                  <h5 class="mb-1">{{ modulo || page }}</h5>
                   <p class="mb-0">
-                     {{ userName || 'usuario' }}
+                     {{ userName || 'Usuario activo' }}
                   </p>
                </div>
             </div>
@@ -40,9 +40,9 @@
                   <i class="fas fa-bars"></i>
                </button>
 
-               <button class="topbar-icon-btn" @click="DarkMode()" title="Cambiar tema">
-                  <i v-if="theme == 'light-version'" class="fas fa-moon"></i>
-                  <i v-else class="fas fa-sun"></i>
+               <button class="topbar-icon-btn" @click="toggleTheme" :title="themeLabel" :aria-label="themeLabel">
+                  <i v-if="isDark" class="fas fa-sun"></i>
+                  <i v-else class="fas fa-moon"></i>
                </button>
 
                <button class="logout-btn" @click="Logout()">
@@ -69,10 +69,16 @@ export default {
    },
    data() {
       return {
-         theme: 'light-version',
+         theme: 'enterprise-light',
       }
    },
    computed: {
+      isDark() {
+         return this.theme === 'enterprise-dark';
+      },
+      themeLabel() {
+         return this.isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+      },
       user() {
          return this.$store.state.auth.user;
       },
@@ -96,32 +102,38 @@ export default {
    },
    methods: {
       SideToggle() {
-         let body = document.body
-         body.classList.add("g-sidenav-show", "bg-gray-");
-         body.classList.contains("g-sidenav-hidden") ? body.classList.remove("g-sidenav-hidden") : body.classList.add("g-sidenav-hidden");
+         document.body.classList.toggle('enterprise-sidebar-collapsed');
       },
       hideSideNav() {
-         let side = document.getElementById('sidenav-main')
-         side.classList.contains("d-none") ? side.classList.remove("d-none") : side.classList.add("d-none");
+         const side = document.getElementById('sidenav-main');
+         if (!side) return;
+         side.classList.toggle('d-none');
       },
-      DarkMode() {
-         let theme = localStorage.getItem('theme.pos')
-         let body = document.body
-         if (theme != null) {
-            if (body.classList.contains("dark-version")) {
-               body.classList.remove("dark-version")
-               theme = "light-version"
-               localStorage.setItem('theme.pos', theme)
-            } else {
-               body.classList.remove("light-version")
-               theme = "dark-version"
-               localStorage.setItem('theme.pos', theme)
-            }
-            this.theme = theme
-            body.classList.add(theme)
-         } else {
-            localStorage.setItem('theme.pos', "dark-version")
+      applyTheme(theme) {
+         const normalized = theme === 'enterprise-dark' || theme === 'dark-version'
+            ? 'enterprise-dark'
+            : 'enterprise-light';
+
+         document.body.classList.remove('enterprise-dark', 'enterprise-light', 'dark-version', 'light-version');
+         document.body.classList.add(normalized);
+         document.documentElement.setAttribute('data-theme', normalized === 'enterprise-dark' ? 'dark' : 'light');
+
+         localStorage.setItem('theme.pos', normalized);
+         this.theme = normalized;
+      },
+      resolveInitialTheme() {
+         const saved = localStorage.getItem('theme.pos');
+         if (saved) {
+            return saved;
          }
+
+         const prefersDark = window.matchMedia
+            && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+         return prefersDark ? 'enterprise-dark' : 'enterprise-light';
+      },
+      toggleTheme() {
+         this.applyTheme(this.isDark ? 'enterprise-light' : 'enterprise-dark');
       },
       Logout() {
          this.$store.dispatch('auth/logout');
@@ -130,14 +142,8 @@ export default {
    },
    mounted() {
       this.$nextTick(() => {
-         let body = document.body
-         let theme = localStorage.getItem('theme.pos')
-         if (theme != null) {
-            body.classList.add(theme);
-            this.theme = theme
-         }
+         this.applyTheme(this.resolveInitialTheme());
          if (window.innerWidth <= 767) {
-            body.classList.add('g-sidenav-pinned')
             document.getElementById('iconSidenav').classList.remove('d-none')
             document.getElementById('sidenav-main').classList.add('d-none')
          }
@@ -148,11 +154,12 @@ export default {
 
 <style scoped>
 .enterprise-topbar {
+   margin: 16px 18px 0 0;
    border-radius: 22px;
-   background: linear-gradient(180deg, #ffd84f 0%, #f3c228 100%);
+   background: rgba(255, 255, 255, 0.96);
    backdrop-filter: blur(12px);
-   box-shadow: 0 14px 30px rgba(120, 85, 10, 0.16);
-   border: 1px solid rgba(176, 121, 0, 0.2);
+   box-shadow: 0 18px 55px rgba(24, 39, 75, 0.08);
+   border: 1px solid rgba(215, 222, 235, 0.92);
 }
 
 .topbar-shell {
@@ -161,6 +168,8 @@ export default {
    justify-content: space-between;
    gap: 14px;
    width: 100%;
+   min-height: 76px;
+   padding: 12px 16px;
 }
 
 .topbar-left {
@@ -177,22 +186,22 @@ export default {
    gap: 8px;
    padding: 9px 13px;
    border-radius: 999px;
-   background: rgba(255, 255, 255, 0.34);
-   color: #6c4a05;
+   background: #f5f7fb;
+   color: #4b5565;
    font-size: 11px;
-   font-weight: 700;
+   font-weight: 800;
    white-space: nowrap;
-   border: 1px solid rgba(176, 121, 0, 0.16);
+   border: 1px solid #e6ebf3;
 }
 
 .topbar-heading h5 {
    font-weight: 800;
-   color: #4d3503;
-   font-size: 17px;
+   color: #1f2937;
+   font-size: 18px;
 }
 
 .topbar-heading p {
-   color: rgba(92, 61, 0, 0.8);
+   color: #667085;
    font-size: 12px;
 }
 
@@ -222,28 +231,30 @@ export default {
 .topbar-icon-btn {
    width: 40px;
    height: 40px;
-   background: rgba(255, 255, 255, 0.34);
-   color: #6c4a05;
-   border: 1px solid rgba(176, 121, 0, 0.16);
+   background: #f5f7fb;
+   color: #4b5565;
+   border: 1px solid #e6ebf3;
 }
 
 .topbar-icon-btn:hover {
-   background: rgba(255, 255, 255, 0.54);
+   background: #eef2ff;
+   color: #3442a8;
 }
 
 .logout-btn {
    height: 40px;
    padding: 0 15px;
-   background: rgba(255, 255, 255, 0.92);
-   color: #6c4a05;
+   background: #1f2937;
+   color: #ffffff;
    font-weight: 700;
    font-size: 14px;
-   border: 1px solid rgba(176, 121, 0, 0.18);
-   box-shadow: 0 10px 20px rgba(120, 85, 10, 0.1);
+   border: 1px solid rgba(31, 41, 55, 0.12);
+   box-shadow: 0 12px 24px rgba(31, 41, 55, 0.12);
 }
 
 .logout-btn:hover {
-   opacity: 0.96;
+   background: #344054;
+   color: #ffffff;
 }
 
 @media (max-width: 1199px) {
@@ -253,6 +264,14 @@ export default {
 }
 
 @media (max-width: 767px) {
+   .enterprise-topbar {
+      margin: 12px 12px 0;
+   }
+
+   .topbar-shell {
+      min-height: auto;
+   }
+
    .topbar-left {
       width: 100%;
    }
