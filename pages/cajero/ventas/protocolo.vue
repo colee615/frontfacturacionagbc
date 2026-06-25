@@ -164,8 +164,8 @@
                   </div>
                </div>
                <div class="card-body">
-                  <div class="table-responsive">
-                     <table class="table protocol-table align-middle">
+                  <div class="table-responsive enterprise-table-wrap">
+                     <table class="table protocol-table enterprise-table align-middle">
                         <thead>
                            <tr>
                               <th class="text-center" style="width: 50px;">
@@ -357,8 +357,8 @@
                            </div>
                         </div>
 
-                        <div class="table-responsive">
-                           <table class="table table-bordered align-middle">
+                        <div class="table-responsive enterprise-table-wrap">
+                           <table class="table table-bordered align-middle enterprise-table">
                               <thead>
                                  <tr>
                                     <th>Registro</th>
@@ -728,15 +728,77 @@ export default {
       canAnular(venta) {
          return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
       },
+      async fetchAnulacionGuardStatus() {
+         try {
+            const response = await this.$admin.$get('ventas/anulacion/guard-status');
+            return response?.guard || null;
+         } catch (error) {
+            return null;
+         }
+      },
+      async promptSupervisorAuthorization() {
+         const { value } = await this.$swal.fire({
+            title: 'Autorizacion requerida',
+            html: `
+               <div class="text-left">
+                  <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar anulacion temporal.</p>
+                  <label class="d-block small font-weight-bold mb-1">Correo supervisor</label>
+                  <input id="auth-supervisor-email" class="swal2-input" type="email" placeholder="supervisor@dominio.com">
+                  <label class="d-block small font-weight-bold mt-3 mb-1">Contrasena supervisor</label>
+                  <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contrasena">
+               </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Autorizar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+               const supervisor_email = document.getElementById('auth-supervisor-email')?.value?.trim();
+               const supervisor_password = document.getElementById('auth-supervisor-password')?.value || '';
+               if (!supervisor_email || !supervisor_password) {
+                  this.$swal.showValidationMessage('Correo y contrasena del supervisor son obligatorios.');
+                  return false;
+               }
+               return { supervisor_email, supervisor_password, duracion_minutos: 15 };
+            },
+         });
+
+         return value || null;
+      },
+      async ensureAnulacionAuthorization() {
+         const roles = this.$store?.state?.auth?.roles || [];
+         const permissions = this.$store?.state?.auth?.permissions || [];
+         const isHigherRole =
+            (Array.isArray(roles) && roles.some((r) => ['admin', 'administrador', 'supervisor'].includes(String(r).toLowerCase())))
+            || (Array.isArray(permissions) && permissions.some((p) => ['rbac.manage', 'usuarios.manage', 'ventas.manage'].includes(String(p).toLowerCase())));
+         if (isHigherRole) return true;
+
+         const guard = await this.fetchAnulacionGuardStatus();
+         if (guard?.allowed) return true;
+
+         const credentials = await this.promptSupervisorAuthorization();
+         if (!credentials) return false;
+
+         try {
+            const response = await this.$admin.$post('ventas/anulacion/autorizar', credentials);
+            this.showResponse(response);
+            this.$swal.fire('Autorizado', response?.message || 'Anulacion habilitada temporalmente.', 'success');
+            return true;
+         } catch (error) {
+            this.showResponse(error?.response?.data || { error: error.message });
+            this.$swal.fire('Autorizacion rechazada', this.collectMessages(error).join('\n') || 'No se pudo validar autorizacion de supervisor.', 'error');
+            return false;
+         }
+      },
       async promptAnulacion() {
          const { value } = await this.$swal.fire({
             title: 'Anular factura',
             html: `
-               <div class="text-left">
-                  <label class="d-block small font-weight-bold mb-1">Motivo</label>
-                  <input id="annul-motivo" class="swal2-input" value="DATOS ERRONEOS EN LA FACTURA">
-                  <label class="d-block small font-weight-bold mt-3 mb-1">Tipo de anulacion</label>
-                  <select id="annul-tipo" class="swal2-select">
+               <div class="protocol-annul-form">
+                  <label class="protocol-annul-label" for="annul-motivo">Motivo</label>
+                  <input id="annul-motivo" class="swal2-input protocol-annul-input" value="Datos erroneos en la factura">
+                  <label class="protocol-annul-label" for="annul-tipo">Tipo de anulacion</label>
+                  <select id="annul-tipo" class="swal2-select protocol-annul-select">
                      <option value="1">1 - Factura mal emitida</option>
                      <option value="2">2 - Nota credito-debito mal emitida</option>
                      <option value="3" selected>3 - Datos de emision incorrectos</option>
@@ -746,8 +808,17 @@ export default {
             `,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'Solicitar anulacion',
+            confirmButtonText: 'Confirmar anulacion',
             cancelButtonText: 'Cancelar',
+            buttonsStyling: false,
+            customClass: {
+               popup: 'protocol-swal',
+               title: 'protocol-swal-title',
+               htmlContainer: 'protocol-swal-body',
+               confirmButton: 'protocol-swal-button protocol-swal-confirm-danger',
+               cancelButton: 'protocol-swal-button protocol-swal-cancel',
+               actions: 'protocol-swal-actions'
+            },
             preConfirm: () => {
                const motivo = document.getElementById('annul-motivo')?.value?.trim();
                const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
@@ -766,6 +837,9 @@ export default {
             this.$swal.fire('No disponible', 'Solo se puede anular una factura procesada y con CUF.', 'warning');
             return;
          }
+
+         const authorized = await this.ensureAnulacionAuthorization();
+         if (!authorized) return;
 
          const payload = await this.promptAnulacion();
          if (!payload) return;
@@ -1157,6 +1231,102 @@ export default {
    background: #f8fafc;
    border: 1px solid #e5e7eb;
    margin-bottom: 14px;
+}
+
+.protocol-swal {
+   width: min(460px, calc(100vw - 28px)) !important;
+   border-radius: 16px !important;
+   background: #ffffff !important;
+   border: 1px solid #e6ebf3 !important;
+   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16) !important;
+   padding: 1.5rem !important;
+}
+
+.protocol-swal-title {
+   color: #1f2937 !important;
+   font-weight: 800 !important;
+   font-size: 2rem !important;
+   letter-spacing: -0.02em !important;
+}
+
+.protocol-swal-body {
+   color: #667085 !important;
+   font-weight: 600 !important;
+}
+
+.protocol-swal .swal2-html-container {
+   margin: 0.8rem 0 0 !important;
+   padding: 0 !important;
+   text-align: left !important;
+}
+
+.protocol-annul-form {
+   display: flex;
+   flex-direction: column;
+   gap: 0.65rem;
+}
+
+.protocol-annul-label {
+   color: #344054;
+   font-size: 0.8rem;
+   font-weight: 800;
+   letter-spacing: 0.04em;
+   text-transform: uppercase;
+   margin: 0;
+}
+
+.protocol-annul-input,
+.protocol-annul-select {
+   width: 100% !important;
+   margin: 0 !important;
+   min-height: 46px !important;
+   border-radius: 12px !important;
+   border: 1px solid #d8e0ec !important;
+   font-size: 1rem !important;
+   color: #344054 !important;
+   box-shadow: none !important;
+   background: #ffffff !important;
+}
+
+.protocol-annul-input {
+   padding: 0.75rem 0.9rem !important;
+}
+
+.protocol-annul-select {
+   padding: 0.68rem 2.3rem 0.68rem 0.9rem !important;
+   -webkit-appearance: none !important;
+   -moz-appearance: none !important;
+   appearance: none !important;
+   background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%);
+   background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+   background-size: 6px 6px, 6px 6px;
+   background-repeat: no-repeat;
+}
+
+.protocol-swal-actions {
+   gap: 0.7rem !important;
+}
+
+.protocol-swal-button {
+   min-width: 132px;
+   min-height: 42px;
+   border-radius: 13px;
+   border: 1px solid transparent;
+   padding: 0.68rem 1rem;
+   font-size: 0.82rem;
+   font-weight: 800;
+}
+
+.protocol-swal-cancel {
+   background: #ffffff;
+   border-color: #d8e0ec;
+   color: #4b5565;
+}
+
+.protocol-swal-confirm-danger {
+   background: #b42318;
+   border-color: #b42318;
+   color: #ffffff;
 }
 
 @media (max-width: 1199px) {

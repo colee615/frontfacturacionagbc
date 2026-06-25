@@ -213,20 +213,94 @@ export default {
          const res = await this.$admin.$get(path);
          return res;
       },
+      async fetchAnulacionGuardStatus() {
+         try {
+            const response = await this.$admin.$get('ventas/anulacion/guard-status');
+            return response?.guard || null;
+         } catch (error) {
+            return null;
+         }
+      },
+      async promptSupervisorAuthorization() {
+         const { value } = await this.$swal.fire({
+            title: 'Autorizacion requerida',
+            html: `
+               <div class="text-left">
+                  <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar anulacion temporal.</p>
+                  <label class="d-block small font-weight-bold mb-1">Correo supervisor</label>
+                  <input id="auth-supervisor-email" class="swal2-input" type="email" placeholder="supervisor@dominio.com">
+                  <label class="d-block small font-weight-bold mt-3 mb-1">Contrasena supervisor</label>
+                  <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contrasena">
+               </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Autorizar',
+            cancelButtonText: 'Cancelar',
+            buttonsStyling: false,
+            customClass: {
+               popup: 'invoice-swal',
+               title: 'invoice-swal-title',
+               htmlContainer: 'invoice-swal-body',
+               confirmButton: 'invoice-swal-button invoice-swal-confirm-danger',
+               cancelButton: 'invoice-swal-button invoice-swal-cancel',
+               actions: 'invoice-swal-actions'
+            },
+            preConfirm: () => {
+               const supervisor_email = document.getElementById('auth-supervisor-email')?.value?.trim();
+               const supervisor_password = document.getElementById('auth-supervisor-password')?.value || '';
+               if (!supervisor_email || !supervisor_password) {
+                  this.$swal.showValidationMessage('Correo y contrasena del supervisor son obligatorios.');
+                  return false;
+               }
+               return { supervisor_email, supervisor_password, duracion_minutos: 15 };
+            },
+         });
+
+         return value || null;
+      },
+      async ensureAnulacionAuthorization() {
+         const roles = this.$store?.state?.auth?.roles || [];
+         const permissions = this.$store?.state?.auth?.permissions || [];
+         const isHigherRole =
+            (Array.isArray(roles) && roles.some((r) => ['admin', 'administrador', 'supervisor'].includes(String(r).toLowerCase())))
+            || (Array.isArray(permissions) && permissions.some((p) => ['rbac.manage', 'usuarios.manage', 'ventas.manage'].includes(String(p).toLowerCase())));
+         if (isHigherRole) return true;
+
+         const guard = await this.fetchAnulacionGuardStatus();
+         if (guard?.allowed) return true;
+
+         const credentials = await this.promptSupervisorAuthorization();
+         if (!credentials) return false;
+
+         try {
+            const auth = await this.$admin.$post('ventas/anulacion/autorizar', credentials);
+            this.notify('success', 'Autorizacion concedida', auth?.message || 'Anulacion habilitada temporalmente.');
+            return true;
+         } catch (error) {
+            const data = error?.response?.data || {};
+            const msg = data.message || data.error || 'No se pudo validar autorizacion de supervisor.';
+            this.notify('error', 'Autorizacion rechazada', msg);
+            return false;
+         }
+      },
       async anularFactura() {
          if (!this.canAnular) {
             this.notify('warning', 'No disponible', 'Solo se puede anular una factura procesada y con CUF.');
             return;
          }
 
+         const authorized = await this.ensureAnulacionAuthorization();
+         if (!authorized) return;
+
          const { value: formValues } = await this.$swal.fire({
             title: 'Anular factura',
             html: `
-               <div class="text-left">
-                  <label class="d-block small font-weight-bold mb-1">Motivo</label>
-                  <input id="annul-motivo" class="swal2-input" value="DATOS ERRONEOS EN LA FACTURA">
-                  <label class="d-block small font-weight-bold mt-3 mb-1">Tipo de anulacion</label>
-                  <select id="annul-tipo" class="swal2-select">
+               <div class="invoice-annul-form">
+                  <label class="invoice-annul-label" for="annul-motivo">Motivo</label>
+                  <input id="annul-motivo" class="swal2-input invoice-annul-input" value="Datos erroneos en la factura">
+                  <label class="invoice-annul-label" for="annul-tipo">Tipo de anulacion</label>
+                  <select id="annul-tipo" class="swal2-select invoice-annul-select">
                      <option value="1">1 - Factura mal emitida</option>
                      <option value="2">2 - Nota credito-debito mal emitida</option>
                      <option value="3" selected>3 - Datos de emision incorrectos</option>
@@ -236,7 +310,7 @@ export default {
             `,
             focusConfirm: false,
             showCancelButton: true,
-            confirmButtonText: 'Solicitar anulacion',
+            confirmButtonText: 'Confirmar anulacion',
             cancelButtonText: 'Cancelar',
             buttonsStyling: false,
             customClass: {
@@ -677,6 +751,8 @@ export default {
 .invoice-swal-title {
    color: #1f2937 !important;
    font-weight: 800 !important;
+   font-size: 2rem !important;
+   letter-spacing: -0.02em !important;
 }
 
 .invoice-toast-body,
@@ -692,6 +768,55 @@ export default {
 .invoice-swal {
    width: min(460px, calc(100vw - 28px)) !important;
    padding: 1.5rem !important;
+}
+
+.invoice-swal .swal2-html-container {
+   margin: 0.8rem 0 0 !important;
+   padding: 0 !important;
+   text-align: left !important;
+}
+
+.invoice-annul-form {
+   display: flex;
+   flex-direction: column;
+   gap: 0.65rem;
+}
+
+.invoice-annul-label {
+   color: #344054;
+   font-size: 0.8rem;
+   font-weight: 800;
+   letter-spacing: 0.04em;
+   text-transform: uppercase;
+   margin: 0;
+}
+
+.invoice-annul-input,
+.invoice-annul-select {
+   width: 100% !important;
+   margin: 0 !important;
+   min-height: 46px !important;
+   border-radius: 12px !important;
+   border: 1px solid #d8e0ec !important;
+   font-size: 1rem !important;
+   color: #344054 !important;
+   box-shadow: none !important;
+   background: #ffffff !important;
+}
+
+.invoice-annul-input {
+   padding: 0.75rem 0.9rem !important;
+}
+
+.invoice-annul-select {
+   padding: 0.68rem 2.3rem 0.68rem 0.9rem !important;
+   -webkit-appearance: none !important;
+   -moz-appearance: none !important;
+   appearance: none !important;
+   background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%);
+   background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+   background-size: 6px 6px, 6px 6px;
+   background-repeat: no-repeat;
 }
 
 .invoice-swal-actions {
@@ -753,6 +878,21 @@ body.enterprise-dark .invoice-total-card span,
 body.enterprise-dark .invoice-toast-body,
 body.enterprise-dark .invoice-swal-body {
    color: #94a3b8 !important;
+}
+
+body.enterprise-dark .invoice-annul-label {
+   color: #e5e7eb !important;
+}
+
+body.enterprise-dark .invoice-annul-input,
+body.enterprise-dark .invoice-annul-select {
+   background: #0f1726 !important;
+   border-color: rgba(82, 99, 128, 0.86) !important;
+   color: #e5e7eb !important;
+}
+
+body.enterprise-dark .invoice-annul-select {
+   background-image: linear-gradient(45deg, transparent 50%, #cbd5e1 50%), linear-gradient(135deg, #cbd5e1 50%, transparent 50%) !important;
 }
 
 body.enterprise-dark .invoice-kicker {

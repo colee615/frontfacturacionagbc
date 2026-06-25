@@ -2,9 +2,9 @@
    <footer class="footer enterprise-footer">
       <div class="enterprise-footer-shell">
          <div class="enterprise-footer-copy">
-            <span class="enterprise-footer-year">© {{ year }}</span>
+            <span class="enterprise-footer-year">{{ year }}</span>
             <span class="enterprise-footer-dot">•</span>
-            <span class="enterprise-footer-brand">AGBC Facturación</span>
+            <span class="enterprise-footer-brand">@CorreosdeBolivia</span>
          </div>
          <div class="enterprise-footer-meta">Operación segura de facturación</div>
       </div>

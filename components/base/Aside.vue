@@ -47,6 +47,12 @@
                     <span>Roles y permisos</span>
                   </nuxt-link>
                 </li>
+                <li class="nav-item" v-if="integrationTokensAccess">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/panel/integration-tokens/">
+                    <i class="fas fa-key"></i>
+                    <span>Tokens de integración</span>
+                  </nuxt-link>
+                </li>
               </ul>
             </div>
           </li>
@@ -63,25 +69,7 @@
             </a>
             <div class="collapse" id="ventas-cajero">
               <ul class="nav enterprise-subnav">
-                <li class="nav-item" v-if="ventasReadAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
-                    <i class="fas fa-list-ul"></i>
-                    <span>Lista de ventas realizadas</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="ventasReadAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/cierre">
-                    <i class="fas fa-file-invoice-dollar"></i>
-                    <span>Cierre diario</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="ventasReadAccess">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/caja">
-                    <i class="fas fa-boxes"></i>
-                    <span>Caja y fichas</span>
-                  </nuxt-link>
-                </li>
-                <li class="nav-item" v-if="ventasAccess">
+                <li class="nav-item" v-if="ventasWriteAccess">
                   <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/protocolo">
                     <i class="fas fa-paper-plane"></i>
                     <span>Operaciones de envío</span>
@@ -91,6 +79,23 @@
                   <nuxt-link class="nav-link enterprise-sub-link" to="/panel/notificaciones/">
                     <i class="fas fa-bell"></i>
                     <span>Notificaciones</span>
+                  </nuxt-link>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="nav-item" v-if="ventasReadAccess">
+            <a data-bs-toggle="collapse" href="#kardex-menu" class="nav-link enterprise-parent-link" aria-controls="kardex-menu" role="button" aria-expanded="false">
+              <span class="nav-icon-shell"><i class="fas fa-boxes"></i></span>
+              <span class="nav-link-text">Kardex</span>
+              <i class="fas fa-chevron-down nav-chevron"></i>
+            </a>
+            <div class="collapse" id="kardex-menu">
+              <ul class="nav enterprise-subnav">
+                <li class="nav-item">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reportes</span>
                   </nuxt-link>
                 </li>
               </ul>
@@ -120,19 +125,23 @@ export default {
     seguridadAccess() {
       return this.hasAccess('rbac.manage', 'seguridad');
     },
-    ventasAccess() {
-      return this.hasAccess('ventas.write', 'ventas');
+    integrationTokensAccess() {
+      return this.hasAccess('rbac.manage', 'seguridad');
     },
     ventasReadAccess() {
       return this.hasAccess('ventas.read', 'ventas');
     },
+    ventasWriteAccess() {
+      return this.hasAccess('ventas.write', 'ventas');
+    },
     showAdminSection() {
       return this.usuariosAccess
         || this.notificacionesAccess
-        || this.seguridadAccess;
+        || this.seguridadAccess
+        || this.integrationTokensAccess;
     },
     showSalesSection() {
-      return this.ventasAccess || this.ventasReadAccess;
+      return this.ventasReadAccess || this.ventasWriteAccess || this.notificacionesAccess;
     }
   },
   methods: {

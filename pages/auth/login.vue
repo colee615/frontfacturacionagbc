@@ -1,137 +1,156 @@
-<template>
-   <div>
-      <main class="main-content main-content-bg mt-0 ps">
-         <transition name="fade" mode="out-in">
-            <section v-if="isLogin" key="login" class="form-section">
-               <div class="page-header min-vh-75 d-flex">
-                  <div class="image-section">
-                     <img src="/assets/imagenes/login1.jpg" class="img-fluid full-height" alt="Imagen">
-                  </div>
-                  <div class="form-container">
-                     <div class="container">
-                        <div class="row justify-content-center">
-                           <div class="col-md-8">
-                              <div class="card custom-card">
-                                 <div class="card-header pb-3 text-center">
-                                    <h3 class="font-weight-bold text-info">
-                                       Iniciar sesión <i class="fas fa-sign-in-alt"></i>
-                                    </h3>
-                                 </div>
-                                 <div class="card-body">
-                                    <form @submit.prevent="submit">
-                                       <div class="mb-3">
-                                          <label for="email" class="form-label"><i class="far fa-envelope"></i> Correo
-                                             Electrónico</label>
-                                          <input type="email" v-model.trim="model.email" class="form-control" id="email"
-                                             placeholder="Correo Electrónico" required>
-                                       </div>
-                                       <div class="mb-3 position-relative">
-                                          <label for="password" class="form-label"><i class="fas fa-lock"></i>
-                                             Contraseña</label>
-                                          <input type="password" v-model.trim="model.password" class="form-control"
-                                             id="password" placeholder="Contraseña" required>
+﻿<template>
+   <div class="launch-login-page">
+      <main class="main-content launch-login-main">
+         <section class="launch-login-shell">
+            <div class="launch-login-left">
+               <div class="login-content">
+                  <transition name="fade-slide" mode="out-in">
+                     <form v-if="isLogin" key="login-form" class="auth-form" @submit.prevent="submit">
+                        <h2 class="auth-title auth-title-typing">Iniciar sesión</h2>
 
-                                          <button type="button"
-                                             class="btn btn-outline-secondary btn-sm align-self-center"
-                                             style="position: absolute; right: 10px; top: 50%; transform: translateY(-10%); border: none; z-index: 100;"
-                                             @click="togglePasswordVisibility">
-                                             <i class="fas" :class="showPassword ? 'fa-eye' : 'fa-eye-slash'"
-                                                style="color: black;"></i>
-                                          </button>
-
-                                       </div>
-                                       <div class="text-center">
-                                          <button type="submit"
-                                             class="btn bg-gradient-info w-100 mt-4">Ingresar</button>
-                                          <p class="mt-1">
-                                             <a href="#" @click="toggleMode('forgotPassword')">¿Olvidaste tu
-                                                contraseña?</a>
-                                          </p>
-                                       </div>
-                                    </form>
-                                 </div>
-                              </div>
+                        <div class="field-group">
+                           <label for="email">Correo electrónico</label>
+                           <div class="input-shell">
+                              <i class="far fa-envelope"></i>
+                              <input
+                                 id="email"
+                                 v-model.trim="model.email"
+                                 type="email"
+                                 class="form-control"
+                                 placeholder="correo@empresa.com"
+                                 autocomplete="email"
+                                 required
+                              >
                            </div>
                         </div>
-                     </div>
-                  </div>
-               </div>
-            </section>
 
-            <section v-else key="forgotPassword" class="form-section">
-               <div class="page-header min-vh-75 d-flex">
-                  <div class="image-section">
-                     <img src="/assets/imagenes/login1.jpg" class="img-fluid full-height" alt="Imagen">
-                  </div>
-                  <div class="form-container">
-                     <div class="container">
-                        <div class="row justify-content-center">
-                           <div class="col-md-8">
-                              <div class="card custom-card">
-                                 <div class="card-header pb-3 text-center">
-                                    <h3 class="font-weight-bold text-info">
-                                       Recuperar Contraseña <i class="fas fa-key"></i>
-                                    </h3>
-                                 </div>
-                                 <div class="card-body">
-                                    <form @submit.prevent="submitForgotPassword">
-                                       <div class="mb-3">
-                                          <label for="forgot-email" class="form-label"><i class="far fa-envelope"></i>
-                                             Correo Electrónico</label>
-                                          <input type="email" v-model.trim="forgotPasswordEmail" class="form-control"
-                                             id="forgot-email" placeholder="Correo Electrónico" required>
-                                       </div>
-                                       <div class="text-center">
-                                          <button type="submit" class="btn bg-gradient-info w-100 mt-4">Enviar Correo de
-                                             Recuperación</button>
-                                          <p class="mt-3">
-                                             <a href="#" @click="toggleMode('login')">Volver al inicio de sesión</a>
-                                          </p>
-                                       </div>
-                                    </form>
-                                 </div>
-                              </div>
+                        <div class="field-group">
+                           <label for="password">Contraseña</label>
+                           <div class="input-shell">
+                              <i class="fas fa-lock"></i>
+                              <input
+                                 id="password"
+                                 v-model.trim="model.password"
+                                 :type="showPassword ? 'text' : 'password'"
+                                 class="form-control"
+                                 placeholder="Ingresa tu contraseña"
+                                 autocomplete="current-password"
+                                 required
+                              >
+                              <button
+                                 type="button"
+                                 class="toggle-pass"
+                                 :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                 @click="togglePasswordVisibility"
+                              >
+                                 <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                              </button>
                            </div>
                         </div>
-                     </div>
-                  </div>
+
+                        <label class="remember-row">
+                           <input type="checkbox">
+                           <span>Recordarme</span>
+                        </label>
+
+                        <button type="submit" class="btn btn-login-primary w-100">Ingresar</button>
+
+                        <button type="button" class="btn-link-clean" @click="toggleMode('forgotPassword')">
+                           ¿Olvidaste tu contraseña?
+                        </button>
+                     </form>
+
+                     <form v-else key="forgot-form" class="auth-form" @submit.prevent="submitForgotPassword">
+                        <h2 class="auth-title">Recuperar contraseña</h2>
+                        <p class="auth-subtitle">Te enviaremos un token a tu correo</p>
+
+                        <div class="field-group">
+                           <label for="forgot-email">Correo electrónico</label>
+                           <div class="input-shell">
+                              <i class="far fa-envelope"></i>
+                              <input
+                                 id="forgot-email"
+                                 v-model.trim="forgotPasswordEmail"
+                                 type="email"
+                                 class="form-control"
+                                 placeholder="correo@empresa.com"
+                                 autocomplete="email"
+                                 required
+                              >
+                           </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-login-primary w-100">Enviar correo de recuperación</button>
+
+                        <button type="button" class="btn-link-clean" @click="toggleMode('login')">
+                           Volver al inicio de sesión
+                        </button>
+                     </form>
+                  </transition>
+
+                  <p class="auth-footer">
+                     2026•@CorreosdeBolivia
+                  </p>
                </div>
-            </section>
-         </transition>
+            </div>
+
+            <div class="launch-login-right" aria-hidden="true">
+               <img
+                  src="/assets/imagenes/banner.png"
+                  alt=""
+                  class="side-banner"
+               >
+            </div>
+         </section>
       </main>
 
-      <!-- Modal -->
-      <div v-if="modalCitas" class="modal fade show" style="display: block; background: rgba(0, 0, 0, 0.5);">
-         <div class="page-header min-vh-75">
-            <div class="container">
-               <div class="row justify-content-center">
-                  <div class="col-md-6">
-                     <div class="card custom-card">
-                        <div class="card-header pb-3 text-center">
-                           <h3 class="font-weight-bold text-info">
-                              Recuperar Contraseña <i class="fas fa-key"></i>
-                           </h3>
-                        </div>
-                        <div class="card-body">
-                           <form @submit.prevent="enviarDatosCita">
-                              <div class="mb-3">
-                                 <label for="modal-token" class="form-label">Token de Restablecimiento</label>
-                                 <input type="text" v-model.trim="resetToken" class="form-control" id="modal-token"
-                                    placeholder="Token de Restablecimiento" required>
-                              </div>
-                              <div class="mb-3">
-                                 <label for="modal-password" class="form-label">Nueva Contraseña</label>
-                                 <input type="password" v-model.trim="newPassword" class="form-control"
-                                    id="modal-password" placeholder="Nueva Contraseña" required>
-                              </div>
-                              <div class="modal-footer">
-                                 <button type="button" class="btn btn-secondary" @click="cerrarModalCi">Cerrar</button>
-                                 <button type="submit" class="btn bg-gradient-info">Cambiar Contraseña</button>
-                              </div>
-                           </form>
-                        </div>
+      <div
+         v-if="modalCitas"
+         class="modal fade show d-block clean-modal-backdrop"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true"
+      >
+         <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content clean-modal-content">
+               <div class="modal-header border-0 pb-0">
+                  <h5 class="modal-title">Restablecer contraseña</h5>
+                  <button type="button" class="modal-close-btn" aria-label="Cerrar" @click="cerrarModalCi">
+                     <span aria-hidden="true">&times;</span>
+                  </button>
+               </div>
+
+               <div class="modal-body pt-2">
+                  <form @submit.prevent="enviarDatosCita" class="d-grid gap-3">
+                     <div>
+                        <label for="modal-token" class="form-label">Token de restablecimiento</label>
+                        <input
+                           id="modal-token"
+                           v-model.trim="resetToken"
+                           type="text"
+                           class="form-control"
+                           placeholder="Ingresa el token recibido"
+                           required
+                        >
                      </div>
-                  </div>
+
+                     <div>
+                        <label for="modal-password" class="form-label">Nueva contraseña</label>
+                        <input
+                           id="modal-password"
+                           v-model.trim="newPassword"
+                           type="password"
+                           class="form-control"
+                           placeholder="Nueva contraseña"
+                           required
+                        >
+                     </div>
+
+                     <div class="modal-actions">
+                        <button type="button" class="btn btn-outline-secondary" @click="cerrarModalCi">Cancelar</button>
+                        <button type="submit" class="btn btn-login-primary">Cambiar contraseña</button>
+                     </div>
+                  </form>
                </div>
             </div>
          </div>
@@ -140,7 +159,6 @@
 </template>
 
 <script>
-
 export default {
    data() {
       return {
@@ -159,7 +177,7 @@ export default {
          isRegister: false,
          resetToken: '',
          newPassword: ''
-      }
+      };
    },
    methods: {
       async enviarDatosCita() {
@@ -180,22 +198,25 @@ export default {
             });
             return;
          }
+
          try {
             const response = await this.$admin.post(`${this.apiUrl2}/${this.resetToken}`, { password: this.newPassword });
             if (response.data.message) {
-               await this.$swal.fire({
-                  toast: true,
-                  position: 'center',
-                  showConfirmButton: false,
-                  timer: 4000,
-                  timerProgressBar: true,
-                  icon: 'success',
-                  allowOutsideClick: false,
-                  text: response.data.message
-               }).then(() => {
-                  this.cerrarModalCi();
-                  this.toggleMode('login');
-               });
+               await this.$swal
+                  .fire({
+                     toast: true,
+                     position: 'center',
+                     showConfirmButton: false,
+                     timer: 4000,
+                     timerProgressBar: true,
+                     icon: 'success',
+                     allowOutsideClick: false,
+                     text: response.data.message
+                  })
+                  .then(() => {
+                     this.cerrarModalCi();
+                     this.toggleMode('login');
+                  });
             } else if (response.data.error) {
                this.$swal.fire({
                   icon: 'error',
@@ -219,11 +240,7 @@ export default {
          this.modalCitas = false;
       },
       togglePasswordVisibility() {
-         const passwordInput = document.getElementById('password');
-         if (passwordInput) {
-            passwordInput.type = this.showPassword ? 'text' : 'password';
-            this.showPassword = !this.showPassword;
-         }
+         this.showPassword = !this.showPassword;
       },
       async submit() {
          if (!this.model.email || !this.model.password) {
@@ -233,16 +250,17 @@ export default {
                showConfirmButton: false,
                icon: 'error',
                title: 'Oops...',
-               text: 'Los campos son obligatorios. Por favor, llene ambos campos.',
+               text: 'Los campos son obligatorios. Por favor, llene ambos campos.'
             });
             return;
          }
+
          try {
             const res = await this.$admin.post('login', this.model);
 
             if (res.data.token) {
                const loginUser = res.data.usuario || null;
-               const loginRoles = res.data.roles || (loginUser?.role ? [loginUser.role] : []);
+               const loginRoles = res.data.roles || (loginUser && loginUser.role ? [loginUser.role] : []);
                const loginPermissions = res.data.permissions || [];
                const loginViews = res.data.views || [];
 
@@ -279,8 +297,9 @@ export default {
                   timer: 2000,
                   timerProgressBar: true,
                   icon: 'success',
-                  title: 'Inicio de sesión exitoso',
+                  title: 'Inicio de sesión exitoso'
                });
+
                setTimeout(() => {
                   this.$swal.close();
                   this.$router.push('/');
@@ -291,37 +310,29 @@ export default {
                   position: 'top-end',
                   showConfirmButton: false,
                   icon: 'error',
-                  title: res.data.error,
+                  title: res.data.error
                });
             }
          } catch (error) {
             if (error.response) {
-               // El servidor respondió con un estado distinto a 2xx
                if (error.response.status === 403) {
                   this.$swal.fire({
                      toast: true,
                      position: 'top-end',
                      showConfirmButton: false,
                      icon: 'error',
-                     title: error.response.data?.error || 'Acceso denegado',
-                     text: error.response.data?.message || 'No tienes permiso para realizar esta acción.',
+                     title: error.response.data && error.response.data.error ? error.response.data.error : 'Acceso denegado',
+                     text: error.response.data && error.response.data.message
+                        ? error.response.data.message
+                        : 'No tienes permiso para realizar esta acción.'
                   });
-               } else if (error.response.status === 400) {
+               } else if (error.response.status === 400 || error.response.status === 401) {
                   this.$swal.fire({
                      toast: true,
                      position: 'top-end',
                      showConfirmButton: false,
                      icon: 'error',
-                     title: 'Correo no registrado',
-                     text: 'El correo electrónico que ingresó no está registrado en el sistema.',
-                  });
-               } else if (error.response.status === 401) {
-                  this.$swal.fire({
-                     toast: true,
-                     position: 'top-end',
-                     showConfirmButton: false,
-                     icon: 'error',
-                     title: 'Credenciales incorrectas',
+                     title: 'Credenciales incorrectas'
                   });
                } else {
                   this.$swal.fire({
@@ -330,24 +341,24 @@ export default {
                      showConfirmButton: false,
                      icon: 'error',
                      title: 'Error',
-                     text: error.response.data.error || 'Ocurrió un error. Por favor, inténtelo de nuevo más tarde.',
+                     text: error.response.data && error.response.data.error
+                        ? error.response.data.error
+                        : 'Ocurrió un error. Por favor, inténtelo de nuevo más tarde.'
                   });
                }
             } else if (error.request) {
-               // La solicitud fue hecha pero no hubo respuesta
                console.error('No response received:', error.request);
                this.$swal.fire({
-                  title: "Error",
-                  text: "No se recibió respuesta del servidor. Por favor, inténtelo de nuevo más tarde.",
-                  icon: 'error',
+                  title: 'Error',
+                  text: 'No se recibió respuesta del servidor. Por favor, inténtelo de nuevo más tarde.',
+                  icon: 'error'
                });
             } else {
-               // Algo pasó al configurar la solicitud
                console.error('Error during login:', error.message);
                this.$swal.fire({
-                  title: "Error",
-                  text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
-                  icon: 'error',
+                  title: 'Error',
+                  text: 'Ocurrió un error. Por favor, inténtelo de nuevo más tarde.',
+                  icon: 'error'
                });
             }
          }
@@ -360,162 +371,394 @@ export default {
                showConfirmButton: false,
                icon: 'error',
                title: 'Oops...',
-               text: 'El campo de correo electrónico es obligatorio. Por favor, ingréselo.',
+               text: 'El campo de correo electrónico es obligatorio. Por favor, ingréselo.'
             });
             return;
          }
+
          try {
             const response = await this.$admin.post('/request-password-reset', { email: this.forgotPasswordEmail });
             if (response.data.message) {
                this.$swal.fire({
                   toast: true,
                   position: 'center',
-                  showConfirmButton: false,
+                  showConfirmButton: true,
                   icon: 'success',
-                  title: response.data.message,
+                  title: response.data.message
                });
-               this.abrirModalCita();
+
+               // For secure environments the token is not returned by API.
+               if (response.data.reset_token) {
+                  this.resetToken = response.data.reset_token;
+                  this.abrirModalCita();
+               }
             } else if (response.data.error) {
                this.$swal.fire({
                   toast: true,
                   position: 'top-end',
                   showConfirmButton: false,
                   icon: 'error',
-                  title: response.data.error,
+                  title: response.data.error
                });
             }
          } catch (e) {
             console.error('Error during password reset request:', e);
             this.$swal.fire({
-               title: "Error",
-               text: "Ocurrió un error. Por favor, inténtelo de nuevo más tarde.",
-               icon: 'error',
+               title: 'Error',
+               text: 'Ocurrió un error. Por favor, inténtelo de nuevo más tarde.',
+               icon: 'error'
             });
          }
       },
       toggleMode(mode) {
          this.isLogin = mode === 'login';
          this.isRegister = mode === 'register';
-      },
+      }
    }
-}
+};
 </script>
 
-<style>
-.fade-enter-active,
-.fade-leave-active {
-   transition: transform 0.5s ease;
+<style scoped>
+.launch-login-page {
+   min-height: 100vh;
+   background:
+      radial-gradient(circle at 10% 18%, rgba(255, 208, 84, 0.12) 0%, rgba(255, 208, 84, 0) 20%),
+      radial-gradient(circle at 90% 84%, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 24%),
+      linear-gradient(145deg, #f7f9fd 0%, #eef3fb 52%, #ebf1fa 100%);
 }
 
-.fade-enter,
-.fade-leave-to {
-   transform: rotateY(-90deg);
-}
-
-.custom-card {
-   border: 1px solid #ccc;
-   border-radius: 12px;
-   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-   background: linear-gradient(180deg, #f9f9f9, #e6e6e6);
-   transition: box-shadow 0.3s ease;
-}
-
-.custom-card:hover {
-   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-}
-
-.card-header h3 {
-   font-size: 24px;
-}
-
-.form-label {
-   font-weight: bold;
-}
-
-.btn {
-   font-weight: bold;
-}
-
-.btn:hover {
-   opacity: 0.8;
-}
-
-i {
-   margin-right: 5px;
-}
-
-.form-section {
-   position: relative;
+.launch-login-main {
+   min-height: 100vh;
    display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 2.75rem;
+}
+
+.launch-login-shell {
+   width: 100%;
+   max-width: 980px;
+   min-height: 600px;
+   background: #ffffff;
+   border: 1px solid #e2e8f0;
+   border-radius: 32px;
+   box-shadow: 0 28px 64px rgba(15, 23, 42, 0.1);
+   overflow: hidden;
+   display: grid;
+   grid-template-columns: 315px minmax(0, 1fr);
+}
+
+.launch-login-left {
+   display: flex;
+   flex-direction: column;
+   padding: 2rem 1.6rem 1.35rem;
+   background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 100%);
+   border-right: 1px solid #edf2f7;
+}
+
+.login-content {
+   display: flex;
+   flex: 1;
+   flex-direction: column;
+   justify-content: center;
+   gap: 1.4rem;
    align-items: center;
 }
 
-.page-header {
-   display: flex;
+.auth-form {
+   display: grid;
+   gap: 1rem;
    width: 100%;
+   max-width: 270px;
+   margin: 0 auto;
 }
 
-.image-section {
-   flex: 1;
+.auth-title {
+   margin: 0 0 0.35rem;
+   font-size: 1.8rem;
+   font-weight: 800;
+   color: #14213d;
+   letter-spacing: -0.04em;
+   line-height: 1.05;
+   display: inline-block;
+   position: relative;
+}
+
+.auth-title-typing {
+   white-space: nowrap;
+   clip-path: inset(0 100% 0 0);
+   animation: typing-login 1.8s steps(14, end) 0.15s 1 forwards;
+}
+
+.auth-title-typing::after {
+   content: '';
+   position: absolute;
+   top: 0.08em;
+   right: -0.12em;
+   width: 2px;
+   height: 0.9em;
+   background: rgba(20, 33, 61, 0.55);
+   animation:
+      typing-login 1.8s steps(14, end) 0.15s 1 forwards,
+      caret-blink 0.75s step-end 5;
+}
+
+.auth-subtitle {
+   margin: -0.15rem 0 1rem;
+   color: #70819b;
+   font-size: 0.92rem;
+}
+
+.field-group label {
+   display: inline-block;
+   margin-bottom: 0.38rem;
+   font-size: 0.84rem;
+   font-weight: 700;
+   color: #31445f;
+   letter-spacing: 0.01em;
+   text-transform: uppercase;
+}
+
+.input-shell {
+   position: relative;
+}
+
+.input-shell > i {
+   position: absolute;
+   left: 0.9rem;
+   top: 50%;
+   transform: translateY(-50%);
+   color: #94a3b8;
+}
+
+.input-shell .form-control {
+   min-height: 50px;
+   border-radius: 14px;
+   border: 1px solid #d8e2f0;
+   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+   padding-left: 2.35rem;
+   padding-right: 2.35rem;
+   box-shadow: none;
+   color: #1f2937;
+   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.input-shell .form-control:focus {
+   border-color: #f2be22;
+   background: #fff;
+   box-shadow: 0 0 0 0.16rem rgba(242, 190, 34, 0.11);
+}
+
+.toggle-pass {
+   position: absolute;
+   right: 0.55rem;
+   top: 50%;
+   transform: translateY(-50%);
+   border: none;
+   background: transparent;
+   color: #64748b;
+   width: 32px;
+   height: 32px;
+   border-radius: 50%;
+}
+
+.toggle-pass:hover {
+   background: rgba(148, 163, 184, 0.16);
+}
+
+.remember-row {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.45rem;
+   color: #475569;
+   font-size: 0.88rem;
+   user-select: none;
+   margin-top: 0.2rem;
+   width: fit-content;
+}
+
+.btn-login-primary {
+   min-height: 52px;
+   border-radius: 15px;
+   border: 1px solid rgba(201, 154, 35, 0.24);
+   background: linear-gradient(135deg, #ffe38a 0%, #ffd54f 100%);
+   color: #5a4006;
+   font-weight: 800;
+   letter-spacing: 0.01em;
+   box-shadow: 0 10px 22px rgba(201, 154, 35, 0.16);
+   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.btn-login-primary:hover {
+   color: #5a4006;
+   filter: brightness(0.99);
+   transform: translateY(-1px);
+   box-shadow: 0 18px 34px rgba(201, 154, 35, 0.22);
+}
+
+.btn-link-clean {
+   border: none;
+   background: none;
+   color: #2d5cae;
+   font-weight: 700;
+   width: fit-content;
+   margin: 0.7rem auto 0;
+   padding: 0;
+}
+
+.btn-link-clean:hover {
+   color: #0f172a;
+   text-decoration: underline;
+   text-underline-offset: 0.16rem;
+}
+
+.auth-footer {
+   margin: 0 auto;
+   color: #93a4c0;
+   font-size: 0.76rem;
+   line-height: 1.5;
+   text-align: center;
+   padding-top: 0.8rem;
+   width: 100%;
+   max-width: 270px;
+}
+
+.launch-login-right {
+   position: relative;
+   display: flex;
+   align-items: center;
+   justify-content: center;
    overflow: hidden;
+   background:
+      radial-gradient(circle at top right, rgba(255, 209, 102, 0.1) 0%, rgba(255, 209, 102, 0) 22%),
+      linear-gradient(180deg, #f8fbff 0%, #f4f8ff 100%);
+   padding: 0.15rem;
 }
 
-.image-section img {
+.side-banner {
+   display: block;
    width: 100%;
    height: 100%;
+   max-width: none;
+   max-height: none;
    object-fit: cover;
+   object-position: center;
 }
 
-.form-container {
-   flex: 1;
+.clean-modal-backdrop {
+   background: rgba(15, 23, 42, 0.5);
+}
+
+.clean-modal-content {
+   border-radius: 18px;
+   border: 1px solid rgba(226, 232, 240, 0.92);
+   box-shadow: 0 20px 36px rgba(15, 23, 42, 0.2);
+}
+
+.clean-modal-content .modal-title {
+   color: #1f2937;
+   font-weight: 700;
+}
+
+.clean-modal-content .form-control {
+   border-radius: 12px;
+   min-height: 46px;
+}
+
+.clean-modal-content .form-control:focus {
+   border-color: #f2be22;
+   box-shadow: 0 0 0 0.2rem rgba(242, 190, 34, 0.18);
+}
+
+.modal-close-btn {
+   border: none;
+   background: transparent;
+   color: #64748b;
+   font-size: 1.6rem;
+   line-height: 1;
+   padding: 0.15rem 0.35rem;
+}
+
+.modal-close-btn:hover {
+   color: #0f172a;
+}
+
+.modal-actions {
    display: flex;
-   justify-content: center;
-   align-items: center;
+   justify-content: flex-end;
+   gap: 0.7rem;
+   margin-top: 0.4rem;
 }
 
-.card.custom-card {
-   position: relative;
-   z-index: 1;
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+   transition: all 0.22s ease;
 }
 
-.card.custom-card .card-body {
-   padding-right: 40px;
+.fade-slide-enter,
+.fade-slide-leave-to {
+   opacity: 0;
+   transform: translateY(6px);
 }
 
-.btn-sm {
-   padding: 0.25rem 0.5rem;
-   font-size: 0.75rem;
+@keyframes typing-login {
+   from {
+      clip-path: inset(0 100% 0 0);
+   }
+   to {
+      clip-path: inset(0 0 0 0);
+   }
 }
 
-.info-tooltip {
-   position: absolute;
-   top: calc(100% + 5px);
-   left: 0;
-   background-color: #fff;
-   color: #555;
-   border: 1px solid #ccc;
-   padding: 5px;
-   border-radius: 5px;
-   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-   display: none;
-   font-size: 0.8rem;
-   font-family: Arial, sans-serif;
-   max-width: 200px;
-   text-align: left;
+@keyframes caret-blink {
+   0%,
+   100% {
+      border-right-color: rgba(20, 33, 61, 0.55);
+   }
+   50% {
+      border-right-color: transparent;
+   }
 }
 
-.position-relative:hover .info-tooltip {
-   display: block;
+@media (max-width: 1000px) {
+   .launch-login-shell {
+      grid-template-columns: 1fr;
+      min-height: auto;
+   }
+
+   .launch-login-left {
+      padding: 1.75rem 1.3rem 1.1rem;
+   }
+
+   .launch-login-right {
+      min-height: 340px;
+      padding: 1rem;
+   }
+
+   .launch-login-left {
+      border-right: none;
+      border-bottom: 1px solid #e6edf8;
+   }
+}
+
+@media (max-width: 576px) {
+   .launch-login-main {
+      padding: 0.75rem;
+   }
+
+   .auth-title {
+      font-size: 1.75rem;
+    }
+
+   .launch-login-right {
+      min-height: 240px;
+      padding: 0.8rem;
+   }
+
+   .side-banner {
+      max-width: none;
+      max-height: none;
+   }
 }
 </style>
-
-
-
-
-
-
-
-
-
-
-

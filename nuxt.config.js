@@ -4,6 +4,9 @@
     host: 'localhost',
     port: 3000
   },
+  publicRuntimeConfig: {
+    adminApiBaseUrl: process.env.ADMIN_API_BASE_URL || process.env.NUXT_ENV_ADMIN_API_URL || 'http://127.0.0.1:9000/admin/'
+  },
  
   head: {
     title: 'POS',
@@ -22,6 +25,8 @@
       { rel: 'stylesheet', href: '/assets/css/nucleo-svg.css' },
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700' },
       { rel: 'stylesheet', href: '/assets/css/soft-ui-dashboard.min.css' },
+      { rel: 'stylesheet', href: '/assets/css/enterprise-tables.css' },
+      { rel: 'stylesheet', href: '/assets/css/enterprise-pages.css' },
     ],
     script: [
       { src: "https://kit.fontawesome.com/f969ae7604.js" },
@@ -60,4 +65,3 @@
   },
 
 }
-

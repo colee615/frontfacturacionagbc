@@ -7,11 +7,6 @@
       <div class="container-fluid p-0">
          <div class="topbar-shell">
             <div class="topbar-left">
-               <div class="breadcrumb-chip">
-                  <i class="fas fa-layer-group"></i>
-                  <span>{{ page }}</span>
-               </div>
-
                <div class="topbar-heading">
                   <h5 class="mb-1">{{ modulo || page }}</h5>
                   <p class="mb-0">
@@ -24,10 +19,6 @@
                <div class="context-pill">
                   <i class="fas fa-id-badge"></i>
                   <span>{{ roleLabel || 'Sin rol' }}</span>
-               </div>
-               <div class="context-pill">
-                  <i class="fas fa-shield-alt"></i>
-                  <span>{{ accessLabel }}</span>
                </div>
             </div>
 
@@ -70,7 +61,7 @@ export default {
    data() {
       return {
          theme: 'enterprise-light',
-      }
+      };
    },
    computed: {
       isDark() {
@@ -95,9 +86,6 @@ export default {
          if (this.roles.includes('admin')) return 'Administrador';
          if (this.roles.includes('usuario')) return 'Operador';
          return this.role || '';
-      },
-      accessLabel() {
-         return this.roles.length ? 'Acceso configurado' : 'Acceso básico';
       },
    },
    methods: {
@@ -144,12 +132,12 @@ export default {
       this.$nextTick(() => {
          this.applyTheme(this.resolveInitialTheme());
          if (window.innerWidth <= 767) {
-            document.getElementById('iconSidenav').classList.remove('d-none')
-            document.getElementById('sidenav-main').classList.add('d-none')
+            document.getElementById('iconSidenav').classList.remove('d-none');
+            document.getElementById('sidenav-main').classList.add('d-none');
          }
       });
    }
-}
+};
 </script>
 
 <style scoped>
@@ -179,7 +167,6 @@ export default {
    min-width: 0;
 }
 
-.breadcrumb-chip,
 .context-pill {
    display: inline-flex;
    align-items: center;

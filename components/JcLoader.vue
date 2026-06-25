@@ -1,7 +1,6 @@
 <template>
    <div v-if="load" class="jc-loader">
-      <img src="/assets/img/logo.png" alt="Loading..." />
-      <p>Cargando...</p>
+      <span class="loader"></span>
    </div>
 </template>
 
@@ -20,31 +19,48 @@ export default {
 <style scoped>
 .jc-loader {
    position: fixed;
-   top: 50%;
-   left: 50%;
-   transform: translate(-50%, -50%);
+   inset: 0;
    display: flex;
-   flex-direction: column;
    align-items: center;
    justify-content: center;
-   background-color: transparent;
-
-   padding: 20px;
-   border-radius: 8px;
+   background: rgba(248, 250, 252, 0.72);
+   backdrop-filter: blur(6px);
    z-index: 9999;
-
 }
 
-img {
-   width: 150px;
-   /* Ajusta el tamaño de la imagen según tus necesidades */
-   height: auto;
+.loader {
+   position: relative;
+   display: inline-block;
+   width: 48px;
+   height: 48px;
+   border-radius: 50%;
+   border-top: 4px solid #ffffff;
+   border-right: 4px solid transparent;
+   box-sizing: border-box;
+   animation: rotation 1s linear infinite;
 }
 
-p {
-   margin-top: 15px;
-   /* Espacio entre la imagen y el texto */
-   font-weight: bold;
-   /* Texto en negrita */
+.loader::after,
+.loader::before {
+   content: '';
+   box-sizing: border-box;
+   position: absolute;
+   left: 0;
+   top: 0;
+   width: 48px;
+   height: 48px;
+   border-radius: 50%;
+   border-bottom: 4px solid #f6c445;
+   border-left: 4px solid transparent;
+}
+
+@keyframes rotation {
+   0% {
+      transform: rotate(0deg);
+   }
+
+   100% {
+      transform: rotate(360deg);
+   }
 }
 </style>

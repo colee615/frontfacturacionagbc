@@ -1,0 +1,108 @@
+.enterprise-table-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, #ffffff 100%);
+  border: 1px solid #e8edf5;
+  border-radius: 22px;
+  box-shadow: 0 10px 28px rgba(22, 42, 77, 0.06);
+}
+
+.enterprise-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #edf1f6;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.enterprise-table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.enterprise-table thead th {
+  padding: 0.95rem 0.9rem;
+  text-align: left;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #495468;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
+  border-bottom: 1px solid #edf1f6;
+  vertical-align: middle;
+}
+
+.enterprise-table tbody td {
+  padding: 1rem 0.9rem;
+  border-bottom: 1px solid #edf1f6;
+  color: #33415c;
+  vertical-align: middle;
+}
+
+.enterprise-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.enterprise-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.enterprise-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem 0;
+  color: #6f7c92;
+  font-size: 0.9rem;
+}
+
+.enterprise-pagination-nav {
+  margin-top: 1rem;
+}
+
+.enterprise-pagination {
+  gap: 0.45rem;
+}
+
+.enterprise-pagination .page-link {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fff;
+  color: #627089;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+.enterprise-pagination .page-item.active .page-link {
+  border-color: #ff6f6f;
+  color: #e04f4f;
+  background: #fff;
+}
+
+.enterprise-pagination .page-item.disabled .page-link {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (max-width: 991px) {
+  .enterprise-table-toolbar,
+  .enterprise-table-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .enterprise-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}

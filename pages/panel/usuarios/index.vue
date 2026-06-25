@@ -1,175 +1,170 @@
-<template>
+﻿<template>
    <div>
       <JcLoader :load="load"></JcLoader>
       <AdminTemplate :page="page" :modulo="modulo">
-         <div slot="body" class="users-page">
-            <div class="row">
-               <div class="col-12 mb-4">
-                  <div class="card users-hero">
-                     <div class="card-body">
-                        <div class="users-hero-head">
-                           <div class="users-heading">
-                              <span class="users-heading-icon">
-                                 <i class="fas fa-users-cog"></i>
+         <div slot="body" class="users-page enterprise-page-shell">
+            <section class="enterprise-filter-card users-directory-shell">
+               <div class="enterprise-page-header users-page-header">
+                  <div>
+                     <p class="enterprise-page-kicker">Centro de accesos</p>
+                     <h2 class="enterprise-page-title">Gestion de usuarios</h2>
+                     <p class="enterprise-page-copy">Administra credenciales, roles y estado operativo en una sola vista ordenada.</p>
+                  </div>
+                  <div class="users-badge users-badge-soft">
+                     <i class="fas fa-users"></i>
+                     <span>{{ filteredList.length }} registros</span>
+                  </div>
+               </div>
+               <div class="enterprise-toolbar-row users-topbar">
+                  <div class="enterprise-search-field users-search-field">
+                     <i class="fas fa-search"></i>
+                     <input v-model="search" type="text" class="form-control" placeholder="Buscar por nombre, correo o rol">
+                  </div>
+                  <div class="enterprise-toolbar-actions users-toolbar-actions">
+                     <button v-if="canCreateUsuarios" type="button" class="btn enterprise-btn-soft primary users-toolbar-btn" @click="openCreateModal">
+                        <i class="fas fa-plus"></i>
+                        <span>Nuevo usuario</span>
+                     </button>
+                     <button @click="generateReport('excel')" class="btn enterprise-btn-soft users-toolbar-btn">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Excel</span>
+                     </button>
+                     <button @click="generateReport('pdf')" class="btn enterprise-btn-soft users-toolbar-btn">
+                        <i class="fas fa-file-pdf"></i>
+                        <span>PDF</span>
+                     </button>
+                  </div>
+               </div>
+            </section>
+            <section class="enterprise-content-card users-directory-card">
+               <div class="users-card-head users-card-head-clean">
+                  <div>
+                     <p class="users-kicker mb-2">Directorio</p>
+                     <h6 class="mb-1">Usuarios registrados</h6>
+                     <p class="mb-0">Consulta rapida del equipo con sus permisos y estado actual.</p>
+                  </div>
+               </div>
+               <div v-if="filteredList.length" class="table-wrap users-table-wrap enterprise-table-wrap">
+                  <table class="users-table enterprise-table">
+                     <thead>
+                        <tr>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-hashtag"></i>
+                                 <span>#</span>
                               </span>
-                              <div>
-                                 <p class="users-kicker mb-2">Centro de Accesos</p>
-                                 <h4 class="users-title mb-2">Gestión de usuarios</h4>
-                                 <p class="users-subtitle mb-0">Controla credenciales, estado operativo y accesos del equipo desde una sola vista.</p>
+                           </th>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-user"></i>
+                                 <span>Nombre</span>
+                              </span>
+                           </th>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-envelope"></i>
+                                 <span>Email</span>
+                              </span>
+                           </th>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-user-tag"></i>
+                                 <span>Rol</span>
+                              </span>
+                           </th>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-toggle-on"></i>
+                                 <span>Estado</span>
+                              </span>
+                           </th>
+                           <th>
+                              <span class="head-label">
+                                 <i class="fas fa-cog"></i>
+                                 <span>Acciones</span>
+                              </span>
+                           </th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr v-for="(m, i) in paginatedList" :key="m.id">
+                           <td>
+                              <strong class="users-row-index">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</strong>
+                           </td>
+                           <td>
+                              <div class="users-name-block">
+                                 <strong>{{ m.name }}</strong>
                               </div>
-                           </div>
-                           <div class="users-badge">
-                              <i class="fas fa-user-shield"></i>
-                              <span>{{ filteredList.length }} registros</span>
-                           </div>
-                        </div>
-                        <div class="row mt-4 g-3">
-                           <div class="col-md-4 col-sm-6">
-                              <div class="users-stat">
-                                 <span class="users-stat-label">Usuarios activos</span>
-                                 <strong>{{ activeCount }}</strong>
+                           </td>
+                           <td>
+                              <span class="users-email">{{ m.email }}</span>
+                           </td>
+                           <td>
+                              <div class="users-role-list">
+                                 <span v-for="role in userRoles(m)" :key="role.id || role.slug" class="users-role-chip">
+                                    <i class="fas fa-user-tag"></i>
+                                    {{ role.name || role.slug }}
+                                 </span>
+                                 <span v-if="!userRoles(m).length" class="users-role-empty">Sin rol</span>
                               </div>
-                           </div>
-                           <div class="col-md-4 col-sm-6">
-                              <div class="users-stat">
-                                 <span class="users-stat-label">Usuarios inactivos</span>
-                                 <strong>{{ inactiveCount }}</strong>
+                           </td>
+                           <td>
+                              <span class="users-state" :class="estadoBadgeClass(m.estado)">
+                                 {{ estadoLabel(m.estado) }}
+                              </span>
+                           </td>
+                           <td>
+                              <div class="users-action-group">
+                                 <button v-if="canUpdateUsuarios" type="button" class="btn users-icon-btn users-icon-btn-info" @click="openEditModal(m)">
+                                    <i class="fas fa-pen"></i>
+                                 </button>
+                                 <button v-if="canDeleteUsuarios && m.estado === 1" type="button" @click="Eliminar(m.id)"
+                                    class="btn users-icon-btn users-icon-btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                 </button>
+                                 <button v-if="canUpdateUsuarios && m.estado === 2" type="button" @click="Activar(m.id)"
+                                    class="btn users-icon-btn users-icon-btn-success">
+                                    <i class="fas fa-check"></i>
+                                 </button>
                               </div>
-                           </div>
-                           <div class="col-md-4 col-sm-12">
-                              <div class="users-stat">
-                                 <span class="users-stat-label">Con acceso de gestión</span>
-                                 <strong>{{ canManageUsuarios ? 'Sí' : 'No' }}</strong>
-                              </div>
-                           </div>
-                        </div>
+                           </td>
+                        </tr>
+                     </tbody>
+                  </table>
+
+                  <div class="users-table-footer">
+                     <p class="footer-copy">
+                        Mostrando {{ rangeStart }} a {{ rangeEnd }} de {{ filteredList.length }} usuarios
+                     </p>
+
+                     <div class="users-pager">
+                        <button class="pager-btn" type="button" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
+                           <i class="fas fa-angle-left"></i>
+                        </button>
+
+                        <button
+                           v-for="page in visiblePages"
+                           :key="page"
+                           type="button"
+                           class="pager-btn"
+                           :class="{ active: page === currentPage }"
+                           @click="changePage(page)"
+                        >
+                           {{ page }}
+                        </button>
+
+                        <button class="pager-btn" type="button" :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
+                           <i class="fas fa-angle-right"></i>
+                        </button>
                      </div>
                   </div>
                </div>
-               <div class="col-12">
-                  <div class="card users-card">
-                     <div class="card-body">
-                        <div class="users-card-head">
-                           <div>
-                              <h6 class="mb-1">Directorio de usuarios</h6>
-                              <p class="mb-0">Consulta, edita o exporta los usuarios registrados.</p>
-                           </div>
-                        </div>
-                        <div class="users-toolbar">
-                           <div class="users-search-wrap">
-                              <i class="fas fa-search"></i>
-                              <input v-model="search" type="text" class="form-control users-search" placeholder="Buscar por nombre o correo">
-                           </div>
-                           <div class="users-actions">
-                              <button v-if="canCreateUsuarios" type="button" class="btn users-btn users-btn-primary" @click="openCreateModal">
-                                 <i class="fas fa-plus"></i>
-                                 <span>Nuevo usuario</span>
-                              </button>
-                              <button @click="generateReport('excel')" class="btn users-btn users-btn-success">
-                                 <i class="fas fa-file-excel"></i>
-                                 <span>Excel</span>
-                              </button>
-                              <button @click="generateReport('pdf')" class="btn users-btn users-btn-danger">
-                                 <i class="fas fa-file-pdf"></i>
-                                 <span>PDF</span>
-                              </button>
-                           </div>
-                        </div>
 
-                        <div class="table-responsive users-table-wrap">
-                           <table class="table users-table align-middle">
-                              <thead>
-                                 <tr>
-                                    <th class="py-3 px-3 users-table-number">#</th>
-                                    <th class="py-3 px-3">Nombre</th>
-                                    <th class="py-3 px-3">Email</th>
-                                    <th class="py-3 px-3">Rol</th>
-                                    <th class="py-3 px-3">Estado</th>
-                                    <th class="py-3 px-3 text-end">Acciones</th>
-                                 </tr>
-                              </thead>
-                              <tbody>
-                                 <tr v-for="(m, i) in paginatedList" :key="m.id">
-                                    <td class="py-3 px-3 users-row-index">{{ (currentPage - 1) * itemsPerPage + i + 1 }}</td>
-                                    <td class="py-3 px-3">
-                                       <div class="users-name-block">
-                                          <strong>{{ m.name }}</strong>
-                                       </div>
-                                    </td>
-                                    <td class="py-3 px-3">
-                                       <span class="users-email">{{ m.email }}</span>
-                                    </td>
-                                    <td class="py-3 px-3">
-                                       <div class="users-role-list">
-                                          <span v-for="role in userRoles(m)" :key="role.id || role.slug" class="users-role-chip">
-                                             <i class="fas fa-user-tag"></i>
-                                             {{ role.name || role.slug }}
-                                          </span>
-                                          <span v-if="!userRoles(m).length" class="users-role-empty">Sin rol</span>
-                                       </div>
-                                    </td>
-                                    <td class="py-3 px-3">
-                                       <span class="users-state" :class="estadoBadgeClass(m.estado)">
-                                          {{ estadoLabel(m.estado) }}
-                                       </span>
-                                    </td>
-                                    <td class="py-3 px-3">
-                                       <div class="users-action-group">
-                                          <button v-if="canUpdateUsuarios" type="button" class="btn users-icon-btn users-icon-btn-info" @click="openEditModal(m)">
-                                             <i class="fas fa-pen"></i>
-                                          </button>
-                                          <button v-if="canDeleteUsuarios && m.estado === 1" type="button" @click="Eliminar(m.id)"
-                                             class="btn users-icon-btn users-icon-btn-danger">
-                                             <i class="fas fa-trash"></i>
-                                          </button>
-                                          <button v-if="canUpdateUsuarios && m.estado === 2" type="button" @click="Activar(m.id)"
-                                             class="btn users-icon-btn users-icon-btn-success">
-                                             <i class="fas fa-check"></i>
-                                          </button>
-                                       </div>
-                                    </td>
-                                 </tr>
-                                 <tr v-if="!paginatedList.length">
-                                    <td colspan="6" class="py-4 text-center users-empty">
-                                       No se encontraron usuarios con ese criterio de búsqueda.
-                                    </td>
-                                 </tr>
-                              </tbody>
-                           </table>
-                        </div>
-                        <nav v-if="filteredList.length" aria-label="Paginación de usuarios" class="enterprise-pagination-nav users-pagination-nav">
-                           <ul class="pagination justify-content-center enterprise-pagination">
-                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(1)" aria-label="Primera pagina" title="Primera pagina">
-                                    <i class="fas fa-angle-double-left"></i>
-                                 </a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)" aria-label="Pagina anterior" title="Pagina anterior">
-                                    <i class="fas fa-angle-left"></i>
-                                 </a>
-                              </li>
-                              <li class="page-item" v-for="page in totalPages" :key="page"
-                                 :class="{ active: currentPage === page }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(page)">{{ page }}</a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)" aria-label="Pagina siguiente" title="Pagina siguiente">
-                                    <i class="fas fa-angle-right"></i>
-                                 </a>
-                              </li>
-                              <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                                 <a class="page-link" href="#" @click.prevent="changePage(totalPages)" aria-label="Ultima pagina" title="Ultima pagina">
-                                    <i class="fas fa-angle-double-right"></i>
-                                 </a>
-                              </li>
-                           </ul>
-                        </nav>
-                     </div>
-                  </div>
+               <div v-else class="empty-state users-empty-state">
+                  <h3>Sin resultados</h3>
+                  <p>No se encontraron usuarios con ese criterio de busqueda.</p>
                </div>
-            </div>
-
+            </section>
             <div v-if="showUserModal" class="users-modal-backdrop" @click.self="closeUserModal">
                <div class="users-modal" role="dialog" aria-modal="true" aria-labelledby="users-modal-title">
                   <div class="users-modal-header">
@@ -190,7 +185,7 @@
                   <div class="users-modal-body">
                      <div class="users-form-note">
                         <i class="fas fa-info-circle"></i>
-                        <span>{{ isEditMode ? 'La contraseña solo se cambia si escribes una nueva.' : 'Completa los datos obligatorios para registrar el acceso.' }}</span>
+                        <span>{{ isEditMode ? 'La contraseÃ±a solo se cambia si escribes una nueva.' : 'Completa los datos obligatorios para registrar el acceso.' }}</span>
                      </div>
 
                      <div class="row g-3">
@@ -221,10 +216,10 @@
                            </div>
                         </div>
                         <div class="form-group col-12">
-                           <label for="modal-user-password">Contraseña <span v-if="!isEditMode">*</span></label>
+                           <label for="modal-user-password">ContraseÃ±a <span v-if="!isEditMode">*</span></label>
                            <div class="users-field">
                               <i class="fas fa-lock"></i>
-                              <input id="modal-user-password" v-model="userForm.password" type="password" class="form-control" :placeholder="isEditMode ? 'Dejar en blanco para conservarla' : 'Contraseña de acceso'">
+                              <input id="modal-user-password" v-model="userForm.password" type="password" class="form-control" :placeholder="isEditMode ? 'Dejar en blanco para conservarla' : 'ContraseÃ±a de acceso'">
                            </div>
                         </div>
                      </div>
@@ -325,10 +320,33 @@ export default {
       totalPages() {
          return Math.max(1, Math.ceil(this.filteredList.length / this.itemsPerPage));
       },
+      rangeStart() {
+         if (!this.filteredList.length) {
+            return 0;
+         }
+
+         return ((this.currentPage - 1) * this.itemsPerPage) + 1;
+      },
+      rangeEnd() {
+         return Math.min(this.currentPage * this.itemsPerPage, this.filteredList.length);
+      },
       paginatedList() {
          const start = (this.currentPage - 1) * this.itemsPerPage;
          const end = start + this.itemsPerPage;
          return this.filteredList.slice(start, end);
+      },
+      visiblePages() {
+         const total = this.totalPages;
+         const current = this.currentPage;
+         const start = Math.max(1, current - 2);
+         const end = Math.min(total, start + 4);
+         const pages = [];
+
+         for (let page = start; page <= end; page += 1) {
+            pages.push(page);
+         }
+
+         return pages;
       }
    },
    watch: {
@@ -409,7 +427,7 @@ export default {
             errors.push('Seleccione un rol para el usuario.');
          }
          if (!this.isEditMode && !password) {
-            errors.push('La contraseña del usuario es obligatoria.');
+            errors.push('La contraseÃ±a del usuario es obligatoria.');
          }
 
          return errors;
@@ -749,9 +767,11 @@ export default {
          doc.save('Usuarios.pdf');
       },
       changePage(page) {
-         if (page >= 1 && page <= this.totalPages) {
-            this.currentPage = page;
+         if (page < 1 || page > this.totalPages) {
+            return;
          }
+
+         this.currentPage = page;
       }
    },
    mounted() {
@@ -776,6 +796,46 @@ export default {
 <style>
 .users-page {
    color: #344054;
+}
+
+.users-directory-shell {
+   padding: 1.1rem 1.15rem;
+}
+
+.users-directory-card {
+   padding: 1rem;
+}
+
+.users-page-header {
+   margin-bottom: 0.95rem;
+}
+
+.users-badge-soft {
+   background: #f4f7ff;
+   border-color: #dbe4ff;
+   color: #2f57b8;
+}
+
+.users-topbar {
+   align-items: center;
+}
+
+.users-toolbar-actions {
+   justify-content: flex-end;
+}
+
+.users-toolbar-btn {
+   min-width: 132px;
+}
+
+.users-card-head-clean {
+   margin-bottom: 1rem;
+}
+
+.users-card-head-clean .users-kicker {
+   color: #8f9bb2;
+   font-size: 0.76rem;
+   letter-spacing: 0.2em;
 }
 
 .users-hero,
@@ -975,44 +1035,53 @@ export default {
 }
 
 .users-table-wrap {
-   border: 1px solid #e6ebf3;
+   border: 1px solid #edf1f6;
    border-radius: 16px;
    overflow: hidden;
    background: #ffffff;
 }
 
 .users-table {
-   margin-bottom: 0;
-}
-
-.users-table thead {
-   background: #f8fafc;
+   width: 100%;
+   min-width: 1040px;
+   border-collapse: collapse;
+   background: #fff;
 }
 
 .users-table thead th {
-   border-bottom: 1px solid #e6ebf3 !important;
-   color: #667085 !important;
-   font-size: 0.76rem;
-   font-weight: 800 !important;
-   letter-spacing: 0.08em;
-   text-transform: uppercase;
-   white-space: nowrap;
+   padding: 0.95rem 0.9rem;
+   text-align: left;
+   font-size: 0.83rem;
+   font-weight: 700;
+   color: #495468;
+   background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
+   border-bottom: 1px solid #edf1f6;
 }
 
-.users-table tbody tr {
-   border-bottom: 1px solid #eef2f7;
+.head-label {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.5rem;
 }
 
-.users-table tbody tr:last-child {
+.head-label i {
+   color: #7d8798;
+   font-size: 0.95rem;
+}
+
+.users-table tbody td {
+   padding: 1rem 0.9rem;
+   border-bottom: 1px solid #edf1f6;
+   color: #33415c;
+   vertical-align: middle;
+}
+
+.users-table tbody tr:last-child td {
    border-bottom: 0;
 }
 
 .users-table tbody tr:hover {
    background: #fbfcff;
-}
-
-.users-table-number {
-   width: 60px;
 }
 
 .users-row-index {
@@ -1148,59 +1217,71 @@ export default {
    font-weight: 700;
 }
 
-.users-pagination-nav {
+.users-empty-state {
+   padding: 1.8rem 1rem;
+}
+
+.users-empty-state h3 {
+   margin: 0;
+   color: #1d3360;
+   font-size: 1.7rem;
+   font-weight: 800;
+}
+
+.users-empty-state p {
+   margin: 0.45rem 0 0;
+   color: #6f7c92;
+}
+
+.users-table-footer {
    display: flex;
-   justify-content: center;
-   margin-top: 1.3rem;
-   padding-top: 0.2rem;
+   align-items: center;
+   justify-content: space-between;
+   gap: 1rem;
+   padding: 0.95rem 1rem;
+   border-top: 1px solid #edf1f6;
+   background: #fff;
 }
 
-.users-pagination-nav .enterprise-pagination {
-   gap: 0.4rem;
-   padding: 0.35rem;
-   border-radius: 16px;
-   background: #f8fafc;
-   border: 1px solid #e6ebf3;
+.footer-copy {
+   margin: 0;
+   color: #6f7c92;
+   font-size: 0.9rem;
 }
 
-.users-pagination-nav .enterprise-pagination .page-link {
-   min-width: 36px !important;
-   width: 36px !important;
-   height: 36px !important;
-   padding: 0 !important;
-   border-radius: 12px !important;
-   border: 1px solid transparent !important;
-   background: transparent !important;
-   box-shadow: none !important;
-   color: #667085 !important;
-   font-size: 0.82rem !important;
-   font-weight: 800 !important;
+.users-pager {
+   display: flex;
+   align-items: center;
+   gap: 0.45rem;
 }
 
-.users-pagination-nav .enterprise-pagination .page-link i {
-   font-size: 0.78rem;
-   line-height: 1;
+.pager-btn {
+   min-width: 36px;
+   height: 36px;
+   padding: 0 0.7rem;
+   border: 1px solid #e5eaf2;
+   border-radius: 8px;
+   background: #fff;
+   color: #627089;
+   font-weight: 700;
+   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.users-pagination-nav .enterprise-pagination .page-link:hover {
-   transform: none !important;
-   background: #eef2ff !important;
-   border-color: #dfe5ff !important;
-   color: #3442a8 !important;
+.pager-btn:hover:not(:disabled) {
+   transform: translateY(-1px);
+   border-color: #c8d7ee;
+   box-shadow: 0 8px 16px rgba(29, 56, 104, 0.08);
 }
 
-.users-pagination-nav .enterprise-pagination .page-item.active .page-link {
-   background: #5967d8 !important;
-   border-color: #5967d8 !important;
-   color: #ffffff !important;
-   box-shadow: none !important;
+.pager-btn.active {
+   border-color: #ff6f6f;
+   color: #e04f4f;
+   box-shadow: inset 0 0 0 1px rgba(224, 79, 79, 0.08);
 }
 
-.users-pagination-nav .enterprise-pagination .page-item.disabled .page-link {
-   background: transparent !important;
-   border-color: transparent !important;
-   color: #aab4c6 !important;
-   opacity: 0.7;
+.pager-btn:disabled {
+   opacity: 0.45;
+   cursor: not-allowed;
 }
 
 .users-modal-backdrop {
@@ -1574,10 +1655,6 @@ body.enterprise-dark .users-table-wrap {
    border-color: rgba(82, 99, 128, 0.78) !important;
 }
 
-body.enterprise-dark .users-table thead {
-   background: #111b2a !important;
-}
-
 body.enterprise-dark .users-table thead th {
    border-color: rgba(82, 99, 128, 0.72) !important;
    color: #aab4c6 !important;
@@ -1589,6 +1666,10 @@ body.enterprise-dark .users-table tbody tr {
 
 body.enterprise-dark .users-table tbody tr:hover {
    background: rgba(30, 41, 59, 0.58) !important;
+}
+
+body.enterprise-dark .head-label i {
+   color: #8ea0bb !important;
 }
 
 body.enterprise-dark .users-state.activo {
@@ -1633,6 +1714,39 @@ body.enterprise-dark .users-icon-btn-success {
    color: #86efac !important;
 }
 
+body.enterprise-dark .users-table-footer {
+   background: #101827 !important;
+   border-color: rgba(82, 99, 128, 0.72) !important;
+}
+
+body.enterprise-dark .footer-copy {
+   color: #aab4c6 !important;
+}
+
+body.enterprise-dark .pager-btn {
+   background: transparent !important;
+   border-color: rgba(82, 99, 128, 0.42) !important;
+   color: #94a3b8 !important;
+   box-shadow: none !important;
+}
+
+body.enterprise-dark .pager-btn:hover:not(:disabled) {
+   background: rgba(89, 103, 216, 0.16) !important;
+   border-color: rgba(129, 140, 248, 0.24) !important;
+   color: #e0e7ff !important;
+}
+
+body.enterprise-dark .pager-btn.active {
+   background: #5967d8 !important;
+   border-color: #5967d8 !important;
+   color: #ffffff !important;
+}
+
+body.enterprise-dark .pager-btn:disabled {
+   color: #5f6f86 !important;
+   opacity: 1;
+}
+
 body.enterprise-dark .users-modal-backdrop {
    background: rgba(3, 7, 18, 0.68) !important;
 }
@@ -1671,37 +1785,6 @@ body.enterprise-dark .users-swal-cancel {
    color: #cbd5e1;
 }
 
-body.enterprise-dark .users-pagination-nav .enterprise-pagination {
-   background: #101827 !important;
-   border-color: rgba(82, 99, 128, 0.72) !important;
-}
-
-body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-link {
-   background: transparent !important;
-   border-color: transparent !important;
-   color: #94a3b8 !important;
-   box-shadow: none !important;
-}
-
-body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-link:hover {
-   background: rgba(89, 103, 216, 0.16) !important;
-   border-color: rgba(129, 140, 248, 0.24) !important;
-   color: #e0e7ff !important;
-}
-
-body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-item.active .page-link {
-   background: #5967d8 !important;
-   border-color: #5967d8 !important;
-   color: #ffffff !important;
-}
-
-body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-item.disabled .page-link {
-   background: transparent !important;
-   border-color: transparent !important;
-   color: #5f6f86 !important;
-   opacity: 1;
-}
-
 @media (max-width: 991px) {
    .users-hero-head {
       flex-direction: column;
@@ -1737,6 +1820,16 @@ body.enterprise-dark .users-pagination-nav .enterprise-pagination .page-item.dis
 
    .users-action-group {
       justify-content: flex-start;
+   }
+
+   .users-table-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+   .users-pager {
+      justify-content: center;
+      flex-wrap: wrap;
    }
 
    .users-modal {

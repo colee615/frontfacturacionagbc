@@ -69,8 +69,8 @@
                               <i class="fas fa-trash" aria-hidden="true"></i>
                            </button>
                         </div>
-                        <div class="table-responsive p-0" style="min-height: 30vh">
-                           <table class="table align-items-center justify-content-center mb-0">
+                        <div class="table-responsive p-0 enterprise-table-wrap" style="min-height: 30vh">
+                           <table class="table align-items-center justify-content-center mb-0 enterprise-table">
                               <thead>
                                  <tr>
                                     <th
@@ -178,8 +178,8 @@
                               <div class="col-12">
                                  <div class="card gold-inner-card">
                                     <div class="card-body">
-                                       <div class="table-responsive">
-                                          <table class="table table-striped table-bordered"
+                                       <div class="table-responsive enterprise-table-wrap">
+                                          <table class="table table-striped table-bordered enterprise-table"
                                              v-if="filteredClientes.length > 0">
                                              <thead>
                                                 <tr>
