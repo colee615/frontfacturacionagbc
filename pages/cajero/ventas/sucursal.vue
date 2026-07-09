@@ -926,6 +926,7 @@ export default {
     statusPillClass(venta) {
       const label = this.emissionStateLabel(venta).toUpperCase();
       if (label.includes('FACTURADA') || label.includes('PAGADO')) return 'status-pill-success';
+      if (label.includes('ANULAD')) return 'status-pill-dark';
       if (label.includes('PENDIENTE')) return 'status-pill-warning';
       if (label.includes('RECHAZ')) return 'status-pill-danger';
       if (label.includes('ERROR')) return 'status-pill-dark';
