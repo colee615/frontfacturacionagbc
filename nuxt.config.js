@@ -9,7 +9,7 @@
   },
  
   head: {
-    title: 'POS',
+    title: 'SAFE',
     htmlAttrs: {
       lang: 'en'
     },

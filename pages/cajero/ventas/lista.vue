@@ -20,22 +20,6 @@
               <div class="filters-divider"></div>
 
               <label class="select-field">
-                <span>Fecha inicio</span>
-                <input
-                  v-model="filters.fechaInicio"
-                  type="date"
-                />
-              </label>
-
-              <label class="select-field">
-                <span>Fecha fin</span>
-                <input
-                  v-model="filters.fechaFin"
-                  type="date"
-                />
-              </label>
-
-              <label class="select-field">
                 <span>Código sucursal</span>
                 <input
                   v-model="filters.codigoSucursal"
@@ -60,10 +44,6 @@
                 <span>Limpiar filtros</span>
               </button>
 
-              <button class="btn-clean btn-export" type="button" @click="downloadKardexPdf">
-                <i class="fa fa-file-pdf-o"></i>
-                <span>Exportar PDF</span>
-              </button>
             </div>
           </section>
 
@@ -115,12 +95,6 @@
                     </th>
                     <th>
                       <span class="head-label">
-                        <i class="fa fa-money"></i>
-                        <span>Total vendido</span>
-                      </span>
-                    </th>
-                    <th>
-                      <span class="head-label">
                         <i class="fa fa-clock-o"></i>
                         <span>Última venta</span>
                       </span>
@@ -151,13 +125,10 @@
                     </td>
 
                     <td>
-                      <div class="manager-cell">
+                      <button class="manager-cell manager-cell-btn" type="button" @click="loadUsersModal(item)">
                         <strong>{{ item.cajerosUnicos }} usuario(s)</strong>
-                      </div>
-                    </td>
-
-                    <td>
-                      <strong class="amount-text">{{ formatCurrency(item.totalVendido) }}</strong>
+                        <small>Ver usuarios</small>
+                      </button>
                     </td>
 
                     <td>
@@ -178,6 +149,52 @@
             </div>
           </section>
         </div>
+
+        <div v-if="activeUsersModal" class="detail-modal-backdrop" @click.self="closeUsersModal">
+          <div class="detail-modal-card users-modal-card">
+            <div class="detail-modal-head">
+              <div class="users-modal-head-copy">
+                <p class="detail-kicker mb-1">Usuarios de la sucursal</p>
+                <h3>{{ activeUsersModal.title }}</h3>
+                <p class="detail-copy mb-0">{{ activeUsersModal.subtitle }}</p>
+              </div>
+              <button type="button" class="detail-modal-close" @click="closeUsersModal">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div class="users-modal-summary">
+              
+              <div class="users-summary-pill users-summary-pill-accent">
+                <span>Usuarios</span>
+                <strong>{{ activeUsersModal.users.length }}</strong>
+              </div>
+            </div>
+
+            <div v-if="activeUsersModal.loading" class="empty-state users-modal-empty">
+              <h3>Cargando usuarios</h3>
+              <p>Estamos consultando los usuarios registrados para esta sucursal.</p>
+            </div>
+
+            <div v-else-if="activeUsersModal.users.length" class="users-modal-list">
+              <div v-for="user in activeUsersModal.users" :key="user.key" class="users-modal-item">
+                <div class="users-modal-item-main">
+                  <strong>{{ user.nombre }}</strong>
+                  <small>{{ user.detalle }}</small>
+                </div>
+                <div class="users-modal-item-meta">
+                  <span>{{ user.rol }}</span>
+                  <small>{{ user.ultimaVenta || 'Sin ventas registradas' }}</small>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state users-modal-empty">
+              <h3>Sin detalle disponible</h3>
+              <p>{{ activeUsersModal.error || 'No encontramos la lista de usuarios para esta sucursal.' }}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </AdminTemplate>
   </div>
@@ -194,8 +211,6 @@ export default {
       isSyncingFilters: false,
       searchTimer: null,
       filters: {
-        fechaInicio: '',
-        fechaFin: '',
         codigoSucursal: '',
         puntoVenta: '',
         q: '',
@@ -211,7 +226,8 @@ export default {
           pendientes: 0
         },
         sucursales: []
-      }
+      },
+      activeUsersModal: null
     };
   },
   mounted() {
@@ -224,12 +240,6 @@ export default {
   },
   watch: {
     'filters.q'() {
-      this.scheduleLoadReport();
-    },
-    'filters.fechaInicio'() {
-      this.scheduleLoadReport();
-    },
-    'filters.fechaFin'() {
       this.scheduleLoadReport();
     },
     'filters.codigoSucursal'() {
@@ -290,8 +300,6 @@ export default {
       }
 
       this.filters = {
-        fechaInicio: '',
-        fechaFin: '',
         codigoSucursal: '',
         puntoVenta: '',
         q: '',
@@ -304,8 +312,6 @@ export default {
       this.$router.push({
         path: '/cajero/ventas/sucursal',
         query: {
-          fechaInicio: this.filters.fechaInicio || '',
-          fechaFin: this.filters.fechaFin || '',
           codigoSucursal: item.codigoSucursal ?? '',
           puntoVenta: item.puntoVenta ?? '',
           nombre: item.nombre || '',
@@ -313,53 +319,138 @@ export default {
         }
       });
     },
-    async downloadKardexPdf() {
-      this.load = true;
+    openUsersModal(item) {
+      this.activeUsersModal = {
+        title: item.departamento || item.nombre || 'Sucursal',
+        subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
+        codigoSucursal: item.codigoSucursal ?? 0,
+        puntoVenta: item.puntoVenta ?? 0,
+        users: this.resolveBranchUsers(item)
+      };
+    },
+    closeUsersModal() {
+      this.activeUsersModal = null;
+    },
+    resolveBranchUsers(item) {
+      const sources = [
+        item?.cajeros,
+        item?.usuarios,
+        item?.users,
+        item?.facturadores,
+        item?.detalleCajeros,
+        item?.cajerosDetalle,
+        item?.usuariosDetalle
+      ];
+
+      const source = sources.find((value) => Array.isArray(value) && value.length);
+      if (!source) {
+        return [];
+      }
+
+      return source.map((user, index) => {
+        if (typeof user === 'string') {
+          return {
+            key: `${item.id || 'branch'}-${index}`,
+            nombre: user,
+            detalle: 'Usuario registrado',
+            rol: 'Cajero'
+          };
+        }
+
+        const nombre = user?.nombre || user?.name || user?.alias || user?.username || user?.usuario || user?.email || 'Sin nombre';
+        const detalle = user?.detalle || user?.descripcion || user?.documentoIdentidad || user?.documento || user?.correo || user?.email || 'Sin detalle';
+        const rol = user?.rol || user?.role || user?.cargo || 'Cajero';
+
+        return {
+          key: user?.id || user?.codigo || `${item.id || 'branch'}-${index}`,
+          nombre,
+          detalle,
+          rol
+        };
+      });
+    },
+    async loadUsersModal(item) {
+      const modalKey = `${item.codigoSucursal ?? 0}-${item.puntoVenta ?? 0}`;
+      this.activeUsersModal = {
+        title: item.departamento || item.nombre || 'Sucursal',
+      
+        users: this.resolveBranchUsers(item),
+        loading: true,
+        error: '',
+        key: modalKey
+      };
 
       try {
-        const params = {};
-        Object.keys(this.filters).forEach((key) => {
-          const value = this.filters[key];
-          if (value !== '' && value !== null && value !== undefined) {
-            params[key] = value;
+        const response = await this.$admin.$get(
+          `ventas/reportes/sucursales/usuarios?codigoSucursal=${encodeURIComponent(item.codigoSucursal ?? 0)}&puntoVenta=${encodeURIComponent(item.puntoVenta ?? 0)}`
+        );
+        const source = Array.isArray(response?.usuarios)
+          ? response.usuarios
+          : (
+            Array.isArray(response?.data?.usuarios)
+              ? response.data.usuarios
+              : (Array.isArray(response?.users) ? response.users : (Array.isArray(response) ? response : []))
+          );
+
+        const users = source.map((user, index) => {
+          if (typeof user === 'string') {
+            return {
+              key: `${item.id || 'branch'}-${index}`,
+              nombre: user,
+              detalle: 'Usuario registrado',
+              rol: 'Cajero',
+              ultimaVenta: '-'
+            };
           }
+
+          const nombre = user?.usuarioNombre
+            || user?.nombre
+            || user?.name
+            || user?.alias
+            || user?.username
+            || user?.usuario
+            || user?.usuarioEmail
+            || user?.email
+            || 'Sin nombre';
+          const detalleParts = [
+            user?.usuarioAlias,
+            user?.alias,
+            user?.usuarioEmail,
+            user?.email,
+            user?.usuarioCarnet,
+            user?.carnet
+          ].filter(Boolean);
+
+          return {
+            key: user?.usuarioId || user?.id || user?.codigo || `${item.id || 'branch'}-${index}`,
+            nombre,
+            detalle: detalleParts.length ? detalleParts.join(' · ') : 'Sin detalle',
+            rol: user?.rol || user?.role || user?.cargo || (user?.cantidadVentas !== undefined ? 'Usuario' : 'Cajero'),
+            ultimaVenta: this.formatDate(user?.ultimaVenta || user?.ultima_venta || user?.lastSaleAt || user?.ultimaVentaAt)
+          };
         });
 
-        const response = await this.$admin.get('ventas/reportes/kardex-pdf', {
-          params,
-          responseType: 'blob'
-        });
-
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        const disposition = response.headers['content-disposition'] || '';
-        const filenameMatch = disposition.match(/filename=\"?([^"]+)\"?/i);
-
-        link.href = url;
-        link.download = filenameMatch ? filenameMatch[1] : 'kardex-facturacion.pdf';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
+        if (this.activeUsersModal && this.activeUsersModal.key === modalKey) {
+          this.activeUsersModal = {
+            ...this.activeUsersModal,
+            users: users.length ? users : this.resolveBranchUsers(item),
+            loading: false,
+            error: users.length ? '' : 'La API no devolvió usuarios para esta sucursal.'
+          };
+        }
       } catch (err) {
-        const message = err?.response?.data?.message
-          ? err.response.data.message
-          : 'No se pudo descargar el kardex PDF.';
-
-        this.$swal.fire({
-          icon: 'error',
-          title: 'Descarga no disponible',
-          text: message,
-          confirmButtonText: 'Entendido'
-        });
-      } finally {
-        this.load = false;
+        if (this.activeUsersModal && this.activeUsersModal.key === modalKey) {
+          const fallbackUsers = this.resolveBranchUsers(item);
+          this.activeUsersModal = {
+            ...this.activeUsersModal,
+            users: fallbackUsers,
+            loading: false,
+            error: fallbackUsers.length
+              ? 'No se pudo consultar la API, se muestran los datos disponibles en el reporte.'
+              : (err?.response?.data?.message || 'No se pudo cargar la lista de usuarios de la sucursal.')
+          };
+        }
       }
-    },
-    formatCurrency(value) {
-      const amount = Number(value || 0);
-      return `Bs ${amount.toFixed(2)}`;
     },
     formatDate(value) {
       if (!value) {
@@ -407,9 +498,9 @@ export default {
   padding: 0.95rem 1.1rem;
 }
 
-.filters-row {
+  .filters-row {
   display: grid;
-  grid-template-columns: minmax(280px, 2fr) 1px repeat(4, minmax(150px, 1fr)) auto;
+  grid-template-columns: minmax(280px, 2fr) 1px repeat(2, minmax(150px, 1fr)) auto;
   gap: 1rem;
   align-items: end;
 }
@@ -491,15 +582,6 @@ export default {
 .btn-clean:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 18px rgba(27, 52, 92, 0.08);
-}
-
-.btn-export {
-  border-color: #f3d0d6;
-  color: #b42318;
-}
-
-.btn-export:hover {
-  background: #fff6f6;
 }
 
 .table-card,
@@ -587,6 +669,21 @@ export default {
   gap: 0.2rem;
 }
 
+.manager-cell-btn {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.manager-cell-btn small {
+  color: #6f7c92;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .branch-main strong,
 .manager-cell strong,
 .schedule-cell strong,
@@ -637,6 +734,160 @@ export default {
   color: #6f7c92;
 }
 
+.detail-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.detail-modal-card {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow: hidden;
+  background: #fff;
+  border-radius: 24px;
+  border: 1px solid #dfe7f2;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-modal-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detail-modal-head h3 {
+  margin: 0;
+  color: #1d3360;
+  font-size: 1.45rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.detail-modal-close {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #dde4ef;
+  background: #fff;
+  color: #40506f;
+}
+
+.users-modal-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.users-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 1.1rem;
+}
+
+.users-summary-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 110px;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #e5ebf4;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbfcfe 0%, #f6f8fc 100%);
+}
+
+.users-summary-pill span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8490a8;
+}
+
+.users-summary-pill strong {
+  color: #223658;
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.users-summary-pill-accent {
+  background: linear-gradient(180deg, #edf3ff 0%, #e7efff 100%);
+  border-color: #d9e4fb;
+}
+
+.users-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  max-height: min(52vh, 460px);
+  padding-right: 0.25rem;
+}
+
+.users-modal-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.15rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid #edf1f6;
+  border-radius: 16px;
+  background: #fdfefe;
+}
+
+.users-modal-item-main {
+  min-width: 0;
+}
+
+.users-modal-item strong {
+  display: block;
+  color: #223658;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.users-modal-item small {
+  display: block;
+  color: #6f7c92;
+  line-height: 1.35;
+}
+
+.users-modal-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.users-modal-item span {
+  flex-shrink: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #52607a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.users-modal-item-meta small {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.users-modal-empty {
+  padding: 0.9rem 0.4rem 0.4rem;
+}
+
 @media (max-width: 1280px) {
   .filters-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -648,6 +899,54 @@ export default {
 }
 
 @media (max-width: 991px) {
+  .detail-modal-backdrop {
+    padding: 0.9rem;
+    align-items: stretch;
+  }
+
+  .detail-modal-card {
+    width: 100%;
+    max-height: calc(100vh - 1.8rem);
+    padding: 1rem;
+    border-radius: 20px;
+  }
+
+  .detail-modal-head {
+    align-items: flex-start;
+  }
+
+  .detail-modal-head h3 {
+    font-size: 1.25rem;
+  }
+
+  .users-modal-summary {
+    gap: 0.6rem;
+  }
+
+  .users-summary-pill {
+    min-width: calc(33.333% - 0.5rem);
+    flex: 1 1 0;
+  }
+
+  .users-modal-list {
+    max-height: calc(100vh - 16rem);
+  }
+
+  .users-modal-item {
+    flex-direction: column;
+  }
+
+  .users-modal-item-meta {
+    align-items: flex-start;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .users-modal-item-meta small {
+    white-space: normal;
+    text-align: left;
+  }
+
   .filters-row {
     grid-template-columns: 1fr;
   }

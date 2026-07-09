@@ -344,6 +344,15 @@
                         <td><strong class="amount-text">{{ formatCurrency(venta.total) }}</strong></td>
                         <td>
                           <div class="table-actions">
+                            <button
+                              v-if="canAnularVenta(venta)"
+                              class="action-danger-btn"
+                              type="button"
+                              @click="anularVenta(venta)"
+                            >
+                              <i class="fas fa-ban"></i>
+                              <span>Anular</span>
+                            </button>
                             <button class="action-view-btn" type="button" @click="openVentaDetail(venta)">
                               <i class="fas fa-eye"></i>
                               <span>Detalle</span>
@@ -928,6 +937,144 @@ export default {
     pdfOriginalUrl(venta) {
       const response = venta?.respuesta_emision || {};
       return response?.factura?.pdfUrl || response?.pdfUrl || '';
+    },
+    canAnularVenta(venta) {
+      return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
+    },
+    async fetchAnulacionGuardStatus() {
+      try {
+        const response = await this.$admin.$get('ventas/anulacion/guard-status');
+        return response?.guard || null;
+      } catch (error) {
+        return null;
+      }
+    },
+    async promptSupervisorAuthorization() {
+      const { value } = await this.$swal.fire({
+        title: 'Autorizacion requerida',
+        html: `
+          <div class="text-left">
+            <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar anulacion temporal.</p>
+            <label class="d-block small font-weight-bold mb-1">Correo supervisor</label>
+            <input id="auth-supervisor-email" class="swal2-input" type="email" placeholder="supervisor@dominio.com">
+            <label class="d-block small font-weight-bold mt-3 mb-1">Contrasena supervisor</label>
+            <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contrasena">
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Autorizar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          const supervisor_email = document.getElementById('auth-supervisor-email')?.value?.trim();
+          const supervisor_password = document.getElementById('auth-supervisor-password')?.value || '';
+          if (!supervisor_email || !supervisor_password) {
+            this.$swal.showValidationMessage('Correo y contrasena del supervisor son obligatorios.');
+            return false;
+          }
+          return { supervisor_email, supervisor_password, duracion_minutos: 15 };
+        }
+      });
+
+      return value || null;
+    },
+    async ensureAnulacionAuthorization() {
+      const roles = this.$store?.state?.auth?.roles || [];
+      const permissions = this.$store?.state?.auth?.permissions || [];
+      const isHigherRole =
+        (Array.isArray(roles) && roles.some((r) => ['admin', 'administrador', 'supervisor'].includes(String(r).toLowerCase())))
+        || (Array.isArray(permissions) && permissions.some((p) => ['rbac.manage', 'usuarios.manage', 'ventas.manage'].includes(String(p).toLowerCase())));
+      if (isHigherRole) return true;
+
+      const guard = await this.fetchAnulacionGuardStatus();
+      if (guard?.allowed) return true;
+
+      const credentials = await this.promptSupervisorAuthorization();
+      if (!credentials) return false;
+
+      try {
+        const response = await this.$admin.$post('ventas/anulacion/autorizar', credentials);
+        await this.notifyAnulacion('success', 'Autorizacion concedida', response?.message || 'Anulacion habilitada temporalmente.');
+        return true;
+      } catch (error) {
+        const data = error?.response?.data || {};
+        const message = data.message || data.error || 'No se pudo validar autorizacion de supervisor.';
+        await this.notifyAnulacion('error', 'Autorizacion rechazada', message);
+        return false;
+      }
+    },
+    async promptAnulacion() {
+      const { value } = await this.$swal.fire({
+        title: 'Anular factura',
+        html: `
+          <div class="protocol-annul-form">
+            <label class="protocol-annul-label" for="annul-motivo">Motivo</label>
+            <input id="annul-motivo" class="swal2-input protocol-annul-input" value="Datos erroneos en la factura">
+            <label class="protocol-annul-label" for="annul-tipo">Tipo de anulacion</label>
+            <select id="annul-tipo" class="swal2-select protocol-annul-select">
+              <option value="1">1 - Factura mal emitida</option>
+              <option value="2">2 - Nota credito-debito mal emitida</option>
+              <option value="3" selected>3 - Datos de emision incorrectos</option>
+              <option value="4">4 - Factura o nota devuelta</option>
+            </select>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar anulacion',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+          const motivo = document.getElementById('annul-motivo')?.value?.trim();
+          const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
+          if (!motivo) {
+            this.$swal.showValidationMessage('El motivo es obligatorio.');
+            return false;
+          }
+          return { motivo, tipoAnulacion };
+        }
+      });
+
+      return value || null;
+    },
+    async anularVenta(venta) {
+      if (!this.canAnularVenta(venta)) {
+        await this.notifyAnulacion('warning', 'No disponible', 'Solo se puede anular una factura procesada y con CUF.');
+        return;
+      }
+
+      const authorized = await this.ensureAnulacionAuthorization();
+      if (!authorized) return;
+
+      const payload = await this.promptAnulacion();
+      if (!payload) return;
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
+        await this.notifyAnulacion('success', 'Solicitud enviada', response?.message || 'La anulacion fue recepcionada correctamente.');
+        await this.loadVentas();
+        if (this.activeDetailVenta?.id === venta.id) {
+          this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
+        }
+      } catch (error) {
+        const data = error?.response?.data || {};
+        const message = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulacion.';
+        await this.notifyAnulacion('error', 'No se pudo anular', message);
+      } finally {
+        this.load = false;
+      }
+    },
+    notifyAnulacion(icon, title, text = '') {
+      return this.$swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        icon,
+        title,
+        text,
+        timer: icon === 'error' ? 4200 : 2400,
+        timerProgressBar: true
+      });
     },
     openVentaDetail(venta) {
       this.activeDetailVenta = venta;
@@ -1651,6 +1798,21 @@ export default {
   color: #40506f;
   font-weight: 700;
   text-decoration: none;
+}
+
+.action-danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 86px;
+  height: 38px;
+  padding: 0 0.85rem;
+  border: 1px solid #f3c7c7;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #b42318;
+  font-weight: 700;
 }
 
 .status-pill-success {
