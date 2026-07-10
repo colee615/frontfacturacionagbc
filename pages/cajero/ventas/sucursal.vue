@@ -1,62 +1,24 @@
-<template>
+﻿<template>
   <div>
     <JcLoader :load="load" />
     <AdminTemplate :page="page" :modulo="modulo">
       <div slot="body" class="branch-dashboard-page enterprise-page-shell">
-        <section class="branch-hero-card enterprise-filter-card">
-          <div class="branch-hero-head">
-            <div>
-              <p class="branch-kicker">Dashboard de ventas por usuario</p>
-              <h2 class="branch-title">{{ branchLabel }}</h2>
-              <p class="branch-copy">
-                Código sucursal {{ filters.codigoSucursal || 'N/D' }} · Punto de venta {{ filters.puntoVenta || 'N/D' }}
-              </p>
-            </div>
-
-            <div class="branch-hero-actions">
-              <button class="hero-back-btn" type="button" @click="$router.push('/cajero/ventas/lista')">
-                <i class="fas fa-arrow-left"></i>
-                <span>Volver</span>
-              </button>
-              <button class="hero-back-btn hero-export-btn" type="button" @click="downloadKardexPdf">
-                <i class="fas fa-file-pdf"></i>
-                <span>Exportar PDF</span>
-              </button>
-              <div class="branch-hero-badge">
-                <i class="fas fa-users"></i>
-                <span>{{ visibleVentas.length }} ventas</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="branch-filter-grid">
-            <label class="branch-filter-field">
-              <span>Fecha inicio</span>
-              <input v-model="filters.fechaInicio" type="date" />
-            </label>
-            <label class="branch-filter-field">
-              <span>Fecha fin</span>
-              <input v-model="filters.fechaFin" type="date" />
-            </label>
-          </div>
-        </section>
-
-        <section class="stats-grid">
+                <section class="stats-grid">
           <div class="stat-card stat-card-red">
             <div class="stat-icon"><i class="fas fa-tag"></i></div>
             <div class="stat-copy">
-              <span>Ventas totales</span>
-              <strong>{{ formatCurrency(summary.total) }}</strong>
-              <small>{{ summary.count }} transacciones</small>
+              <span>Total general</span>
+              <strong>{{ formatCurrency(summary.totalGeneral) }}</strong>
+              <small>{{ summary.countCobrado }} transacciones cobradas</small>
             </div>
           </div>
 
           <div class="stat-card stat-card-green">
             <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
             <div class="stat-copy">
-              <span>Total facturado</span>
-              <strong>{{ formatCurrency(summary.total) }}</strong>
-              <small>Ventas de la sucursal</small>
+              <span>Total caja</span>
+              <strong>{{ formatCurrency(summary.totalCaja) }}</strong>
+              <small>No incluye QR</small>
             </div>
           </div>
 
@@ -73,7 +35,7 @@
             <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
             <div class="stat-copy">
               <span>Promedio</span>
-              <strong>{{ formatCurrency(summary.count ? summary.total / summary.count : 0) }}</strong>
+              <strong>{{ formatCurrency(summary.countCobrado ? summary.totalGeneral / summary.countCobrado : 0) }}</strong>
               <small>Por venta</small>
             </div>
           </div>
@@ -89,7 +51,7 @@
             <aside class="branch-selector-card enterprise-content-card">
               <div class="selector-head">
                 <div>
-                  <p class="detail-kicker mb-2">Paso 2 · Kardex por usuario</p>
+                  <p class="detail-kicker mb-2">Paso 2 Â· Kardex por usuario</p>
                   <h3 class="mb-1">Facturadores</h3>
                   <p class="detail-copy mb-0">Primero eliges la sucursal y luego revisas el kardex por cajero.</p>
                 </div>
@@ -120,7 +82,7 @@
                   @click="selectUser(user.id)"
                 >
                   <span class="selector-name">{{ user.nombre }}</span>
-                  <small>{{ user.ventas }} venta(s) · {{ formatCurrency(user.total) }}</small>
+                  <small>{{ user.ventas }} venta(s) Â· {{ formatCurrency(user.total) }}</small>
                 </button>
               </div>
             </aside>
@@ -161,6 +123,17 @@
                   <i class="fas fa-user"></i>
                   <span>{{ activeUserLabel }}</span>
                 </div>
+
+                <div class="branch-toolbar-actions">
+                  <button
+                    type="button"
+                    class="branch-export-btn"
+                    @click="downloadKardexPdf"
+                  >
+                    <i class="fas fa-file-pdf"></i>
+                    <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
+                  </button>
+                </div>
               </div>
 
               <div v-if="activeTab === 'resumen'" class="branch-summary-grid">
@@ -169,26 +142,31 @@
                   <strong>{{ filteredVentas.length }}</strong>
                 </div>
                 <div class="branch-summary-card">
-                  <span>Total filtrado</span>
-                  <strong>{{ formatCurrency(summary.total) }}</strong>
+                  <span>Total general</span>
+                  <strong>{{ formatCurrency(summary.totalGeneral) }}</strong>
                 </div>
                 <div class="branch-summary-card">
                   <span>Usuarios visibles</span>
                   <strong>{{ filteredUserSummaries.length }}</strong>
                 </div>
                 <div class="branch-summary-card">
-                  <span>Promedio</span>
-                  <strong>{{ formatCurrency(summary.count ? summary.total / summary.count : 0) }}</strong>
+                  <span>Total caja</span>
+                  <strong>{{ formatCurrency(summary.totalCaja) }}</strong>
                 </div>
                 <div class="branch-summary-card">
-                  <span>Factura electrónica</span>
+                  <span>Factura electrÃ³nica</span>
                   <strong>{{ deliverySummary.factura_electronica.count }}</strong>
                   <small>{{ formatCurrency(deliverySummary.factura_electronica.total) }}</small>
                 </div>
                 <div class="branch-summary-card">
-                  <span>QR</span>
-                  <strong>{{ deliverySummary.qr.count }}</strong>
-                  <small>{{ formatCurrency(deliverySummary.qr.total) }}</small>
+                  <span>QR facturado</span>
+                  <strong>{{ deliverySummary.qr_facturado.count }}</strong>
+                  <small>{{ formatCurrency(deliverySummary.qr_facturado.total) }}</small>
+                </div>
+                <div class="branch-summary-card">
+                  <span>QR pendiente / pago</span>
+                  <strong>{{ deliverySummary.qr_pagado_pendiente_factura.count }}</strong>
+                  <small>{{ formatCurrency(deliverySummary.qr_pagado_pendiente_factura.total) }}</small>
                 </div>
                 <div class="branch-summary-card">
                   <span>Registro oficial</span>
@@ -203,9 +181,10 @@
                     <tr>
                       <th>Cajero</th>
                       <th>Ventas</th>
-                      <th>Total</th>
-                      <th>Factura electrónica</th>
-                      <th>Total factura electrónica</th>
+                      <th>Total general</th>
+                      <th>Total caja</th>
+                      <th>Factura electrÃ³nica</th>
+                      <th>Total factura electrÃ³nica</th>
                       <th>QR</th>
                       <th>Total QR</th>
                     </tr>
@@ -215,13 +194,14 @@
                       <td><strong>{{ user.nombre }}</strong></td>
                       <td>{{ user.ventas }}</td>
                       <td><strong class="amount-text">{{ formatCurrency(user.total) }}</strong></td>
+                      <td>{{ formatCurrency(user.totalCaja) }}</td>
                       <td>{{ user.deliveries.factura_electronica.count }}</td>
                       <td>{{ formatCurrency(user.deliveries.factura_electronica.total) }}</td>
-                      <td>{{ user.deliveries.qr.count }}</td>
-                      <td>{{ formatCurrency(user.deliveries.qr.total) }}</td>
+                      <td>{{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}</td>
+                      <td>{{ formatCurrency(user.deliveries.qr_facturado.total + user.deliveries.qr_pagado_pendiente_factura.total + user.deliveries.qr_pendiente.total + user.deliveries.qr_cancelado.total) }}</td>
                     </tr>
                     <tr v-if="!filteredUserSummaries.length">
-                      <td colspan="7" class="empty-state-cell">No hay cajeros visibles para el rango seleccionado.</td>
+                      <td colspan="8" class="empty-state-cell">No hay cajeros visibles para el rango seleccionado.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -235,7 +215,7 @@
                       <div>
                         <strong>{{ user.nombre }}</strong>
                         <small>
-                          {{ user.ventas }} venta(s) · Factura electrónica {{ user.deliveries.factura_electronica.count }} · QR {{ user.deliveries.qr.count }}
+                          {{ user.ventas }} venta(s) Â· Factura electrÃ³nica {{ user.deliveries.factura_electronica.count }} Â· QR {{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}
                         </small>
                       </div>
                       <strong>{{ formatCurrency(user.total) }}</strong>
@@ -254,7 +234,7 @@
                   <div class="detail-filters">
                     <label class="detail-filter-field detail-filter-field-search">
                       <i class="fas fa-search"></i>
-                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por código, cliente o seguimiento..." />
+                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por cÃ³digo, cliente o seguimiento..." />
                     </label>
                     <label class="detail-filter-field">
                       <span>Estado</span>
@@ -266,7 +246,7 @@
                       </select>
                     </label>
                     <label class="detail-filter-field">
-                      <span>Emisión</span>
+                      <span>EmisiÃ³n</span>
                       <select v-model="detailFilters.estadoEmision">
                         <option value="all">Todos</option>
                         <option value="FACTURADA">Facturada</option>
@@ -291,9 +271,9 @@
                     <thead>
                       <tr>
                         <th>Fecha</th>
-                        <th>Código orden</th>
+                        <th>CÃ³digo orden</th>
                         <th>Cliente</th>
-                        <th>Facturación</th>
+                        <th>FacturaciÃ³n</th>
                         <th>Estado</th>
                         <th>Items</th>
                         <th>Monto</th>
@@ -341,9 +321,42 @@
                           </div>
                         </td>
                         <td><strong>{{ ventaItemsCount(venta) }}</strong></td>
-                        <td><strong class="amount-text">{{ formatCurrency(venta.total) }}</strong></td>
+                        <td>
+                          <div class="cell-stack">
+                            <strong class="amount-text">{{ formatCurrency(venta.total) }}</strong>
+                            <small v-if="isQrPaymentVenta(venta)">Origen de cobro: QR</small>
+                            <small v-if="isQrFacturadoVenta(venta)">QR facturado fuera de caja</small>
+                          </div>
+                        </td>
                         <td>
                           <div class="table-actions">
+                            <button
+                              v-if="canViewQr(venta)"
+                              class="action-secondary-btn"
+                              type="button"
+                              @click="consultarQrVenta(venta, false)"
+                            >
+                              <i class="fas fa-qrcode"></i>
+                              <span>Ver QR</span>
+                            </button>
+                            <button
+                              v-else-if="canFacturarQrVenta(venta)"
+                              class="action-secondary-btn"
+                              type="button"
+                              @click="consultarQrVenta(venta, true)"
+                            >
+                              <i class="fas fa-file-invoice"></i>
+                              <span>Facturar venta</span>
+                            </button>
+                            <button
+                              v-if="canCancelarQrVenta(venta)"
+                              class="action-danger-btn"
+                              type="button"
+                              @click="cancelarPagoQrVenta(venta)"
+                            >
+                              <i class="fas fa-ban"></i>
+                              <span>Cancelar pago</span>
+                            </button>
                             <button
                               v-if="canAnularVenta(venta)"
                               class="action-danger-btn"
@@ -438,7 +451,7 @@
               <table class="sales-table enterprise-table">
                 <thead>
                   <tr>
-                    <th>Código</th>
+                    <th>CÃ³digo</th>
                     <th>Detalle</th>
                     <th>Cantidad</th>
                     <th>Total</th>
@@ -494,6 +507,7 @@ export default {
         estadoEmision: 'all'
       },
       activeDetailVenta: null,
+      activeQrVenta: null,
       branchName: '',
       branchDepartment: '',
       ventas: []
@@ -532,7 +546,7 @@ export default {
       this.visibleVentas.forEach((venta) => {
         const id = this.usuarioId(venta);
         const nombre = this.usuarioNombre(venta);
-        const deliveryType = this.resolveDeliveryType(venta);
+        const sectionKey = this.resolveSectionKey(venta);
 
         if (!map.has(id)) {
           map.set(id, {
@@ -540,15 +554,23 @@ export default {
             nombre,
             ventas: 0,
             total: 0,
+            totalCobrado: 0,
+            totalCaja: 0,
             deliveries: this.buildDeliveryAccumulator()
           });
         }
 
         const current = map.get(id);
         current.ventas += 1;
-        current.total += Number(venta.total || 0);
-        current.deliveries[deliveryType.key].count += 1;
-        current.deliveries[deliveryType.key].total += Number(venta.total || 0);
+        if (this.countsTowardCollectedTotal(venta)) {
+          current.total += Number(venta.total || 0);
+          current.totalCobrado += Number(venta.total || 0);
+        }
+        if (this.countsTowardCashTotal(venta)) {
+          current.totalCaja += Number(venta.total || 0);
+        }
+        current.deliveries[sectionKey].count += 1;
+        current.deliveries[sectionKey].total += Number(venta.total || 0);
       });
 
       return Array.from(map.values()).sort((a, b) => b.ventas - a.ventas);
@@ -562,16 +584,22 @@ export default {
     },
     summary() {
       return this.filteredVentas.reduce((acc, venta) => {
-        acc.total += Number(venta.total || 0);
+        if (this.countsTowardCollectedTotal(venta)) {
+          acc.totalGeneral += Number(venta.total || 0);
+          acc.countCobrado += 1;
+        }
+        if (this.countsTowardCashTotal(venta)) {
+          acc.totalCaja += Number(venta.total || 0);
+        }
         acc.count += 1;
         return acc;
-      }, { total: 0, count: 0 });
+      }, { totalGeneral: 0, totalCaja: 0, count: 0, countCobrado: 0 });
     },
     deliverySummary() {
       return this.filteredVentas.reduce((acc, venta) => {
-        const delivery = this.resolveDeliveryType(venta);
-        acc[delivery.key].count += 1;
-        acc[delivery.key].total += Number(venta.total || 0);
+        const sectionKey = this.resolveSectionKey(venta);
+        acc[sectionKey].count += 1;
+        acc[sectionKey].total += Number(venta.total || 0);
         return acc;
       }, this.buildDeliveryAccumulator());
     },
@@ -715,9 +743,80 @@ export default {
     buildDeliveryAccumulator() {
       return {
         factura_electronica: { key: 'factura_electronica', label: 'Factura electronica', count: 0, total: 0 },
-        qr: { key: 'qr', label: 'QR', count: 0, total: 0 },
+        qr_facturado: { key: 'qr_facturado', label: 'QR facturado', count: 0, total: 0 },
+        qr_pagado_pendiente_factura: { key: 'qr_pagado_pendiente_factura', label: 'QR pagado pendiente de factura', count: 0, total: 0 },
+        qr_pendiente: { key: 'qr_pendiente', label: 'QR pendiente', count: 0, total: 0 },
+        qr_cancelado: { key: 'qr_cancelado', label: 'QR cancelado', count: 0, total: 0 },
         oficial: { key: 'oficial', label: 'Registro oficial', count: 0, total: 0 }
       };
+    },
+    isQrPaymentVenta(venta) {
+      return String(venta?.metodo_pago || '').trim().toLowerCase() === 'qr'
+        || String(venta?.canal_emision || '').trim().toLowerCase() === 'qr';
+    },
+    isQrFacturadoVenta(venta) {
+      return this.isQrPaymentVenta(venta)
+        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && String(venta?.estado_emision || '').trim().toUpperCase() === 'FACTURADA';
+    },
+    countsTowardCashTotal(venta) {
+      if (this.isQrPaymentVenta(venta)) {
+        return false;
+      }
+
+      const estado = String(venta?.estado || '').trim().toLowerCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
+
+      if (estadoPago === 'pagado') {
+        return true;
+      }
+
+      if (['FACTURADA', 'EMITIDO'].includes(statusKey)) {
+        return true;
+      }
+
+      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
+        return true;
+      }
+
+      if (estadoEmision === 'FACTURADA') {
+        return true;
+      }
+
+      return estado === 'emitido';
+    },
+    countsTowardCollectedTotal(venta) {
+      if (this.isQrPaymentVenta(venta)) {
+        return String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado';
+      }
+
+      return this.countsTowardCashTotal(venta);
+    },
+    resolveSectionKey(venta) {
+      if (this.isQrPaymentVenta(venta)) {
+        const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
+        const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+
+        if (estadoPago === 'pagado' && estadoEmision === 'FACTURADA') {
+          return 'qr_facturado';
+        }
+
+        if (estadoPago === 'pagado') {
+          return 'qr_pagado_pendiente_factura';
+        }
+
+        if (estadoPago === 'cancelado' || estadoPago === 'fallido') {
+          return 'qr_cancelado';
+        }
+
+        return 'qr_pendiente';
+      }
+
+      const deliveryType = this.resolveDeliveryType(venta);
+      return deliveryType.key;
     },
     resolveDeliveryType(venta) {
       const codigoOrden = String(venta?.codigoOrden || '').trim().toUpperCase();
@@ -729,17 +828,18 @@ export default {
         || ''
       ).trim().toUpperCase();
       const canalEmisionRaw = String(venta?.canal_emision || venta?.canalEmision || '').trim().toLowerCase();
+      const metodoPagoRaw = String(venta?.metodo_pago || venta?.metodoPago || '').trim().toLowerCase();
       const isOficial = Boolean(venta?.es_oficial)
         || codigoOrden.startsWith('OFI-')
         || razonSocial === 'ENVIO OFICIAL'
         || estadoSufeRaw === 'REGISTRADA_OFICIAL';
 
-      if (canalEmisionRaw === 'qr') {
-        return { key: 'qr', label: 'QR' };
-      }
-
       if (canalEmisionRaw === 'oficial') {
         return { key: 'oficial', label: 'Registro oficial' };
+      }
+
+      if (metodoPagoRaw === 'qr' || canalEmisionRaw === 'qr') {
+        return { key: 'qr', label: 'QR' };
       }
 
       if (canalEmisionRaw === 'factura_electronica') {
@@ -892,6 +992,10 @@ export default {
       return Number(venta?.itemsCount || venta?.cantidad || 1);
     },
     deliveryChannelLabel(venta) {
+      if (this.isQrPaymentVenta(venta)) {
+        return 'QR';
+      }
+
       return this.resolveDeliveryType(venta).label;
     },
     facturacionModeLabel(venta) {
@@ -904,10 +1008,11 @@ export default {
     emissionStateLabel(venta) {
       if (this.isCartVenta(venta)) {
         const estado = this.normalizedEstadoEmision(venta);
-        if (this.deliveryChannelLabel(venta) === 'QR' && estado === 'NO_APLICA') {
+        if (this.isQrPaymentVenta(venta)) {
           const pago = String(venta?.estado_pago || '').toLowerCase();
+          if (pago === 'pagado' && estado === 'FACTURADA') return 'QR FACTURADO';
           if (pago === 'pagado') return 'PAGADO QR';
-          if (pago === 'cancelado') return 'QR RECHAZADO';
+          if (pago === 'cancelado' || pago === 'fallido') return 'QR RECHAZADO';
           return 'QR PENDIENTE';
         }
 
@@ -933,7 +1038,7 @@ export default {
       return '';
     },
     channelPillClass(venta) {
-      return this.deliveryChannelLabel(venta) === 'QR' ? 'status-pill-warning' : 'status-pill-neutral';
+      return this.isQrPaymentVenta(venta) ? 'status-pill-warning' : 'status-pill-neutral';
     },
     pdfOriginalUrl(venta) {
       const response = venta?.respuesta_emision || {};
@@ -941,6 +1046,117 @@ export default {
     },
     canAnularVenta(venta) {
       return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
+    },
+    canCancelarQrVenta(venta) {
+      return this.isCartVenta(venta)
+        && this.isQrPaymentVenta(venta)
+        && String(venta?.status?.key || '').trim().toUpperCase() === 'QR_PENDIENTE'
+        && String(venta?.estado_pago || 'pendiente').trim().toLowerCase() === 'pendiente';
+    },
+    canViewQr(venta) {
+      return this.isCartVenta(venta)
+        && this.isQrPaymentVenta(venta)
+        && ['pendiente', 'cancelado', 'fallido'].includes(String(venta?.estado_pago || 'pendiente').trim().toLowerCase());
+    },
+    canFacturarQrVenta(venta) {
+      return this.isCartVenta(venta)
+        && this.isQrPaymentVenta(venta)
+        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && String(venta?.estado_emision || '').trim().toUpperCase() !== 'FACTURADA';
+    },
+    extractQrPayloadFromConsultResponse(payload) {
+      const respuesta = payload?.respuesta || {};
+      const cart = payload?.cart || {};
+      const imageData = String(
+        respuesta?.image_data
+        || respuesta?.qr_url
+        || respuesta?.qrUrl
+        || respuesta?.image_url
+        || ''
+      ).trim();
+      const transactionId = String(
+        respuesta?.transaction_id
+        || cart?.qr_transaction_id
+        || ''
+      ).trim();
+      const paymentStatus = String(
+        respuesta?.payment_status
+        || cart?.estado_pago
+        || 'holding'
+      ).trim().toLowerCase();
+
+      if (!imageData && !transactionId) {
+        return null;
+      }
+
+      return {
+        imageData,
+        transactionId,
+        paymentStatus,
+        message: String(respuesta?.message || respuesta?.mensaje || '').trim()
+      };
+    },
+    normalizeQrImageSrc(value) {
+      const image = String(value || '').trim();
+      if (!image) {
+        return '';
+      }
+      if (image.startsWith('data:image') || /^https?:\/\//i.test(image)) {
+        return image;
+      }
+      return `data:image/png;base64,${image}`;
+    },
+    async consultarQrVenta(venta, autoEmitInvoice = false) {
+      const originUserId = this.usuarioId(venta);
+      const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
+
+      if (!originUserId || !cartId) {
+        await this.notifyAnulacion('warning', 'Venta no disponible', 'No se pudo identificar la venta QR para consultar.');
+        return;
+      }
+
+      this.load = true;
+      try {
+        const payload = {
+          origen_usuario_id: originUserId,
+          cart_id: cartId,
+          auto_emit_invoice: autoEmitInvoice ? 1 : 0
+        };
+        const response = await this.$admin.$post('cart/consultar', payload);
+        const qrPayload = this.extractQrPayloadFromConsultResponse(response);
+
+        await this.loadVentas();
+
+        if (qrPayload && ['holding', 'pending', 'pendiente'].includes(qrPayload.paymentStatus)) {
+          const imageSrc = this.normalizeQrImageSrc(qrPayload.imageData);
+          const html = imageSrc
+            ? `<div style="text-align:center"><img src="${imageSrc}" alt="QR" style="max-width:260px;width:100%;border-radius:12px;border:1px solid #e5e7eb;padding:8px;background:#fff"></div>`
+            : '<p class="mb-0">El QR sigue pendiente, pero el proveedor no devolvio imagen en esta consulta.</p>';
+          await this.$swal.fire({
+            title: 'QR vigente',
+            html,
+            confirmButtonText: 'Entendido',
+            footer: qrPayload.transactionId ? `Tx: ${qrPayload.transactionId}` : ''
+          });
+          return;
+        }
+
+        const refreshedVenta = this.ventas.find((item) => String(item.id) === String(venta.id) || Number(item.cartId || item.origenVentaId || 0) === cartId) || venta;
+        const finalState = this.emissionStateLabel(refreshedVenta);
+        const message = response?.respuesta?.mensaje || response?.respuesta?.message || `Estado actualizado: ${finalState}`;
+
+        await this.$swal.fire({
+          icon: 'success',
+          title: autoEmitInvoice ? 'Venta actualizada' : 'QR actualizado',
+          text: message,
+          confirmButtonText: 'Entendido'
+        });
+      } catch (error) {
+        const message = error?.response?.data?.message || 'No se pudo consultar el estado de la venta QR.';
+        await this.$swal.fire({ icon: 'error', title: 'No se pudo consultar', text: message });
+      } finally {
+        this.load = false;
+      }
     },
     async fetchAnulacionGuardStatus() {
       try {
@@ -1061,6 +1277,61 @@ export default {
         const data = error?.response?.data || {};
         const message = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulacion.';
         await this.notifyAnulacion('error', 'No se pudo anular', message);
+      } finally {
+        this.load = false;
+      }
+    },
+    async promptCancelQrReason() {
+      const { value } = await this.$swal.fire({
+        title: 'Cancelar cobro QR',
+        html: `
+          <div class="protocol-annul-form">
+            <label class="protocol-annul-label" for="cancel-qr-reason">Motivo</label>
+            <input id="cancel-qr-reason" class="swal2-input protocol-annul-input" value="Cobro generado por error">
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Cancelar cobro',
+        cancelButtonText: 'Volver',
+        preConfirm: () => {
+          const reason = document.getElementById('cancel-qr-reason')?.value?.trim();
+          return { reason: reason || 'Cobro generado por error' };
+        }
+      });
+
+      return value || null;
+    },
+    async cancelarPagoQrVenta(venta) {
+      if (!this.canCancelarQrVenta(venta)) {
+        await this.notifyAnulacion('warning', 'No disponible', 'Solo se puede cancelar un QR pendiente de pago.');
+        return;
+      }
+
+      const payload = await this.promptCancelQrReason();
+      if (!payload) return;
+
+      const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
+      const internalCode = String(venta?.codigoOrden || '').trim();
+      const transactionId = Number(venta?.qr_transaction_id || venta?.respuesta_emision?.transaction_id || 0);
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$post('qr/cancel-payment', {
+          cart_id: cartId > 0 ? cartId : undefined,
+          internal_code: internalCode || undefined,
+          transaction_id: transactionId > 0 ? transactionId : undefined,
+          reason: payload.reason
+        });
+        await this.notifyAnulacion('success', 'Cobro QR cancelado', response?.message || 'El QR pendiente fue cancelado correctamente.');
+        await this.loadVentas();
+        if (this.activeDetailVenta?.id === venta.id) {
+          this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
+        }
+      } catch (error) {
+        const data = error?.response?.data || {};
+        const message = data.message || data.error || 'No se pudo cancelar el cobro QR.';
+        await this.notifyAnulacion('error', 'No se pudo cancelar', message);
       } finally {
         this.load = false;
       }
@@ -1238,7 +1509,6 @@ export default {
   padding: 0.25rem 0 1rem;
 }
 
-.branch-hero-card,
 .branch-selector-card,
 .branch-main-card,
 .error-card {
@@ -1246,17 +1516,6 @@ export default {
   border: 1px solid #e8edf5;
   border-radius: 22px;
   box-shadow: 0 10px 28px rgba(22, 42, 77, 0.06);
-}
-
-.branch-hero-card {
-  padding: 1rem 1.15rem;
-}
-
-.branch-hero-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 .branch-kicker,
@@ -1269,87 +1528,11 @@ export default {
   color: #8a94a8;
 }
 
-.branch-title {
-  margin: 0;
-  color: #1d3360;
-  font-size: 1.8rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.branch-copy,
 .detail-copy,
 .error-card p,
 .empty-state p {
   margin: 0.45rem 0 0;
   color: #6f7c92;
-}
-
-.branch-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.branch-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 220px));
-  gap: 0.85rem;
-  margin-top: 1rem;
-}
-
-.branch-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.branch-filter-field span {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #4c5568;
-}
-
-.branch-filter-field input {
-  height: 48px;
-  border-radius: 12px;
-  border: 1px solid #dde4ef;
-  background: #fff;
-  color: #24324a;
-  padding: 0 0.95rem;
-}
-
-.hero-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  height: 44px;
-  padding: 0 1rem;
-  border-radius: 12px;
-  border: 1px solid #dde5f0;
-  background: #fff;
-  color: #40506f;
-  font-weight: 700;
-}
-
-.hero-export-btn {
-  border-color: #f3d0d6;
-  color: #b42318;
-}
-
-.branch-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.8rem 1rem;
-  border-radius: 16px;
-  background: #fff;
-  border: 1px solid rgba(215, 224, 236, 0.9);
-  color: #4a5b79;
-  font-weight: 800;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
 }
 
 .stats-grid {
@@ -1785,6 +1968,34 @@ export default {
   flex-wrap: wrap;
 }
 
+.branch-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.branch-export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0 1rem;
+  border: 1px solid #f6c86f;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff9ed 0%, #fff2d8 100%);
+  color: #b46900;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(246, 200, 111, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.branch-export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(246, 200, 111, 0.24);
+}
+
 .action-secondary-btn {
   display: inline-flex;
   align-items: center;
@@ -1914,24 +2125,12 @@ export default {
 }
 
 @media (max-width: 991px) {
-  .branch-hero-head,
-  .branch-hero-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .hero-back-btn,
-  .branch-hero-badge {
-    width: 100%;
-    justify-content: center;
-  }
-
   .branch-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .branch-filter-grid {
-    grid-template-columns: 1fr 1fr;
+  .branch-toolbar-actions {
+    width: 100%;
   }
 
   .detail-filters {
@@ -1954,8 +2153,9 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .branch-filter-grid {
-    grid-template-columns: 1fr;
+  .branch-toolbar-actions,
+  .branch-export-btn {
+    width: 100%;
   }
 
   .detail-filters {
@@ -1963,3 +2163,5 @@ export default {
   }
 }
 </style>
+
+

@@ -5,6 +5,16 @@
       <div slot="body" class="branches-page">
         <div class="branches-shell">
           <section class="filters-card">
+            <div class="filters-copy">
+              <div>
+                <p class="table-kicker">Panel de reportes</p>
+                <h2 class="filters-title">Sucursales y kardex por cajero</h2>
+                <p class="filters-subtitle">
+                  Revisa el consolidado por sucursal y entra al detalle para ver el kardex por usuario.
+                </p>
+              </div>
+            </div>
+
             <div class="filters-row">
               <label class="search-field">
                 <span class="search-icon">
@@ -57,6 +67,9 @@
               <div>
                 <p class="table-kicker">Reporte consolidado</p>
                 <h2>Sucursales registradas</h2>
+                <p class="table-subtitle">
+                  Selecciona una sucursal para entrar al kardex detallado y revisar el historial por facturador.
+                </p>
               </div>
             </div>
 
@@ -121,6 +134,7 @@
                     <td>
                       <div class="branch-main">
                         <strong>{{ item.departamento || 'Sin departamento' }}</strong>
+                        <small>Sucursal {{ item.codigoSucursal ?? 0 }} · Punto {{ item.puntoVenta ?? 0 }}</small>
                       </div>
                     </td>
 
@@ -140,7 +154,7 @@
                     <td>
                       <button class="action-view-btn" type="button" @click="goToSucursal(item)">
                         <i class="fa fa-eye"></i>
-                        <span>Ver</span>
+                        <span>Ver kardex</span>
                       </button>
                     </td>
                   </tr>
@@ -469,6 +483,14 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+    formatCurrency(value) {
+      const amount = Number(value || 0);
+      if (Number.isNaN(amount)) {
+        return 'Bs 0.00';
+      }
+
+      return `Bs ${amount.toFixed(2)}`;
     }
   }
 };
@@ -483,6 +505,30 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
+}
+
+.filters-copy {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filters-title {
+  margin: 0;
+  color: #1d3360;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.filters-subtitle,
+.table-subtitle {
+  margin: 0.35rem 0 0;
+  color: #66748d;
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
 
 .filters-card,
@@ -667,6 +713,11 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.branch-main small {
+  color: #6f7c92;
+  font-size: 0.8rem;
 }
 
 .manager-cell-btn {
