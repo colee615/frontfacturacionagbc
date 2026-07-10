@@ -1012,7 +1012,7 @@ export default {
           const pago = String(venta?.estado_pago || '').toLowerCase();
           if (pago === 'pagado' && estado === 'FACTURADA') return 'QR FACTURADO';
           if (pago === 'pagado') return 'PAGADO QR';
-          if (pago === 'cancelado' || pago === 'fallido') return 'QR RECHAZADO';
+          if (pago === 'cancelado' || pago === 'fallido') return 'QR ANULADO';
           return 'QR PENDIENTE';
         }
 
