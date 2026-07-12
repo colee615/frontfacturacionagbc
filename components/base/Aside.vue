@@ -85,15 +85,22 @@
             </div>
           </li>
           <li class="nav-item" v-if="ventasReadAccess">
-            <a data-bs-toggle="collapse" href="#kardex-menu" class="nav-link enterprise-parent-link" aria-controls="kardex-menu" role="button" aria-expanded="false">
+            <a
+              data-bs-toggle="collapse"
+              href="#kardex-menu"
+              class="nav-link enterprise-parent-link"
+              aria-controls="kardex-menu"
+              role="button"
+              :aria-expanded="isKardexRoute ? 'true' : 'false'"
+            >
               <span class="nav-icon-shell"><i class="fas fa-boxes"></i></span>
               <span class="nav-link-text">Kardex</span>
               <i class="fas fa-chevron-down nav-chevron"></i>
             </a>
-            <div class="collapse" id="kardex-menu">
+            <div ref="kardexMenu" class="collapse" :class="{ show: isKardexRoute }" id="kardex-menu">
               <ul class="nav enterprise-subnav">
                 <li class="nav-item">
-                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
+                  <nuxt-link ref="reportesLink" class="nav-link enterprise-sub-link" to="/cajero/ventas/lista">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reportes</span>
                   </nuxt-link>
@@ -134,6 +141,10 @@ export default {
     ventasWriteAccess() {
       return this.hasAccess('ventas.write', 'ventas');
     },
+    isKardexRoute() {
+      return String(this.$route?.path || '').startsWith('/cajero/ventas/lista')
+        || String(this.$route?.path || '').startsWith('/cajero/ventas/sucursal');
+    },
     showAdminSection() {
       return this.usuariosAccess
         || this.notificacionesAccess
@@ -144,7 +155,41 @@ export default {
       return this.ventasReadAccess || this.ventasWriteAccess || this.notificacionesAccess;
     }
   },
+  mounted() {
+    this.syncActiveMenuState();
+  },
+  watch: {
+    '$route.path'() {
+      this.syncActiveMenuState();
+    }
+  },
   methods: {
+    syncActiveMenuState() {
+      this.$nextTick(() => {
+        if (typeof window !== 'undefined' && window.innerWidth > 767) {
+          document.body.classList.toggle('enterprise-sidebar-collapsed', this.isKardexRoute);
+        }
+
+        const menu = this.$refs.kardexMenu;
+        if (menu) {
+          menu.classList.toggle('show', this.isKardexRoute);
+        }
+
+        if (!this.isKardexRoute) {
+          return;
+        }
+
+        const sideBody = this.$el?.querySelector('.sidenav-body');
+        const activeLink = this.$refs.reportesLink?.$el || this.$refs.reportesLink;
+
+        if (sideBody && activeLink && typeof activeLink.offsetTop === 'number') {
+          sideBody.scrollTo({
+            top: Math.max(0, activeLink.offsetTop - 120),
+            behavior: 'smooth'
+          });
+        }
+      });
+    },
     closeMobileAside() {
       const side = document.getElementById('sidenav-main');
       if (side) {
@@ -245,6 +290,8 @@ export default {
 
 .sidenav-body {
   padding: 8px 14px 22px;
+  overflow-y: auto;
+  height: calc(100% - 104px);
 }
 
 .nav-section {

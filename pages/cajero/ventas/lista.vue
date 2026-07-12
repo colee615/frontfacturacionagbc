@@ -90,12 +90,6 @@
                     </th>
                     <th>
                       <span class="head-label">
-                        <i class="fa fa-dot-circle-o"></i>
-                        <span>Punto Venta</span>
-                      </span>
-                    </th>
-                    <th>
-                      <span class="head-label">
                         <i class="fa fa-map-marker"></i>
                         <span>Sucursal</span>
                       </span>
@@ -125,10 +119,6 @@
                   <tr v-for="item in report.sucursales" :key="item.id">
                     <td>
                       <strong class="code-display">{{ item.codigoSucursal ?? 0 }}</strong>
-                    </td>
-
-                    <td>
-                      <strong class="code-display">{{ item.puntoVenta ?? 0 }}</strong>
                     </td>
 
                     <td>
@@ -219,7 +209,7 @@ export default {
   data() {
     return {
       load: false,
-      page: 'Ventas',
+      page: 'Reportes',
       modulo: 'Kardex',
       error: '',
       isSyncingFilters: false,
@@ -527,8 +517,8 @@ export default {
 .table-subtitle {
   margin: 0.35rem 0 0;
   color: #66748d;
-  font-size: 0.94rem;
-  line-height: 1.55;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .filters-card,
@@ -657,7 +647,7 @@ export default {
 .error-card h3 {
   margin: 0;
   color: #1d3360;
-  font-size: 1.7rem;
+  font-size: 1.38rem;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -676,9 +666,9 @@ export default {
 }
 
 .branches-table thead th {
-  padding: 0.95rem 0.9rem;
+  padding: 0.78rem 0.8rem;
   text-align: left;
-  font-size: 0.83rem;
+  font-size: 0.73rem;
   font-weight: 700;
   color: #495468;
   background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
@@ -693,14 +683,15 @@ export default {
 
 .head-label i {
   color: #7d8798;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
 }
 
 .branches-table tbody td {
-  padding: 1rem 0.9rem;
+  padding: 0.78rem 0.8rem;
   border-bottom: 1px solid #edf1f6;
   color: #33415c;
   vertical-align: middle;
+  font-size: 0.84rem;
 }
 
 .branches-table tbody tr:last-child td {
@@ -712,12 +703,12 @@ export default {
 .schedule-cell {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.12rem;
 }
 
 .branch-main small {
   color: #6f7c92;
-  font-size: 0.8rem;
+  font-size: 0.71rem;
 }
 
 .manager-cell-btn {
@@ -731,7 +722,7 @@ export default {
 
 .manager-cell-btn small {
   color: #6f7c92;
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -742,10 +733,10 @@ export default {
 .code-display {
   color: #223658;
   font-weight: 700;
+  font-size: 0.93rem;
 }
 
 .code-display {
-  font-size: 1.05rem;
   letter-spacing: 0.02em;
 }
 
@@ -759,13 +750,14 @@ export default {
   justify-content: center;
   gap: 0.45rem;
   min-width: 88px;
-  height: 38px;
-  padding: 0 0.85rem;
+  height: 34px;
+  padding: 0 0.72rem;
   border: 1px solid #dbe4f0;
   border-radius: 10px;
   background: #fff;
   color: #2d4f8f;
   font-weight: 700;
+  font-size: 0.82rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 

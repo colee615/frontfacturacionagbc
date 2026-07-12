@@ -51,9 +51,8 @@
             <aside class="branch-selector-card enterprise-content-card">
               <div class="selector-head">
                 <div>
-                  <p class="detail-kicker mb-2">Paso 2 Â· Kardex por usuario</p>
                   <h3 class="mb-1">Facturadores</h3>
-                  <p class="detail-copy mb-0">Primero eliges la sucursal y luego revisas el kardex por cajero.</p>
+                  <p class="detail-copy mb-0">Primero selecciona la sucursal y luego revisa el kardex por cajero.</p>
                 </div>
               </div>
 
@@ -62,15 +61,16 @@
                 <input v-model.trim="userSearch" type="text" placeholder="Buscar usuario..." />
               </label>
 
-              <div class="selector-list">
+              <div ref="selectorList" class="selector-list">
                 <button
                   type="button"
                   class="selector-item"
                   :class="{ active: activeUserId === 'all' }"
+                  data-user-id="all"
                   @click="selectUser('all')"
                 >
                   <span class="selector-name">Todos los usuarios</span>
-                  <small>{{ visibleVentas.length }} venta(s)</small>
+                  <small>{{ visibleVentas.length }} ventas</small>
                 </button>
 
                 <button
@@ -79,10 +79,11 @@
                   type="button"
                   class="selector-item"
                   :class="{ active: activeUserId === user.id }"
+                  :data-user-id="String(user.id)"
                   @click="selectUser(user.id)"
                 >
                   <span class="selector-name">{{ user.nombre }}</span>
-                  <small>{{ user.ventas }} venta(s) Â· {{ formatCurrency(user.total) }}</small>
+                  <small>{{ user.ventas }} ventas · {{ formatCurrency(user.total) }}</small>
                 </button>
               </div>
             </aside>
@@ -114,9 +115,51 @@
                   Comparativo
                 </button>
 
-                <div class="branch-range-chip">
-                  <i class="fas fa-calendar-alt"></i>
-                  <span>{{ currentDateRangeLabel }}</span>
+                <div class="branch-date-filter" ref="dateFilter">
+                  <button
+                    type="button"
+                    class="branch-range-chip branch-range-chip-button"
+                    :class="{ 'branch-range-chip-active': hasDateRange }"
+                    @click.stop="toggleDateRangePicker"
+                  >
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>{{ currentDateRangeLabel }}</span>
+                  </button>
+
+                  <div v-if="showDateRangePicker" class="date-range-popover" @click.stop>
+                    <div class="date-range-popover-head">
+                      <div>
+                        <strong>Seleccionar fechas</strong>
+                        <small>Filtra el kardex por rango de fechas.</small>
+                      </div>
+                      <button type="button" class="date-range-close" @click="closeDateRangePicker">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+
+                    <div class="date-range-quick-actions">
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('today')">Hoy</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last7')">7 días</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last30')">30 días</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('month')">Este mes</button>
+                    </div>
+
+                    <div class="date-range-fields">
+                      <label class="date-range-field">
+                        <span>Desde</span>
+                        <input v-model="draftDateRange.fechaInicio" type="date" />
+                      </label>
+                      <label class="date-range-field">
+                        <span>Hasta</span>
+                        <input v-model="draftDateRange.fechaFin" type="date" />
+                      </label>
+                    </div>
+
+                    <div class="date-range-actions">
+                      <button type="button" class="date-range-link" @click="clearDateRange">Limpiar</button>
+                      <button type="button" class="date-range-apply" @click="applyDateRange">Aplicar</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="branch-range-chip">
@@ -154,7 +197,7 @@
                   <strong>{{ formatCurrency(summary.totalCaja) }}</strong>
                 </div>
                 <div class="branch-summary-card">
-                  <span>Factura electrÃ³nica</span>
+                  <span>Factura electrónica</span>
                   <strong>{{ deliverySummary.factura_electronica.count }}</strong>
                   <small>{{ formatCurrency(deliverySummary.factura_electronica.total) }}</small>
                 </div>
@@ -183,8 +226,8 @@
                       <th>Ventas</th>
                       <th>Total general</th>
                       <th>Total caja</th>
-                      <th>Factura electrÃ³nica</th>
-                      <th>Total factura electrÃ³nica</th>
+                      <th>Factura electrónica</th>
+                      <th>Total factura electrónica</th>
                       <th>QR</th>
                       <th>Total QR</th>
                     </tr>
@@ -215,7 +258,7 @@
                       <div>
                         <strong>{{ user.nombre }}</strong>
                         <small>
-                          {{ user.ventas }} venta(s) Â· Factura electrÃ³nica {{ user.deliveries.factura_electronica.count }} Â· QR {{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}
+                          {{ user.ventas }} ventas · Factura electrónica {{ user.deliveries.factura_electronica.count }} · QR {{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}
                         </small>
                       </div>
                       <strong>{{ formatCurrency(user.total) }}</strong>
@@ -234,7 +277,7 @@
                   <div class="detail-filters">
                     <label class="detail-filter-field detail-filter-field-search">
                       <i class="fas fa-search"></i>
-                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por cÃ³digo, cliente o seguimiento..." />
+                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por código, cliente o seguimiento..." />
                     </label>
                     <label class="detail-filter-field">
                       <span>Estado</span>
@@ -246,7 +289,7 @@
                       </select>
                     </label>
                     <label class="detail-filter-field">
-                      <span>EmisiÃ³n</span>
+                      <span>Emisión</span>
                       <select v-model="detailFilters.estadoEmision">
                         <option value="all">Todos</option>
                         <option value="FACTURADA">Facturada</option>
@@ -259,21 +302,21 @@
                     <label class="detail-filter-field">
                       <span>Registros</span>
                       <select v-model.number="pageSize">
-                        <option :value="5">5</option>
-                        <option :value="10">10</option>
-                        <option :value="20">20</option>
+                        <option :value="15">15</option>
+                        <option :value="30">30</option>
                         <option :value="50">50</option>
+                        <option :value="100">100</option>
                       </select>
                     </label>
                   </div>
 
-                  <table class="sales-table enterprise-table">
+                  <table class="sales-table enterprise-table sales-table-detail">
                     <thead>
                       <tr>
                         <th>Fecha</th>
-                        <th>CÃ³digo orden</th>
+                        <th>Código de orden</th>
                         <th>Cliente</th>
-                        <th>FacturaciÃ³n</th>
+                        <th>Facturación</th>
                         <th>Estado</th>
                         <th>Items</th>
                         <th>Monto</th>
@@ -451,7 +494,7 @@
               <table class="sales-table enterprise-table">
                 <thead>
                   <tr>
-                    <th>CÃ³digo</th>
+                    <th>Código</th>
                     <th>Detalle</th>
                     <th>Cantidad</th>
                     <th>Total</th>
@@ -484,7 +527,7 @@ export default {
   data() {
     return {
       load: false,
-      page: 'Ventas',
+      page: 'Reportes',
       modulo: 'Kardex',
       error: '',
       isSyncingFilters: false,
@@ -500,7 +543,12 @@ export default {
       activeUserId: 'all',
       activeTab: 'resumen',
       currentPage: 1,
-      pageSize: 5,
+      pageSize: 15,
+      showDateRangePicker: false,
+      draftDateRange: {
+        fechaInicio: '',
+        fechaFin: ''
+      },
       detailFilters: {
         q: '',
         estado: 'all',
@@ -517,10 +565,25 @@ export default {
     branchLabel() {
       return this.branchDepartment || this.branchName || 'Sucursal';
     },
+    hasDateRange() {
+      return Boolean(this.filters.fechaInicio || this.filters.fechaFin);
+    },
     currentDateRangeLabel() {
-      const start = this.filters.fechaInicio ? this.formatShortDate(this.filters.fechaInicio) : 'sin inicio';
-      const end = this.filters.fechaFin ? this.formatShortDate(this.filters.fechaFin) : 'sin fin';
-      return start === end ? start : `${start} - ${end}`;
+      if (!this.filters.fechaInicio && !this.filters.fechaFin) {
+        return 'Seleccionar fechas';
+      }
+
+      if (this.filters.fechaInicio && this.filters.fechaFin) {
+        const start = this.formatShortDate(this.filters.fechaInicio);
+        const end = this.formatShortDate(this.filters.fechaFin);
+        return start === end ? start : `${start} - ${end}`;
+      }
+
+      if (this.filters.fechaInicio) {
+        return `Desde ${this.formatShortDate(this.filters.fechaInicio)}`;
+      }
+
+      return `Hasta ${this.formatShortDate(this.filters.fechaFin)}`;
     },
     activeUserLabel() {
       if (this.activeUserId === 'all') {
@@ -636,12 +699,18 @@ export default {
   },
   mounted() {
     this.syncRouteFilters();
+    this.syncDraftDateRange();
     this.loadVentas();
+    document.addEventListener('click', this.handleOutsideDatePickerClick);
+    document.addEventListener('keydown', this.handleDatePickerEscape);
   },
   beforeDestroy() {
     if (this.searchTimer) {
       clearTimeout(this.searchTimer);
     }
+
+    document.removeEventListener('click', this.handleOutsideDatePickerClick);
+    document.removeEventListener('keydown', this.handleDatePickerEscape);
   },
   watch: {
     'filters.q'() {
@@ -668,9 +737,144 @@ export default {
     },
     pageSize() {
       this.currentPage = 1;
+    },
+    activeUserId() {
+      this.scrollActiveSelectorIntoView();
+    },
+    filteredUserSummaries() {
+      this.scrollActiveSelectorIntoView();
+    },
+    showDateRangePicker(value) {
+      if (value) {
+        this.syncDraftDateRange();
+      }
     }
   },
   methods: {
+    syncDraftDateRange() {
+      this.draftDateRange = {
+        fechaInicio: this.filters.fechaInicio || '',
+        fechaFin: this.filters.fechaFin || ''
+      };
+    },
+    toggleDateRangePicker() {
+      if (!this.showDateRangePicker) {
+        this.syncDraftDateRange();
+      }
+      this.showDateRangePicker = !this.showDateRangePicker;
+    },
+    closeDateRangePicker() {
+      this.showDateRangePicker = false;
+    },
+    handleOutsideDatePickerClick(event) {
+      if (!this.showDateRangePicker) {
+        return;
+      }
+
+      const root = this.$refs.dateFilter;
+      if (root && !root.contains(event.target)) {
+        this.closeDateRangePicker();
+      }
+    },
+    handleDatePickerEscape(event) {
+      if (event.key === 'Escape' && this.showDateRangePicker) {
+        this.closeDateRangePicker();
+      }
+    },
+    todayIso() {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = `${date.getMonth() + 1}`.padStart(2, '0');
+      const day = `${date.getDate()}`.padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    },
+    shiftIsoDate(baseIso, diffDays) {
+      const date = new Date(`${baseIso}T00:00:00`);
+      if (Number.isNaN(date.getTime())) {
+        return baseIso;
+      }
+      date.setDate(date.getDate() + diffDays);
+      const year = date.getFullYear();
+      const month = `${date.getMonth() + 1}`.padStart(2, '0');
+      const day = `${date.getDate()}`.padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    },
+    setQuickDateRange(type) {
+      const today = this.todayIso();
+
+      if (type === 'today') {
+        this.draftDateRange.fechaInicio = today;
+        this.draftDateRange.fechaFin = today;
+        return;
+      }
+
+      if (type === 'last7') {
+        this.draftDateRange.fechaInicio = this.shiftIsoDate(today, -6);
+        this.draftDateRange.fechaFin = today;
+        return;
+      }
+
+      if (type === 'last30') {
+        this.draftDateRange.fechaInicio = this.shiftIsoDate(today, -29);
+        this.draftDateRange.fechaFin = today;
+        return;
+      }
+
+      const date = new Date(`${today}T00:00:00`);
+      const year = date.getFullYear();
+      const month = `${date.getMonth() + 1}`.padStart(2, '0');
+      this.draftDateRange.fechaInicio = `${year}-${month}-01`;
+      this.draftDateRange.fechaFin = today;
+    },
+    applyDateRange() {
+      const start = this.draftDateRange.fechaInicio || '';
+      const end = this.draftDateRange.fechaFin || '';
+
+      if (start && end && start > end) {
+        this.$swal.fire({
+          icon: 'warning',
+          title: 'Rango inválido',
+          text: 'La fecha inicial no puede ser mayor que la fecha final.',
+          confirmButtonText: 'Entendido'
+        });
+        return;
+      }
+
+      this.isSyncingFilters = true;
+      this.filters.fechaInicio = start;
+      this.filters.fechaFin = end;
+      this.isSyncingFilters = false;
+      this.currentPage = 1;
+      this.activeUserId = 'all';
+      this.closeDateRangePicker();
+      this.loadVentas();
+    },
+    clearDateRange() {
+      this.draftDateRange.fechaInicio = '';
+      this.draftDateRange.fechaFin = '';
+      this.applyDateRange();
+    },
+    scrollActiveSelectorIntoView() {
+      this.$nextTick(() => {
+        const container = this.$refs.selectorList;
+        if (!container || typeof container.querySelector !== 'function') {
+          return;
+        }
+
+        const activeId = String(this.activeUserId || 'all');
+        const target = container.querySelector(`[data-user-id="${activeId}"]`);
+        if (!target) {
+          container.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        const targetTop = target.offsetTop - 12;
+        container.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: 'smooth'
+        });
+      });
+    },
     syncRouteFilters() {
       this.isSyncingFilters = true;
       const hasFechaInicio = Object.prototype.hasOwnProperty.call(this.$route.query, 'fechaInicio');
@@ -742,7 +946,7 @@ export default {
     },
     buildDeliveryAccumulator() {
       return {
-        factura_electronica: { key: 'factura_electronica', label: 'Factura electronica', count: 0, total: 0 },
+        factura_electronica: { key: 'factura_electronica', label: 'Factura electrónica', count: 0, total: 0 },
         qr_facturado: { key: 'qr_facturado', label: 'QR facturado', count: 0, total: 0 },
         qr_pagado_pendiente_factura: { key: 'qr_pagado_pendiente_factura', label: 'QR pagado pendiente de factura', count: 0, total: 0 },
         qr_pendiente: { key: 'qr_pendiente', label: 'QR pendiente', count: 0, total: 0 },
@@ -843,7 +1047,7 @@ export default {
       }
 
       if (canalEmisionRaw === 'factura_electronica') {
-        return { key: 'factura_electronica', label: 'Factura electronica' };
+        return { key: 'factura_electronica', label: 'Factura electrónica' };
       }
 
       if (isOficial) {
@@ -855,7 +1059,7 @@ export default {
       }
 
       if (codigoOrden.startsWith('VF-') || codigoOrden.startsWith('V-')) {
-        return { key: 'factura_electronica', label: 'Factura electronica' };
+        return { key: 'factura_electronica', label: 'Factura electrónica' };
       }
 
       const hasQrAsset = Boolean(
@@ -903,7 +1107,7 @@ export default {
         return { key: 'oficial', label: 'Registro oficial' };
       }
 
-      return { key: 'factura_electronica', label: 'Factura electronica' };
+      return { key: 'factura_electronica', label: 'Factura electrónica' };
     },
     isCartVenta(venta) {
       return String(venta?.origenVentaTipo || '').includes('facturacion_cart')
@@ -1131,7 +1335,7 @@ export default {
           const imageSrc = this.normalizeQrImageSrc(qrPayload.imageData);
           const html = imageSrc
             ? `<div style="text-align:center"><img src="${imageSrc}" alt="QR" style="max-width:260px;width:100%;border-radius:12px;border:1px solid #e5e7eb;padding:8px;background:#fff"></div>`
-            : '<p class="mb-0">El QR sigue pendiente, pero el proveedor no devolvio imagen en esta consulta.</p>';
+            : '<p class="mb-0">El QR sigue pendiente, pero el proveedor no devolvió la imagen en esta consulta.</p>';
           await this.$swal.fire({
             title: 'QR vigente',
             html,
@@ -1168,14 +1372,14 @@ export default {
     },
     async promptSupervisorAuthorization() {
       const { value } = await this.$swal.fire({
-        title: 'Autorizacion requerida',
+        title: 'Autorización requerida',
         html: `
           <div class="text-left">
-            <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar anulacion temporal.</p>
+            <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar la anulación temporal.</p>
             <label class="d-block small font-weight-bold mb-1">Correo supervisor</label>
             <input id="auth-supervisor-email" class="swal2-input" type="email" placeholder="supervisor@dominio.com">
-            <label class="d-block small font-weight-bold mt-3 mb-1">Contrasena supervisor</label>
-            <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contrasena">
+            <label class="d-block small font-weight-bold mt-3 mb-1">Contraseña del supervisor</label>
+            <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contraseña">
           </div>
         `,
         focusConfirm: false,
@@ -1186,7 +1390,7 @@ export default {
           const supervisor_email = document.getElementById('auth-supervisor-email')?.value?.trim();
           const supervisor_password = document.getElementById('auth-supervisor-password')?.value || '';
           if (!supervisor_email || !supervisor_password) {
-            this.$swal.showValidationMessage('Correo y contrasena del supervisor son obligatorios.');
+            this.$swal.showValidationMessage('El correo y la contraseña del supervisor son obligatorios.');
             return false;
           }
           return { supervisor_email, supervisor_password, duracion_minutos: 15 };
@@ -1211,12 +1415,12 @@ export default {
 
       try {
         const response = await this.$admin.$post('ventas/anulacion/autorizar', credentials);
-        await this.notifyAnulacion('success', 'Autorizacion concedida', response?.message || 'Anulacion habilitada temporalmente.');
+        await this.notifyAnulacion('success', 'Autorización concedida', response?.message || 'Anulación habilitada temporalmente.');
         return true;
       } catch (error) {
         const data = error?.response?.data || {};
-        const message = data.message || data.error || 'No se pudo validar autorizacion de supervisor.';
-        await this.notifyAnulacion('error', 'Autorizacion rechazada', message);
+        const message = data.message || data.error || 'No se pudo validar la autorización del supervisor.';
+        await this.notifyAnulacion('error', 'Autorización rechazada', message);
         return false;
       }
     },
@@ -1227,7 +1431,7 @@ export default {
           <div class="protocol-annul-form">
             <label class="protocol-annul-label" for="annul-motivo">Motivo</label>
             <input id="annul-motivo" class="swal2-input protocol-annul-input" value="Datos erroneos en la factura">
-            <label class="protocol-annul-label" for="annul-tipo">Tipo de anulacion</label>
+            <label class="protocol-annul-label" for="annul-tipo">Tipo de anulación</label>
             <select id="annul-tipo" class="swal2-select protocol-annul-select">
               <option value="1">1 - Factura mal emitida</option>
               <option value="2">2 - Nota credito-debito mal emitida</option>
@@ -1238,7 +1442,7 @@ export default {
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Confirmar anulacion',
+        confirmButtonText: 'Confirmar anulación',
         cancelButtonText: 'Cancelar',
         preConfirm: () => {
           const motivo = document.getElementById('annul-motivo')?.value?.trim();
@@ -1268,14 +1472,14 @@ export default {
       this.load = true;
       try {
         const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
-        await this.notifyAnulacion('success', 'Solicitud enviada', response?.message || 'La anulacion fue recepcionada correctamente.');
+        await this.notifyAnulacion('success', 'Solicitud enviada', response?.message || 'La anulación fue recibida correctamente.');
         await this.loadVentas();
         if (this.activeDetailVenta?.id === venta.id) {
           this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
         }
       } catch (error) {
         const data = error?.response?.data || {};
-        const message = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulacion.';
+        const message = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulación.';
         await this.notifyAnulacion('error', 'No se pudo anular', message);
       } finally {
         this.load = false;
@@ -1387,6 +1591,7 @@ export default {
         this.activeUserId = 'all';
         this.currentPage = 1;
         this.activeTab = 'resumen';
+        this.scrollActiveSelectorIntoView();
       } catch (err) {
         this.error = err?.response?.data?.message
           ? err.response.data.message
@@ -1538,15 +1743,15 @@ export default {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
-  margin: 1rem 0;
+  gap: 0.7rem;
+  margin: 0.85rem 0;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 1rem 1.1rem;
+  gap: 0.7rem;
+  padding: 0.82rem 0.92rem;
   border-radius: 18px;
   background: #fff;
   border: 1px solid #e6ebf3;
@@ -1554,13 +1759,13 @@ export default {
 }
 
 .stat-icon {
-  width: 58px;
-  height: 58px;
-  border-radius: 16px;
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
@@ -1572,7 +1777,7 @@ export default {
 
 .stat-copy span {
   color: #667085;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1580,12 +1785,13 @@ export default {
 
 .stat-copy strong {
   color: #1f2937;
-  font-size: 1.25rem;
+  font-size: 1.06rem;
   font-weight: 800;
 }
 
 .stat-copy small {
   color: #6f7c92;
+  font-size: 0.8rem;
 }
 
 .stat-card-red .stat-icon { background: #ffe7e7; color: #d23a3a; }
@@ -1596,25 +1802,25 @@ export default {
 .branch-workspace {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .branch-selector-card,
 .branch-main-card {
-  padding: 1rem 1.1rem;
+  padding: 0.85rem 0.95rem;
 }
 
 .selector-head h3 {
   margin: 0;
   color: #1d3360;
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   font-weight: 800;
 }
 
 .selector-search {
   position: relative;
   display: block;
-  margin: 1rem 0 0.85rem;
+  margin: 0.85rem 0 0.7rem;
 }
 
 .selector-search i {
@@ -1627,16 +1833,17 @@ export default {
 
 .selector-search input {
   width: 100%;
-  height: 46px;
+  height: 40px;
   padding: 0 0.95rem 0 2.45rem;
   border-radius: 12px;
   border: 1px solid #dde4ef;
   background: #fff;
+  font-size: 0.84rem;
 }
 
 .selector-list {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
   max-height: 420px;
   overflow: auto;
 }
@@ -1648,7 +1855,7 @@ export default {
   gap: 0.75rem;
   width: 100%;
   text-align: left;
-  padding: 0.9rem 0.95rem;
+  padding: 0.72rem 0.82rem;
   border-radius: 14px;
   border: 1px solid #e6ebf3;
   background: #fff;
@@ -1670,29 +1877,32 @@ export default {
   display: block;
   color: #1d3360;
   font-weight: 800;
+  font-size: 0.9rem;
 }
 
 .selector-item small {
   color: #66758f;
+  font-size: 0.76rem;
 }
 
 .branch-tabs {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.85rem;
   flex-wrap: wrap;
   border-bottom: 1px solid #edf1f6;
-  padding-bottom: 0.85rem;
-  margin-bottom: 1rem;
+  padding-bottom: 0.7rem;
+  margin-bottom: 0.85rem;
 }
 
 .branch-tab {
-  padding: 0.45rem 0;
+  padding: 0.35rem 0;
   border: 0;
   background: transparent;
   color: #667085;
   font-weight: 700;
   border-bottom: 2px solid transparent;
+  font-size: 0.84rem;
 }
 
 .branch-tab.active {
@@ -1705,26 +1915,169 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.55rem 0.85rem;
+  padding: 0.45rem 0.72rem;
   border-radius: 14px;
   border: 1px solid #e6ebf3;
   background: #fff;
   color: #40506f;
   font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.branch-date-filter {
+  position: relative;
+  margin-left: auto;
+}
+
+.branch-range-chip-button {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.branch-range-chip-button:hover {
+  transform: translateY(-1px);
+  border-color: #cfdaed;
+  box-shadow: 0 10px 18px rgba(29, 56, 104, 0.08);
+}
+
+.branch-range-chip-active {
+  border-color: #c9d9f6;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  color: #294c89;
+}
+
+.date-range-popover {
+  position: absolute;
+  top: calc(100% + 0.65rem);
+  right: 0;
+  z-index: 30;
+  width: min(420px, 92vw);
+  padding: 1rem;
+  border: 1px solid #e5ebf4;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+}
+
+.date-range-popover-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.date-range-popover-head strong {
+  display: block;
+  color: #223658;
+  font-size: 0.95rem;
+}
+
+.date-range-popover-head small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #71809a;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.date-range-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #e1e7f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #52607a;
+}
+
+.date-range-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.95rem;
+}
+
+.date-quick-btn {
+  height: 32px;
+  padding: 0 0.72rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #44536c;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.date-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.date-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+}
+
+.date-range-field span {
+  color: #66758f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.date-range-field input {
+  height: 42px;
+  padding: 0 0.85rem;
+  border: 1px solid #dde4ef;
+  border-radius: 12px;
+  background: #fff;
+  color: #23314d;
+  font-size: 0.82rem;
+}
+
+.date-range-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.date-range-link {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.date-range-apply {
+  min-width: 110px;
+  height: 36px;
+  padding: 0 0.9rem;
+  border: 1px solid #c9d9f6;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #edf3ff 100%);
+  color: #234b8b;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .branch-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.85rem;
+  gap: 0.7rem;
 }
 
 .branch-resume-table {
-  margin-top: 1rem;
+  margin-top: 0.85rem;
 }
 
 .branch-summary-card {
-  padding: 1rem 1.05rem;
+  padding: 0.82rem 0.9rem;
   border-radius: 18px;
   border: 1px solid #e6ebf3;
   background: #f8fafc;
@@ -1733,15 +2086,19 @@ export default {
 .branch-summary-card span {
   display: block;
   color: #667085;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
 }
 
 .branch-summary-card strong {
   color: #1d3360;
-  font-size: 1.2rem;
+  font-size: 1.02rem;
   font-weight: 800;
+}
+
+.branch-summary-card small {
+  font-size: 0.8rem;
 }
 
 .branch-comparative-card h4 {
@@ -1760,7 +2117,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 0.75rem 0.85rem;
   border-radius: 14px;
   border: 1px solid #e6ebf3;
   background: #fff;
@@ -1789,11 +2146,12 @@ export default {
 
 .detail-filters {
   display: grid;
-  grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(150px, 1fr));
-  gap: 0.85rem;
-  padding: 1rem;
+  grid-template-columns: minmax(320px, 2.2fr) repeat(3, minmax(150px, 1fr));
+  gap: 0.7rem;
+  padding: 0.82rem;
   border-bottom: 1px solid #edf1f6;
   background: #fff;
+  align-items: end;
 }
 
 .detail-filter-field {
@@ -1803,19 +2161,20 @@ export default {
 }
 
 .detail-filter-field span {
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #67768f;
 }
 
 .detail-filter-field input,
 .detail-filter-field select {
-  height: 46px;
+  height: 40px;
   border-radius: 12px;
   border: 1px solid #dde4ef;
   background: #fff;
   color: #23314d;
   padding: 0 0.95rem;
+  font-size: 0.82rem;
 }
 
 .detail-filter-field-search {
@@ -1840,10 +2199,14 @@ export default {
   background: #fff;
 }
 
+.sales-table-detail {
+  min-width: 1260px;
+}
+
 .sales-table thead th {
-  padding: 0.95rem 0.9rem;
+  padding: 0.78rem 0.8rem;
   text-align: left;
-  font-size: 0.83rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #495468;
   background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
@@ -1851,10 +2214,52 @@ export default {
 }
 
 .sales-table tbody td {
-  padding: 1rem 0.9rem;
+  padding: 0.78rem 0.8rem;
   border-bottom: 1px solid #edf1f6;
   color: #33415c;
   vertical-align: middle;
+  font-size: 0.84rem;
+}
+
+.sales-table-detail th:nth-child(1),
+.sales-table-detail td:nth-child(1) {
+  width: 17%;
+}
+
+.sales-table-detail th:nth-child(2),
+.sales-table-detail td:nth-child(2) {
+  width: 13%;
+}
+
+.sales-table-detail th:nth-child(3),
+.sales-table-detail td:nth-child(3) {
+  width: 16%;
+}
+
+.sales-table-detail th:nth-child(4),
+.sales-table-detail td:nth-child(4) {
+  width: 14%;
+}
+
+.sales-table-detail th:nth-child(5),
+.sales-table-detail td:nth-child(5) {
+  width: 12%;
+}
+
+.sales-table-detail th:nth-child(6),
+.sales-table-detail td:nth-child(6) {
+  width: 6%;
+  text-align: center;
+}
+
+.sales-table-detail th:nth-child(7),
+.sales-table-detail td:nth-child(7) {
+  width: 10%;
+}
+
+.sales-table-detail th:nth-child(8),
+.sales-table-detail td:nth-child(8) {
+  width: 12%;
 }
 
 .sales-table tbody tr:last-child td {
@@ -1874,7 +2279,7 @@ export default {
 .footer-copy {
   margin: 0;
   color: #6f7c92;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
 }
 
 .pager {
@@ -1910,6 +2315,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .cell-stack strong,
@@ -1918,17 +2324,27 @@ export default {
   font-weight: 700;
 }
 
+.cell-stack strong {
+  line-height: 1.3;
+  word-break: break-word;
+}
+
 .cell-stack small,
 .status-pill {
   color: #7d8798;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+}
+
+.cell-stack small {
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0.25rem 0.7rem;
+  min-height: 28px;
+  padding: 0.2rem 0.62rem;
   border-radius: 999px;
   background: #f2f5fa;
   font-weight: 700;
@@ -1936,7 +2352,7 @@ export default {
 }
 
 .amount-text {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 
 .action-view-btn {
@@ -1945,13 +2361,14 @@ export default {
   justify-content: center;
   gap: 0.45rem;
   min-width: 88px;
-  height: 38px;
-  padding: 0 0.85rem;
+  height: 34px;
+  padding: 0 0.72rem;
   border: 1px solid #dbe4f0;
   border-radius: 10px;
   background: #fff;
   color: #2d4f8f;
   font-weight: 700;
+  font-size: 0.8rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -1964,7 +2381,8 @@ export default {
 .table-actions {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  justify-content: flex-start;
+  gap: 0.45rem;
   flex-wrap: wrap;
 }
 
@@ -1980,13 +2398,14 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  min-height: 42px;
-  padding: 0 1rem;
+  min-height: 36px;
+  padding: 0 0.82rem;
   border: 1px solid #f6c86f;
   border-radius: 12px;
   background: linear-gradient(180deg, #fff9ed 0%, #fff2d8 100%);
   color: #b46900;
   font-weight: 800;
+  font-size: 0.82rem;
   box-shadow: 0 10px 24px rgba(246, 200, 111, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2001,14 +2420,15 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  min-width: 76px;
-  height: 38px;
-  padding: 0 0.85rem;
+  min-width: 72px;
+  height: 34px;
+  padding: 0 0.72rem;
   border: 1px solid #dbe4f0;
   border-radius: 10px;
   background: #fff;
   color: #40506f;
   font-weight: 700;
+  font-size: 0.8rem;
   text-decoration: none;
 }
 
@@ -2017,14 +2437,15 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  min-width: 86px;
-  height: 38px;
-  padding: 0 0.85rem;
+  min-width: 78px;
+  height: 34px;
+  padding: 0 0.72rem;
   border: 1px solid #f3c7c7;
   border-radius: 10px;
   background: #fff5f5;
   color: #b42318;
   font-weight: 700;
+  font-size: 0.8rem;
 }
 
 .status-pill-success {
@@ -2060,7 +2481,7 @@ export default {
 .error-card h3 {
   margin: 0;
   color: #1d3360;
-  font-size: 1.7rem;
+  font-size: 1.38rem;
   font-weight: 800;
 }
 
@@ -2133,8 +2554,16 @@ export default {
     width: 100%;
   }
 
+  .branch-date-filter {
+    margin-left: 0;
+  }
+
   .detail-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sales-table-detail {
+    min-width: 1120px;
   }
 
   .table-footer {
@@ -2156,6 +2585,16 @@ export default {
   .branch-toolbar-actions,
   .branch-export-btn {
     width: 100%;
+  }
+
+  .date-range-popover {
+    left: 0;
+    right: auto;
+    width: min(100%, 92vw);
+  }
+
+  .date-range-fields {
+    grid-template-columns: 1fr;
   }
 
   .detail-filters {
