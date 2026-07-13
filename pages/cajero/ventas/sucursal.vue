@@ -698,6 +698,9 @@ export default {
     }
   },
   mounted() {
+    console.log('[ventas/sucursal] mounted', {
+      routeQuery: { ...this.$route.query }
+    });
     this.syncRouteFilters();
     this.syncDraftDateRange();
     this.loadVentas();
@@ -751,6 +754,15 @@ export default {
     }
   },
   methods: {
+    hasValidBranchContext() {
+      const codigoSucursal = String(this.filters.codigoSucursal ?? '').trim();
+      console.log('[ventas/sucursal] hasValidBranchContext', {
+        codigoSucursal,
+        puntoVenta: this.filters.puntoVenta ?? '',
+        isValid: codigoSucursal !== ''
+      });
+      return codigoSucursal !== '';
+    },
     syncDraftDateRange() {
       this.draftDateRange = {
         fechaInicio: this.filters.fechaInicio || '',
@@ -889,6 +901,11 @@ export default {
       this.branchName = this.$route.query.nombre || '';
       this.branchDepartment = this.$route.query.departamento || '';
       this.isSyncingFilters = false;
+      console.log('[ventas/sucursal] syncRouteFilters', {
+        filters: { ...this.filters },
+        branchName: this.branchName,
+        branchDepartment: this.branchDepartment
+      });
     },
     formatShortDate(value) {
       if (!value) {
@@ -1569,6 +1586,17 @@ export default {
       }, 350);
     },
     async loadVentas() {
+      if (!this.hasValidBranchContext()) {
+        console.warn('[ventas/sucursal] loadVentas:invalid-branch-context', {
+          filters: { ...this.filters },
+          routeQuery: { ...this.$route.query }
+        });
+        this.error = 'La sucursal seleccionada no tiene un codigo de sucursal valido para consultar el kardex.';
+        this.ventas = [];
+        this.load = false;
+        return;
+      }
+
       this.load = true;
       this.error = '';
 
@@ -1586,13 +1614,28 @@ export default {
           params.append('q', this.filters.q);
         }
 
-        const response = await this.$admin.$get(`ventas?${params.toString()}`);
+        const path = `ventas?${params.toString()}`;
+        console.log('[ventas/sucursal] loadVentas:start', {
+          filters: { ...this.filters },
+          path
+        });
+        const response = await this.$admin.$get(path);
+        console.log('[ventas/sucursal] loadVentas:success', {
+          totalVentas: Array.isArray(response) ? response.length : 0,
+          firstVenta: Array.isArray(response) && response.length ? response[0] : null
+        });
         this.ventas = Array.isArray(response) ? response : [];
         this.activeUserId = 'all';
         this.currentPage = 1;
         this.activeTab = 'resumen';
         this.scrollActiveSelectorIntoView();
       } catch (err) {
+        console.error('[ventas/sucursal] loadVentas:error', {
+          filters: { ...this.filters },
+          status: err?.response?.status || null,
+          data: err?.response?.data || null,
+          message: err?.message || null
+        });
         this.error = err?.response?.data?.message
           ? err.response.data.message
           : 'No se pudo cargar el detalle de ventas de la sucursal.';

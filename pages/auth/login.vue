@@ -54,10 +54,6 @@
                         </label>
 
                         <button type="submit" class="btn btn-login-primary w-100">Ingresar</button>
-
-                        <button type="button" class="btn-link-clean" @click="toggleMode('forgotPassword')">
-                           ¿Olvidaste tu contraseña?
-                        </button>
                      </form>
 
                      <form v-else key="forgot-form" class="auth-form" @submit.prevent="submitForgotPassword">
