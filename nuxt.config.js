@@ -5,7 +5,7 @@
     port: 3000
   },
   publicRuntimeConfig: {
-    adminApiBaseUrl: process.env.ADMIN_API_BASE_URL || process.env.NUXT_ENV_ADMIN_API_URL || 'http://127.0.0.1:8000/admin/'
+    adminApiBaseUrl: process.env.ADMIN_API_BASE_URL || process.env.NUXT_ENV_ADMIN_API_URL || 'https://safe.correos.gob.bo/admin/'
   },
  
   head: {

@@ -7,12 +7,12 @@
           <section class="hero-card">
             <div class="hero-copy">
               <h1>Control de cierre diario</h1>
-              <p>Revision operativa y cierre de caja por sucursal.</p>
+              <p>Fecha de trabajo: {{ formattedSelectedDate }}</p>
             </div>
 
             <div class="toolbar-grid">
               <label class="toolbar-field toolbar-field-date">
-                <i class="far fa-calendar"></i>
+                <i class="far fa-calendar-alt"></i>
                 <input v-model="selectedDate" type="date" />
               </label>
 
@@ -25,9 +25,9 @@
                 <i class="fas fa-filter"></i>
                 <select v-model="statusFilter">
                   <option value="all">Estado: Todos</option>
-                  <option value="cerrada">Caja cerrada</option>
-                  <option value="pendiente">Pendiente de cierre</option>
-                  <option value="diferencia">Con diferencia</option>
+                  <option value="cerrada">Sin observaciones</option>
+                  <option value="pendiente">Con pendientes</option>
+                  <option value="diferencia">Con observaciones</option>
                   <option value="sin_ventas">Sin ventas</option>
                 </select>
               </label>
@@ -99,28 +99,6 @@
                     <strong>{{ formatCurrency(dashboardMetrics.totalVendido) }}</strong>
                   </div>
                 </article>
-              </div>
-
-              <div class="progress-panel">
-                <div class="progress-card">
-                  <div class="progress-card-icon">
-                    <i class="far fa-clipboard"></i>
-                  </div>
-                  <div class="progress-card-main">
-                    <div class="progress-card-copy">
-                      <strong>{{ progressSummary.reviewed }} de {{ progressSummary.total }} sucursales revisadas</strong>
-                      <span>{{ progressSummary.percent }}% de avance</span>
-                    </div>
-                    <div class="progress-track">
-                      <span class="progress-fill" :style="{ width: `${progressSummary.percent}%` }"></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="priority-card">
-                  <i class="fas fa-info-circle"></i>
-                  <span>{{ priorityMessage }}</span>
-                </div>
               </div>
 
               <section class="table-card">
@@ -374,20 +352,50 @@ export default {
         },
         sucursales: []
       },
+      branchCatalog: [
+        { id: '000-0', codigoSucursal: '000', puntoVenta: '0', departamento: 'LA PAZ', nombre: 'LA PAZ', sucursalNombre: 'LA PAZ' },
+        { id: '001-0', codigoSucursal: '001', puntoVenta: '0', departamento: 'SANTA CRUZ DE LA SIERRA', nombre: 'SANTA CRUZ DE LA SIERRA', sucursalNombre: 'SANTA CRUZ DE LA SIERRA' },
+        { id: '002-0', codigoSucursal: '002', puntoVenta: '0', departamento: 'COCHABAMBA', nombre: 'COCHABAMBA', sucursalNombre: 'COCHABAMBA' },
+        { id: '003-0', codigoSucursal: '003', puntoVenta: '0', departamento: 'ORURO', nombre: 'ORURO', sucursalNombre: 'ORURO' },
+        { id: '004-0', codigoSucursal: '004', puntoVenta: '0', departamento: 'POTOSI', nombre: 'POTOSI', sucursalNombre: 'POTOSI' },
+        { id: '005-0', codigoSucursal: '005', puntoVenta: '0', departamento: 'SUCRE', nombre: 'SUCRE', sucursalNombre: 'SUCRE' },
+        { id: '006-0', codigoSucursal: '006', puntoVenta: '0', departamento: 'TARIJA', nombre: 'TARIJA', sucursalNombre: 'TARIJA' },
+        { id: '007-0', codigoSucursal: '007', puntoVenta: '0', departamento: 'COBIJA', nombre: 'COBIJA', sucursalNombre: 'COBIJA' },
+        { id: '008-0', codigoSucursal: '008', puntoVenta: '0', departamento: 'TRINIDAD', nombre: 'TRINIDAD', sucursalNombre: 'TRINIDAD' }
+      ],
+      userCountsByBranch: {},
       activeUsersModal: null,
       activeIncidentsModal: null
     };
   },
   computed: {
     branchRows() {
-      return (this.report.sucursales || []).map((item, index) => this.normalizeBranch(item, index));
+      const reportedRows = Array.isArray(this.report.sucursales) ? this.report.sucursales : [];
+      const reportedMap = reportedRows.reduce((acc, item) => {
+        const key = this.branchKey(item?.codigoSucursal, item?.puntoVenta);
+        acc[key] = item;
+        return acc;
+      }, {});
+
+      const mergedRows = this.branchCatalog.map((baseItem) => {
+        const key = this.branchKey(baseItem.codigoSucursal, baseItem.puntoVenta);
+        return {
+          ...this.emptyBranchRow(baseItem),
+          ...(reportedMap[key] || {})
+        };
+      });
+
+      reportedRows.forEach((item) => {
+        const key = this.branchKey(item?.codigoSucursal, item?.puntoVenta);
+        if (!mergedRows.find((row) => this.branchKey(row?.codigoSucursal, row?.puntoVenta) === key)) {
+          mergedRows.push(item);
+        }
+      });
+
+      return mergedRows.map((item, index) => this.normalizeBranch(item, index));
     },
     filteredBranches() {
       return this.branchRows.filter((item) => {
-        if (!this.matchesSelectedDate(item)) {
-          return false;
-        }
-
         if (this.statusFilter !== 'all' && item.status.key !== this.statusFilter) {
           return false;
         }
@@ -417,6 +425,18 @@ export default {
         ventasNetas: 0
       });
     },
+    formattedSelectedDate() {
+      if (!this.selectedDate) {
+        return 'Hoy';
+      }
+
+      const [year, month, day] = String(this.selectedDate).split('-');
+      if (!year || !month || !day) {
+        return this.selectedDate;
+      }
+
+      return `${day}/${month}/${year}`;
+    },
     progressSummary() {
       const total = this.dashboardMetrics.total;
       const reviewed = this.filteredBranches.filter((item) => item.status.key !== 'pendiente').length;
@@ -434,13 +454,14 @@ export default {
       }
 
       if (this.dashboardMetrics.pendientes) {
-        return 'Hay sucursales con ventas pendientes que requieren seguimiento.';
+        return 'Hay sucursales con pendientes operativos que requieren seguimiento.';
       }
 
-      return 'Todas las sucursales visibles estan sin observaciones para la fecha seleccionada.';
+      return 'Todas las sucursales visibles estan sin observaciones.';
     }
   },
   mounted() {
+    this.selectedDate = this.defaultToday();
     this.loadReport();
   },
   beforeDestroy() {
@@ -449,6 +470,9 @@ export default {
     }
   },
   watch: {
+    selectedDate() {
+      this.scheduleLoadReport();
+    },
     'filters.q'() {
       this.scheduleLoadReport();
     },
@@ -460,12 +484,71 @@ export default {
     }
   },
   methods: {
-    defaultToday() {
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = `${date.getMonth() + 1}`.padStart(2, '0');
-      const day = `${date.getDate()}`.padStart(2, '0');
-      return `${year}-${month}-${day}`;
+    branchKey(codigoSucursal, puntoVenta) {
+      const codigo = String(codigoSucursal ?? '0').padStart(3, '0');
+      const punto = String(puntoVenta ?? '0');
+      return `${codigo}-${punto}`;
+    },
+    emptyBranchRow(baseItem) {
+      return {
+        id: baseItem.id,
+        nombre: baseItem.nombre,
+        departamento: baseItem.departamento,
+        sucursalNombre: baseItem.sucursalNombre,
+        codigoSucursal: baseItem.codigoSucursal,
+        puntoVenta: baseItem.puntoVenta,
+        kardexDisponible: true,
+        cantidadVentas: 0,
+        totalVendido: 0,
+        totalQrFacturado: 0,
+        totalEfectivoFacturado: 0,
+        cajerosUnicos: 0,
+        facturadas: 0,
+        qrFacturadas: 0,
+        electronicasFacturadas: 0,
+        oficiales: 0,
+        conCufOtroEstado: 0,
+        observadas: 0,
+        pendientes: 0,
+        qrPagadoPendienteFactura: 0,
+        qrCancelado: 0,
+        qrPendiente: 0,
+        totalQrPagadoPendienteFactura: 0,
+        totalQrCancelado: 0,
+        totalQrPendiente: 0
+      };
+    },
+    cachedUserCount(codigoSucursal, puntoVenta) {
+      const key = this.branchKey(codigoSucursal, puntoVenta);
+      return Number(this.userCountsByBranch[key] || 0);
+    },
+    async ensureBranchUserCounts() {
+      try {
+        const fecha = this.selectedDate || this.defaultToday();
+        const response = await this.$admin.$get(`caja/reporte-diario?fecha=${encodeURIComponent(fecha)}`);
+        const rows = Array.isArray(response?.porSucursal) ? response.porSucursal : [];
+        const nextCounts = {};
+
+        rows.forEach((row) => {
+          const key = this.branchKey(row?.codigoSucursal, row?.puntoVenta);
+          nextCounts[key] = Number(row?.cajas || 0);
+        });
+
+        this.branchCatalog.forEach((item) => {
+          const key = this.branchKey(item.codigoSucursal, item.puntoVenta);
+          if (!Object.prototype.hasOwnProperty.call(nextCounts, key)) {
+            nextCounts[key] = 0;
+          }
+        });
+
+        this.userCountsByBranch = nextCounts;
+      } catch (error) {
+        console.error('[ventas/lista] ensureBranchUserCounts:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+      }
     },
     scheduleLoadReport() {
       if (this.isSyncingFilters) {
@@ -480,6 +563,14 @@ export default {
         this.loadReport();
       }, 350);
     },
+    defaultToday() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+
+      return `${year}-${month}-${day}`;
+    },
     normalizeBranch(item, index) {
       const totalQrFacturado = Number(item?.totalQrFacturado || 0);
       const totalEfectivoFacturado = Number(item?.totalEfectivoFacturado || 0);
@@ -493,10 +584,18 @@ export default {
       const ventasFacturadasNetas = Math.max(0, cantidadVentas - Number(item?.oficiales || 0));
       const ventasOperativas = ventasFacturadasNetas + qrPagadoPendienteFactura + qrPendiente;
       const totalCobrado = totalQrFacturado + totalEfectivoFacturado + totalQrPagadoPendienteFactura;
+      const incidentSummary = this.resolveIncidentSummary({
+        observadas,
+        pendientes,
+        conCufOtroEstado: Number(item?.conCufOtroEstado || 0),
+        qrPagadoPendienteFactura,
+        qrCancelado,
+        qrPendiente
+      });
       const status = this.resolveBranchStatus({
         cantidadVentas: ventasOperativas,
-        pendientes,
-        observadas
+        hasPendingIncidences: incidentSummary.hasPendingIncidences,
+        hasObservedIncidences: incidentSummary.hasObservedIncidences
       });
 
       return {
@@ -516,6 +615,7 @@ export default {
         facturadas: Number(item?.facturadas || 0),
         qrFacturadas: Number(item?.qrFacturadas || 0),
         electronicasFacturadas: Number(item?.electronicasFacturadas || 0),
+        cajerosUnicos: Number(item?.cajerosUnicos || this.cachedUserCount(item?.codigoSucursal, item?.puntoVenta)),
         oficiales: Number(item?.oficiales || 0),
         conCufOtroEstado: Number(item?.conCufOtroEstado || 0),
         observadas,
@@ -523,11 +623,30 @@ export default {
         qrPagadoPendienteFactura,
         qrCancelado,
         qrPendiente,
+        hasPendingIncidences: incidentSummary.hasPendingIncidences,
+        hasObservedIncidences: incidentSummary.hasObservedIncidences,
         status,
         kardexDisponible: item?.kardexDisponible !== false
       };
     },
-    resolveBranchStatus({ cantidadVentas, pendientes, observadas }) {
+    resolveIncidentSummary({ observadas, pendientes, conCufOtroEstado, qrPagadoPendienteFactura, qrCancelado, qrPendiente }) {
+      const hasObservedIncidences = Boolean(
+        observadas > 0
+        || conCufOtroEstado > 0
+        || qrCancelado > 0
+      );
+      const hasPendingIncidences = Boolean(
+        pendientes > 0
+        || qrPagadoPendienteFactura > 0
+        || qrPendiente > 0
+      );
+
+      return {
+        hasObservedIncidences,
+        hasPendingIncidences
+      };
+    },
+    resolveBranchStatus({ cantidadVentas, hasPendingIncidences, hasObservedIncidences }) {
       if (cantidadVentas <= 0) {
         return {
           key: 'sin_ventas',
@@ -539,7 +658,7 @@ export default {
         };
       }
 
-      if (observadas > 0) {
+      if (hasObservedIncidences) {
         return {
           key: 'diferencia',
           label: 'Con observaciones',
@@ -550,7 +669,7 @@ export default {
         };
       }
 
-      if (pendientes > 0) {
+      if (hasPendingIncidences) {
         return {
           key: 'pendiente',
           label: 'Con pendientes',
@@ -570,29 +689,6 @@ export default {
         actionIcon: 'far fa-eye'
       };
     },
-    matchesSelectedDate(item) {
-      if (!this.selectedDate) {
-        return true;
-      }
-
-      const value = item?.ultimaVenta || item?.primeraVenta;
-      if (!value) {
-        return false;
-      }
-
-      return this.extractDateKey(value) === this.selectedDate;
-    },
-    extractDateKey(value) {
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return '';
-      }
-
-      const year = date.getFullYear();
-      const month = `${date.getMonth() + 1}`.padStart(2, '0');
-      const day = `${date.getDate()}`.padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    },
     roundCurrency(value) {
       return Math.round(Number(value || 0) * 100) / 100;
     },
@@ -601,7 +697,12 @@ export default {
       this.error = '';
 
       try {
+        const dateValue = this.selectedDate || this.defaultToday();
         const params = new URLSearchParams();
+        if (dateValue) {
+          params.append('fechaInicio', dateValue);
+          params.append('fechaFin', dateValue);
+        }
         Object.keys(this.filters).forEach((key) => {
           const value = this.filters[key];
           if (value !== '' && value !== null && value !== undefined) {
@@ -628,6 +729,7 @@ export default {
           resumen: response && response.resumen ? response.resumen : this.report.resumen,
           sucursales: response && response.sucursales ? response.sucursales : []
         };
+        this.ensureBranchUserCounts();
       } catch (err) {
         console.error('[ventas/lista] loadReport:error', {
           filters: { ...this.filters },
@@ -649,7 +751,7 @@ export default {
         clearTimeout(this.searchTimer);
       }
 
-      this.selectedDate = '';
+      this.selectedDate = this.defaultToday();
       this.statusFilter = 'all';
       this.filters = {
         codigoSucursal: '',
@@ -955,7 +1057,7 @@ export default {
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: 190px minmax(220px, 1fr) 190px;
+  grid-template-columns: 190px minmax(320px, 1fr) 220px;
   gap: 0.7rem;
   margin-top: 0.95rem;
 }

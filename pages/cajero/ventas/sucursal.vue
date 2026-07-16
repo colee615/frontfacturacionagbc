@@ -3,91 +3,157 @@
     <JcLoader :load="load" />
     <AdminTemplate :page="page" :modulo="modulo">
       <div slot="body" class="branch-dashboard-page enterprise-page-shell">
-                <section class="stats-grid">
-          <div class="stat-card stat-card-red">
-            <div class="stat-icon"><i class="fas fa-tag"></i></div>
-            <div class="stat-copy">
-              <span>Total general</span>
-              <strong>{{ formatCurrency(summary.totalGeneral) }}</strong>
-              <small>{{ summary.countCobrado }} transacciones cobradas</small>
-            </div>
-          </div>
-
-          <div class="stat-card stat-card-green">
-            <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-            <div class="stat-copy">
-              <span>Total caja</span>
-              <strong>{{ formatCurrency(summary.totalCaja) }}</strong>
-              <small>No incluye QR</small>
-            </div>
-          </div>
-
-          <div class="stat-card stat-card-yellow">
-            <div class="stat-icon"><i class="fas fa-percentage"></i></div>
-            <div class="stat-copy">
-              <span>Usuarios</span>
-              <strong>{{ userSummaries.length }}</strong>
-              <small>Facturadores activos</small>
-            </div>
-          </div>
-
-          <div class="stat-card stat-card-gray">
-            <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
-            <div class="stat-copy">
-              <span>Promedio</span>
-              <strong>{{ formatCurrency(summary.countCobrado ? summary.totalGeneral / summary.countCobrado : 0) }}</strong>
-              <small>Por venta</small>
-            </div>
-          </div>
-        </section>
-
         <section v-if="error" class="error-card">
           <h3>No se pudo cargar el reporte</h3>
           <p>{{ error }}</p>
         </section>
 
         <template v-else>
-          <section class="branch-workspace">
-            <aside class="branch-selector-card enterprise-content-card">
-              <div class="selector-head">
-                <div>
-                  <h3 class="mb-1">Facturadores</h3>
-                  <p class="detail-copy mb-0">Primero selecciona la sucursal y luego revisa el kardex por cajero.</p>
+          <section class="branch-hero-card enterprise-content-card">
+            <div class="branch-hero-head">
+              <div class="branch-hero-copy">
+                <h1>Kardex de sucursal · {{ branchLabel }}</h1>
+                <p>{{ branchHeroSubtitle }}</p>
+              </div>
+
+              <div class="branch-hero-meta">
+                <div class="branch-context-chip">
+                  <i class="fas fa-store"></i>
+                  <span>Sucursal {{ branchCodeLabel }} · Punto {{ branchPointLabel }}</span>
+                </div>
+
+                <div class="branch-status-chip" :class="`branch-status-chip-${branchHealth.key}`">
+                  <i :class="branchHealth.icon"></i>
+                  <span>{{ branchHealth.label }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="branch-hero-toolbar">
+              <div class="branch-toolbar-group">
+                <div class="branch-date-filter" ref="dateFilter">
+                  <button
+                    type="button"
+                    class="branch-range-chip branch-range-chip-button"
+                    :class="{ 'branch-range-chip-active': hasDateRange }"
+                    @click.stop="toggleDateRangePicker"
+                  >
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>{{ currentDateRangeLabel }}</span>
+                  </button>
+
+                  <div v-if="showDateRangePicker" class="date-range-popover" @click.stop>
+                    <div class="date-range-popover-head">
+                      <div>
+                        <strong>Seleccionar fechas</strong>
+                        <small>Filtra el kardex por rango de fechas.</small>
+                      </div>
+                      <button type="button" class="date-range-close" @click="closeDateRangePicker">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+
+                    <div class="date-range-quick-actions">
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('today')">Hoy</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last7')">7 dias</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last30')">30 dias</button>
+                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('month')">Este mes</button>
+                    </div>
+
+                    <div class="date-range-fields">
+                      <label class="date-range-field">
+                        <span>Desde</span>
+                        <input v-model="draftDateRange.fechaInicio" type="date" />
+                      </label>
+                      <label class="date-range-field">
+                        <span>Hasta</span>
+                        <input v-model="draftDateRange.fechaFin" type="date" />
+                      </label>
+                    </div>
+
+                    <div class="date-range-actions">
+                      <button type="button" class="date-range-link" @click="clearDateRange">Limpiar</button>
+                      <button type="button" class="date-range-apply" @click="applyDateRange">Aplicar</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="branch-range-chip branch-range-chip-muted">
+                  <i class="fas fa-users"></i>
+                  <span>{{ activeUserLabel }}</span>
                 </div>
               </div>
 
-              <label class="selector-search">
-                <i class="fas fa-search"></i>
-                <input v-model.trim="userSearch" type="text" placeholder="Buscar usuario..." />
-              </label>
-
-              <div ref="selectorList" class="selector-list">
+              <div class="branch-toolbar-actions">
                 <button
                   type="button"
-                  class="selector-item"
-                  :class="{ active: activeUserId === 'all' }"
-                  data-user-id="all"
-                  @click="selectUser('all')"
+                  class="branch-export-btn"
+                  @click="downloadKardexPdf"
                 >
-                  <span class="selector-name">Todos los usuarios</span>
-                  <small>{{ visibleVentas.length }} ventas</small>
-                </button>
-
-                <button
-                  v-for="user in filteredUserSummaries"
-                  :key="user.id"
-                  type="button"
-                  class="selector-item"
-                  :class="{ active: activeUserId === user.id }"
-                  :data-user-id="String(user.id)"
-                  @click="selectUser(user.id)"
-                >
-                  <span class="selector-name">{{ user.nombre }}</span>
-                  <small>{{ user.ventas }} ventas · {{ formatCurrency(user.total) }}</small>
+                  <i class="fas fa-file-pdf"></i>
+                  <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
                 </button>
               </div>
-            </aside>
+            </div>
+          </section>
 
+          <section class="stats-grid branch-overview-grid">
+            <div class="stat-card stat-card-blue">
+              <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+              <div class="stat-copy">
+                <span>Total vendido</span>
+                <strong>{{ formatCurrency(branchOverview.totalGeneral) }}</strong>
+                <small>{{ branchOverview.countCobrado }} transacciones cobradas</small>
+              </div>
+            </div>
+
+            <div class="stat-card stat-card-green">
+              <div class="stat-icon"><i class="fas fa-cash-register"></i></div>
+              <div class="stat-copy">
+                <span>Efectivo / caja</span>
+                <strong>{{ formatCurrency(branchOverview.totalCaja) }}</strong>
+                <small>No incluye QR</small>
+              </div>
+            </div>
+
+            <div class="stat-card stat-card-violet">
+              <div class="stat-icon"><i class="fas fa-qrcode"></i></div>
+              <div class="stat-copy">
+                <span>QR confirmado</span>
+                <strong>{{ formatCurrency(branchOverview.totalQrConfirmado) }}</strong>
+                <small>{{ branchOverview.qrConfirmados }} venta(s) QR facturadas</small>
+              </div>
+            </div>
+
+            <div class="stat-card stat-card-yellow">
+              <div class="stat-icon"><i class="fas fa-clock"></i></div>
+              <div class="stat-copy">
+                <span>QR por revisar</span>
+                <strong>{{ formatCurrency(branchOverview.totalQrPendiente) }}</strong>
+                <small>{{ branchOverview.qrPendientes }} pendiente(s) / pago(s)</small>
+              </div>
+            </div>
+
+            <div class="stat-card stat-card-red">
+              <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+              <div class="stat-copy">
+                <span>Incidencias</span>
+                <strong>{{ branchOverview.incidencias }}</strong>
+                <small>{{ branchHealth.message }}</small>
+              </div>
+            </div>
+          </section>
+
+          <section
+            v-if="branchHealth.key !== 'ok'"
+            class="branch-alert"
+            :class="`branch-alert-${branchHealth.key}`"
+          >
+            <i :class="branchHealth.icon"></i>
+            <span>{{ branchHealth.message }}</span>
+          </section>
+
+          <section class="branch-workspace">
             <section class="branch-main-card enterprise-content-card">
               <div class="branch-tabs">
                 <button
@@ -114,69 +180,6 @@
                 >
                   Comparativo
                 </button>
-
-                <div class="branch-date-filter" ref="dateFilter">
-                  <button
-                    type="button"
-                    class="branch-range-chip branch-range-chip-button"
-                    :class="{ 'branch-range-chip-active': hasDateRange }"
-                    @click.stop="toggleDateRangePicker"
-                  >
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>{{ currentDateRangeLabel }}</span>
-                  </button>
-
-                  <div v-if="showDateRangePicker" class="date-range-popover" @click.stop>
-                    <div class="date-range-popover-head">
-                      <div>
-                        <strong>Seleccionar fechas</strong>
-                        <small>Filtra el kardex por rango de fechas.</small>
-                      </div>
-                      <button type="button" class="date-range-close" @click="closeDateRangePicker">
-                        <i class="fas fa-times"></i>
-                      </button>
-                    </div>
-
-                    <div class="date-range-quick-actions">
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('today')">Hoy</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last7')">7 días</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last30')">30 días</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('month')">Este mes</button>
-                    </div>
-
-                    <div class="date-range-fields">
-                      <label class="date-range-field">
-                        <span>Desde</span>
-                        <input v-model="draftDateRange.fechaInicio" type="date" />
-                      </label>
-                      <label class="date-range-field">
-                        <span>Hasta</span>
-                        <input v-model="draftDateRange.fechaFin" type="date" />
-                      </label>
-                    </div>
-
-                    <div class="date-range-actions">
-                      <button type="button" class="date-range-link" @click="clearDateRange">Limpiar</button>
-                      <button type="button" class="date-range-apply" @click="applyDateRange">Aplicar</button>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="branch-range-chip">
-                  <i class="fas fa-user"></i>
-                  <span>{{ activeUserLabel }}</span>
-                </div>
-
-                <div class="branch-toolbar-actions">
-                  <button
-                    type="button"
-                    class="branch-export-btn"
-                    @click="downloadKardexPdf"
-                  >
-                    <i class="fas fa-file-pdf"></i>
-                    <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
-                  </button>
-                </div>
               </div>
 
               <div v-if="activeTab === 'resumen'" class="branch-summary-grid">
@@ -383,6 +386,15 @@
                               <span>Ver QR</span>
                             </button>
                             <button
+                              v-else-if="canConsultarEstadoVenta(venta)"
+                              class="action-secondary-btn"
+                              type="button"
+                              @click="consultarQrVenta(venta, false)"
+                            >
+                              <i class="fas fa-sync-alt"></i>
+                              <span>Consultar</span>
+                            </button>
+                            <button
                               v-else-if="canFacturarQrVenta(venta)"
                               class="action-secondary-btn"
                               type="button"
@@ -467,6 +479,46 @@
                 </div>
               </div>
             </section>
+
+            <aside class="branch-selector-card enterprise-content-card">
+              <div class="selector-head">
+                <div>
+                  <h3 class="mb-1">Detalle por usuario</h3>
+                  <p class="detail-copy mb-0">La vista por cajero se mantiene activa para revisar el kardex sin perder el consolidado de sucursal.</p>
+                </div>
+              </div>
+
+              <label class="selector-search">
+                <i class="fas fa-search"></i>
+                <input v-model.trim="userSearch" type="text" placeholder="Buscar usuario..." />
+              </label>
+
+              <div ref="selectorList" class="selector-list">
+                <button
+                  type="button"
+                  class="selector-item"
+                  :class="{ active: activeUserId === 'all' }"
+                  data-user-id="all"
+                  @click="selectUser('all')"
+                >
+                  <span class="selector-name">Todos los usuarios</span>
+                  <small>{{ visibleVentas.length }} ventas · {{ formatCurrency(branchOverview.totalGeneral) }}</small>
+                </button>
+
+                <button
+                  v-for="user in filteredUserSummaries"
+                  :key="user.id"
+                  type="button"
+                  class="selector-item"
+                  :class="{ active: activeUserId === user.id }"
+                  :data-user-id="String(user.id)"
+                  @click="selectUser(user.id)"
+                >
+                  <span class="selector-name">{{ user.nombre }}</span>
+                  <small>{{ user.ventas }} ventas · {{ formatCurrency(user.total) }}</small>
+                </button>
+              </div>
+            </aside>
           </section>
         </template>
 
@@ -565,6 +617,12 @@ export default {
     branchLabel() {
       return this.branchDepartment || this.branchName || 'Sucursal';
     },
+    branchCodeLabel() {
+      return String(this.filters.codigoSucursal || '0').padStart(3, '0');
+    },
+    branchPointLabel() {
+      return String(this.filters.puntoVenta || '0');
+    },
     hasDateRange() {
       return Boolean(this.filters.fechaInicio || this.filters.fechaFin);
     },
@@ -592,6 +650,13 @@ export default {
 
       const match = this.userSummaries.find((user) => user.id === this.activeUserId);
       return match ? `Ventas de ${match.nombre}` : 'Historial filtrado';
+    },
+    branchHeroSubtitle() {
+      const base = this.hasDateRange
+        ? this.currentDateRangeLabel
+        : 'Sin rango de fechas aplicado';
+
+      return `${base} · ${this.visibleVentas.length} venta(s) visibles en la sucursal`;
     },
     visibleVentas() {
       return this.ventas.filter((venta) => this.isVentaInDateRange(venta));
@@ -658,6 +723,46 @@ export default {
         return acc;
       }, { totalGeneral: 0, totalCaja: 0, count: 0, countCobrado: 0 });
     },
+    branchOverview() {
+      return this.visibleVentas.reduce((acc, venta) => {
+        const total = Number(venta.total || 0);
+        const sectionKey = this.resolveSectionKey(venta);
+
+        if (this.countsTowardCollectedTotal(venta)) {
+          acc.totalGeneral += total;
+          acc.countCobrado += 1;
+        }
+
+        if (this.countsTowardCashTotal(venta)) {
+          acc.totalCaja += total;
+        }
+
+        if (sectionKey === 'qr_facturado') {
+          acc.totalQrConfirmado += total;
+          acc.qrConfirmados += 1;
+        }
+
+        if (sectionKey === 'qr_pagado_pendiente_factura' || sectionKey === 'qr_pendiente') {
+          acc.totalQrPendiente += total;
+          acc.qrPendientes += 1;
+        }
+
+        if (sectionKey === 'qr_cancelado' || sectionKey === 'oficial') {
+          acc.incidencias += 1;
+        }
+
+        return acc;
+      }, {
+        totalGeneral: 0,
+        countCobrado: 0,
+        totalCaja: 0,
+        totalQrConfirmado: 0,
+        qrConfirmados: 0,
+        totalQrPendiente: 0,
+        qrPendientes: 0,
+        incidencias: 0
+      });
+    },
     deliverySummary() {
       return this.filteredVentas.reduce((acc, venta) => {
         const sectionKey = this.resolveSectionKey(venta);
@@ -665,6 +770,53 @@ export default {
         acc[sectionKey].total += Number(venta.total || 0);
         return acc;
       }, this.buildDeliveryAccumulator());
+    },
+    branchDeliverySummary() {
+      return this.visibleVentas.reduce((acc, venta) => {
+        const sectionKey = this.resolveSectionKey(venta);
+        acc[sectionKey].count += 1;
+        acc[sectionKey].total += Number(venta.total || 0);
+        return acc;
+      }, this.buildDeliveryAccumulator());
+    },
+    branchHealth() {
+      const observed = this.branchDeliverySummary.qr_cancelado.count;
+      const pending = this.branchDeliverySummary.qr_pagado_pendiente_factura.count
+        + this.branchDeliverySummary.qr_pendiente.count;
+
+      if (!this.visibleVentas.length) {
+        return {
+          key: 'empty',
+          label: 'Sin ventas',
+          icon: 'far fa-times-circle',
+          message: 'No se encontraron ventas para este rango en la sucursal.'
+        };
+      }
+
+      if (observed > 0) {
+        return {
+          key: 'alert',
+          label: 'Con observaciones',
+          icon: 'fas fa-exclamation-triangle',
+          message: `Se detectaron ${observed} venta(s) QR canceladas o con observacion para revisar.`
+        };
+      }
+
+      if (pending > 0) {
+        return {
+          key: 'pending',
+          label: 'Con pendientes',
+          icon: 'far fa-clock',
+          message: `Hay ${pending} venta(s) QR pendientes o pagadas sin cierre final de factura.`
+        };
+      }
+
+      return {
+        key: 'ok',
+        label: 'Sin observaciones',
+        icon: 'far fa-check-circle',
+        message: 'La sucursal no presenta incidencias visibles en el rango seleccionado.'
+      };
     },
     totalPages() {
       return Math.max(1, Math.ceil(this.filteredVentas.length / this.pageSize));
@@ -975,10 +1127,41 @@ export default {
       return String(venta?.metodo_pago || '').trim().toLowerCase() === 'qr'
         || String(venta?.canal_emision || '').trim().toLowerCase() === 'qr';
     },
+    hasFacturaEmitidaEvidence(venta) {
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const cuf = String(
+        venta?.cuf
+        || venta?.status?.cuf
+        || venta?.seguimiento?.cuf
+        || venta?.respuesta_emision?.factura?.cuf
+        || venta?.respuesta_emision?.cuf
+        || ''
+      ).trim();
+      const pdfUrl = String(
+        venta?.seguimiento?.urlPdf
+        || venta?.respuesta_emision?.factura?.pdfUrl
+        || venta?.respuesta_emision?.pdfUrl
+        || ''
+      ).trim();
+      const numeroFactura = String(
+        venta?.numeroFactura
+        || venta?.respuesta_emision?.factura?.nroFactura
+        || ''
+      ).trim();
+
+      return estadoEmision === 'FACTURADA'
+        || statusKey === 'FACTURADA'
+        || statusLabel.includes('FACTURADA')
+        || cuf !== ''
+        || pdfUrl !== ''
+        || numeroFactura !== '';
+    },
     isQrFacturadoVenta(venta) {
       return this.isQrPaymentVenta(venta)
         && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
-        && String(venta?.estado_emision || '').trim().toUpperCase() === 'FACTURADA';
+        && this.hasFacturaEmitidaEvidence(venta);
     },
     countsTowardCashTotal(venta) {
       if (this.isQrPaymentVenta(venta)) {
@@ -1019,9 +1202,8 @@ export default {
     resolveSectionKey(venta) {
       if (this.isQrPaymentVenta(venta)) {
         const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
-        const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
 
-        if (estadoPago === 'pagado' && estadoEmision === 'FACTURADA') {
+        if (estadoPago === 'pagado' && this.isQrFacturadoVenta(venta)) {
           return 'qr_facturado';
         }
 
@@ -1228,15 +1410,15 @@ export default {
     },
     emissionStateLabel(venta) {
       if (this.isCartVenta(venta)) {
-        const estado = this.normalizedEstadoEmision(venta);
         if (this.isQrPaymentVenta(venta)) {
           const pago = String(venta?.estado_pago || '').toLowerCase();
-          if (pago === 'pagado' && estado === 'FACTURADA') return 'QR FACTURADO';
+          if (pago === 'pagado' && this.isQrFacturadoVenta(venta)) return 'QR FACTURADO';
           if (pago === 'pagado') return 'PAGADO QR';
           if (pago === 'cancelado' || pago === 'fallido') return 'QR ANULADO';
           return 'QR PENDIENTE';
         }
 
+        const estado = this.normalizedEstadoEmision(venta);
         return estado.replace(/_/g, ' ');
       }
 
@@ -1265,8 +1447,18 @@ export default {
       const response = venta?.respuesta_emision || {};
       return response?.factura?.pdfUrl || response?.pdfUrl || '';
     },
+    isRejectedVenta(venta) {
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const estadoEmision = this.normalizedEstadoEmision(venta);
+
+      return ['OBSERVADO', 'RECHAZADA'].includes(statusKey)
+        || statusLabel.includes('OBSERVAD')
+        || statusLabel.includes('RECHAZAD')
+        || estadoEmision === 'RECHAZADA';
+    },
     canAnularVenta(venta) {
-      return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
+      return Boolean(venta?.status?.cuf) && (Boolean(venta?.status?.can_annul) || this.isRejectedVenta(venta));
     },
     canCancelarQrVenta(venta) {
       return this.isCartVenta(venta)
@@ -1279,11 +1471,16 @@ export default {
         && this.isQrPaymentVenta(venta)
         && ['pendiente', 'cancelado', 'fallido'].includes(String(venta?.estado_pago || 'pendiente').trim().toLowerCase());
     },
+    canConsultarEstadoVenta(venta) {
+      return this.isCartVenta(venta)
+        && Boolean(venta?.status?.can_consult)
+        && !this.canViewQr(venta);
+    },
     canFacturarQrVenta(venta) {
       return this.isCartVenta(venta)
         && this.isQrPaymentVenta(venta)
         && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
-        && String(venta?.estado_emision || '').trim().toUpperCase() !== 'FACTURADA';
+        && !this.isQrFacturadoVenta(venta);
     },
     extractQrPayloadFromConsultResponse(payload) {
       const respuesta = payload?.respuesta || {};
@@ -1343,7 +1540,7 @@ export default {
           cart_id: cartId,
           auto_emit_invoice: autoEmitInvoice ? 1 : 0
         };
-        const response = await this.$admin.$post('cart/consultar', payload);
+        const response = await this.$axios.$post('/api/factura-venta/cart/consultar', payload);
         const qrPayload = this.extractQrPayloadFromConsultResponse(response);
 
         await this.loadVentas();
@@ -1757,6 +1954,7 @@ export default {
   padding: 0.25rem 0 1rem;
 }
 
+.branch-hero-card,
 .branch-selector-card,
 .branch-main-card,
 .error-card {
@@ -1785,7 +1983,7 @@ export default {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.7rem;
   margin: 0.85rem 0;
 }
@@ -1837,20 +2035,154 @@ export default {
   font-size: 0.8rem;
 }
 
+.stat-card-blue .stat-icon { background: #e8f0ff; color: #2862d4; }
 .stat-card-red .stat-icon { background: #ffe7e7; color: #d23a3a; }
 .stat-card-green .stat-icon { background: #e4f7df; color: #2b8a3e; }
 .stat-card-yellow .stat-icon { background: #fff2cd; color: #d69a00; }
+.stat-card-violet .stat-icon { background: #f2e8ff; color: #7c3aed; }
 .stat-card-gray .stat-icon { background: #eef2f7; color: #6b7280; }
+
+.branch-hero-card {
+  padding: 1rem 1.05rem;
+  margin-bottom: 0.85rem;
+}
+
+.branch-hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.branch-hero-copy h1 {
+  margin: 0;
+  color: #18315f;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.branch-hero-copy p {
+  margin: 0.35rem 0 0;
+  color: #6d7d96;
+  font-size: 0.9rem;
+}
+
+.branch-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.branch-context-chip,
+.branch-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid #e3e9f3;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #26406f;
+}
+
+.branch-status-chip-ok {
+  border-color: #d6efdc;
+  background: #effbf2;
+  color: #188247;
+}
+
+.branch-status-chip-pending {
+  border-color: #fae7b9;
+  background: #fff8e7;
+  color: #d08b09;
+}
+
+.branch-status-chip-alert {
+  border-color: #f6d2d2;
+  background: #fff1f1;
+  color: #d43a3a;
+}
+
+.branch-status-chip-empty {
+  border-color: #e3e9f3;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.branch-hero-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 0.95rem;
+  flex-wrap: wrap;
+}
+
+.branch-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.branch-range-chip-muted {
+  margin-left: 0;
+}
+
+.branch-overview-grid {
+  margin-bottom: 0.85rem;
+}
+
+.branch-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.82rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid #e6ebf3;
+  background: #fff;
+  margin-bottom: 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.branch-alert i {
+  font-size: 0.9rem;
+}
+
+.branch-alert-pending {
+  border-color: #f7e4b7;
+  background: #fff8e8;
+  color: #b97709;
+}
+
+.branch-alert-alert {
+  border-color: #f6d1d1;
+  background: #fff1f1;
+  color: #cf3131;
+}
 
 .branch-workspace {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 0.85rem;
+  align-items: start;
 }
 
 .branch-selector-card,
 .branch-main-card {
   padding: 0.85rem 0.95rem;
+}
+
+.branch-selector-card {
+  position: sticky;
+  top: 1rem;
 }
 
 .selector-head h3 {
@@ -1954,7 +2286,6 @@ export default {
 }
 
 .branch-range-chip {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
@@ -1969,7 +2300,6 @@ export default {
 
 .branch-date-filter {
   position: relative;
-  margin-left: auto;
 }
 
 .branch-range-chip-button {
@@ -2586,11 +2916,29 @@ export default {
   .branch-workspace {
     grid-template-columns: 1fr;
   }
+
+  .branch-selector-card {
+    position: static;
+  }
+
+  .branch-hero-head {
+    flex-direction: column;
+  }
+
+  .branch-hero-meta {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 991px) {
   .branch-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .branch-hero-toolbar,
+  .branch-toolbar-group {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .branch-toolbar-actions {
@@ -2623,6 +2971,10 @@ export default {
   .stats-grid,
   .branch-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .branch-hero-copy h1 {
+    font-size: 1.45rem;
   }
 
   .branch-toolbar-actions,

@@ -721,12 +721,20 @@ export default {
             return;
          }
 
-         if (action === 'annul') {
-            await this.anularVenta(venta);
-         }
+      if (action === 'annul') {
+         await this.anularVenta(venta);
+      }
+      },
+      isRejectedVenta(venta) {
+         const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+         const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+
+         return ['OBSERVADO', 'RECHAZADA'].includes(statusKey)
+            || statusLabel.includes('OBSERVAD')
+            || statusLabel.includes('RECHAZAD');
       },
       canAnular(venta) {
-         return Boolean(venta?.status?.can_annul && venta?.status?.cuf);
+         return Boolean(venta?.status?.cuf) && (Boolean(venta?.status?.can_annul) || this.isRejectedVenta(venta));
       },
       async fetchAnulacionGuardStatus() {
          try {

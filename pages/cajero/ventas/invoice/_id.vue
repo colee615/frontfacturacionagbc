@@ -204,8 +204,16 @@ export default {
       },
       canAnular() {
          const key = this.model?.status?.key || '';
+         const label = String(this.model?.status?.label || '').trim().toUpperCase();
+         const estadoEmision = String(this.model?.estado_emision || '').trim().toUpperCase();
          const cuf = this.model?.status?.cuf || this.model?.seguimiento?.cuf;
-         return Boolean(cuf) && key === 'PROCESADO';
+         const isRejected = key === 'OBSERVADO'
+            || key === 'RECHAZADA'
+            || label.includes('OBSERVAD')
+            || label.includes('RECHAZAD')
+            || estadoEmision === 'RECHAZADA';
+
+         return Boolean(cuf) && (key === 'PROCESADO' || isRejected);
       },
    },
    methods: {
