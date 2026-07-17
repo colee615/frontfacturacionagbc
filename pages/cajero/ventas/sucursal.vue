@@ -380,7 +380,7 @@
                               v-if="canViewQr(venta)"
                               class="action-secondary-btn"
                               type="button"
-                              @click="consultarQrVenta(venta, false)"
+                              @click="verQrVenta(venta)"
                             >
                               <i class="fas fa-qrcode"></i>
                               <span>Ver QR</span>
@@ -410,7 +410,7 @@
                               @click="cancelarPagoQrVenta(venta)"
                             >
                               <i class="fas fa-ban"></i>
-                              <span>Cancelar pago</span>
+                              <span>{{ qrCancelActionLabel(venta) }}</span>
                             </button>
                             <button
                               v-if="canAnularVenta(venta)"
@@ -419,7 +419,7 @@
                               @click="anularVenta(venta)"
                             >
                               <i class="fas fa-ban"></i>
-                              <span>Anular</span>
+                              <span>{{ isRejectedVenta(venta) && isCartVenta(venta) ? 'Anular venta' : 'Anular' }}</span>
                             </button>
                             <button class="action-view-btn" type="button" @click="openVentaDetail(venta)">
                               <i class="fas fa-eye"></i>
@@ -540,6 +540,23 @@
               <span>{{ deliveryChannelLabel(activeDetailVenta) }}</span>
               <span>{{ emissionStateLabel(activeDetailVenta) }}</span>
               <strong>{{ formatCurrency(activeDetailVenta.total) }}</strong>
+            </div>
+
+            <div v-if="isReviewedQrIncident(activeDetailVenta)" class="detail-modal-meta">
+              <span>Incidencia revisada</span>
+              <span>{{ activeDetailVenta.incidencia_revisada_por || 'Sin usuario' }}</span>
+              <span>{{ formatDate(activeDetailVenta.incidencia_revisada_at) }}</span>
+            </div>
+
+            <div v-if="canMarkQrIncidentReviewed(activeDetailVenta)" class="detail-modal-actions">
+              <button type="button" class="action-secondary-btn" @click="markQrIncidentReviewed(activeDetailVenta)">
+                <i class="fas fa-check-circle"></i>
+                <span>Marcar revisada</span>
+              </button>
+            </div>
+
+            <div v-if="isReviewedQrIncident(activeDetailVenta) && activeDetailVenta.incidencia_revision_nota" class="detail-modal-note">
+              {{ activeDetailVenta.incidencia_revision_nota }}
             </div>
 
             <div class="detail-modal-body">
@@ -727,6 +744,7 @@ export default {
       return this.visibleVentas.reduce((acc, venta) => {
         const total = Number(venta.total || 0);
         const sectionKey = this.resolveSectionKey(venta);
+        const reviewedQrIncident = this.isReviewedQrIncident(venta);
 
         if (this.countsTowardCollectedTotal(venta)) {
           acc.totalGeneral += total;
@@ -747,7 +765,7 @@ export default {
           acc.qrPendientes += 1;
         }
 
-        if (sectionKey === 'qr_cancelado' || sectionKey === 'oficial') {
+        if (this.isReviewableCartIncident(venta) && !reviewedQrIncident) {
           acc.incidencias += 1;
         }
 
@@ -780,7 +798,7 @@ export default {
       }, this.buildDeliveryAccumulator());
     },
     branchHealth() {
-      const observed = this.branchDeliverySummary.qr_cancelado.count;
+      const observed = this.visibleVentas.filter((venta) => this.isReviewableCartIncident(venta) && !this.isReviewedQrIncident(venta)).length;
       const pending = this.branchDeliverySummary.qr_pagado_pendiente_factura.count
         + this.branchDeliverySummary.qr_pendiente.count;
 
@@ -798,7 +816,7 @@ export default {
           key: 'alert',
           label: 'Con observaciones',
           icon: 'fas fa-exclamation-triangle',
-          message: `Se detectaron ${observed} venta(s) QR canceladas o con observacion para revisar.`
+          message: `Se detectaron ${observed} venta(s) anuladas o con observacion para revisar.`
         };
       }
 
@@ -1327,6 +1345,8 @@ export default {
     },
     normalizedEstadoEmision(venta) {
       if (this.isCartVenta(venta)) {
+        const statusKey = String(venta?.status?.key || '').toUpperCase();
+        if (statusKey === 'DESCARTADA') return 'DESCARTADA';
         return String(venta?.estado_emision || '').toUpperCase() || 'SIN_ESTADO';
       }
 
@@ -1435,6 +1455,7 @@ export default {
       const label = this.emissionStateLabel(venta).toUpperCase();
       if (label.includes('FACTURADA') || label.includes('PAGADO')) return 'status-pill-success';
       if (label.includes('ANULAD')) return 'status-pill-dark';
+      if (label.includes('DESCARTAD')) return 'status-pill-dark';
       if (label.includes('PENDIENTE')) return 'status-pill-warning';
       if (label.includes('RECHAZ')) return 'status-pill-danger';
       if (label.includes('ERROR')) return 'status-pill-dark';
@@ -1466,6 +1487,29 @@ export default {
         && String(venta?.status?.key || '').trim().toUpperCase() === 'QR_PENDIENTE'
         && String(venta?.estado_pago || 'pendiente').trim().toLowerCase() === 'pendiente';
     },
+    qrCancelActionLabel(venta) {
+      const hasTransactionId = Number(venta?.qr_transaction_id || venta?.respuesta_emision?.transaction_id || 0) > 0;
+      return hasTransactionId ? 'Cancelar pago' : 'Anular venta';
+    },
+    isReviewedQrIncident(venta) {
+      return Boolean(venta?.incidencia_revisada_at);
+    },
+    isRejectedDiscardedIncident(venta) {
+      return this.isCartVenta(venta)
+        && String(venta?.estado || '').trim().toLowerCase() === 'descartado'
+        && this.normalizedEstadoEmision(venta) === 'DESCARTADA';
+    },
+    isReviewableCartIncident(venta) {
+      return this.isCartVenta(venta)
+        && (
+          this.resolveSectionKey(venta) === 'qr_cancelado'
+          || this.isRejectedDiscardedIncident(venta)
+        );
+    },
+    canMarkQrIncidentReviewed(venta) {
+      return this.isReviewableCartIncident(venta)
+        && !this.isReviewedQrIncident(venta);
+    },
     canViewQr(venta) {
       return this.isCartVenta(venta)
         && this.isQrPaymentVenta(venta)
@@ -1483,22 +1527,43 @@ export default {
         && !this.isQrFacturadoVenta(venta);
     },
     extractQrPayloadFromConsultResponse(payload) {
+      const qrData = payload?.qr_data || {};
       const respuesta = payload?.respuesta || {};
+      const qhantuy = respuesta?.qhantuy || {};
       const cart = payload?.cart || {};
       const imageData = String(
-        respuesta?.image_data
+        qrData?.image_data
+        || qrData?.qr_url
+        || qrData?.qrUrl
+        || qrData?.image_url
+        || qrData?.imageUrl
+        || respuesta?.image_data
         || respuesta?.qr_url
         || respuesta?.qrUrl
         || respuesta?.image_url
+        || qhantuy?.qr_url
+        || qhantuy?.qrUrl
+        || qhantuy?.image_data
+        || qhantuy?.items?.[0]?.qr_url
         || ''
       ).trim();
       const transactionId = String(
-        respuesta?.transaction_id
+        qrData?.transaction_id
+        || qrData?.transactionId
+        || respuesta?.transaction_id
+        || qhantuy?.transaction_id
+        || qhantuy?.id
+        || qhantuy?.items?.[0]?.id
         || cart?.qr_transaction_id
         || ''
       ).trim();
       const paymentStatus = String(
-        respuesta?.payment_status
+        qrData?.payment_status
+        || qrData?.paymentStatus
+        || respuesta?.payment_status
+        || qhantuy?.payment_status
+        || qhantuy?.status
+        || qhantuy?.items?.[0]?.payment_status
         || cart?.estado_pago
         || 'holding'
       ).trim().toLowerCase();
@@ -1514,6 +1579,50 @@ export default {
         message: String(respuesta?.message || respuesta?.mensaje || '').trim()
       };
     },
+    qrFeedbackMessage(payload, fallbackTitle = 'QR actualizado') {
+      const feedback = payload?.feedback || {};
+      return {
+        icon: String(feedback?.type || '').trim().toLowerCase() || 'info',
+        title: String(feedback?.title || '').trim() || fallbackTitle,
+        text: String(feedback?.message || feedback?.detail || payload?.message || '').trim()
+      };
+    },
+    findVentaByCartId(sourceVenta) {
+      const cartId = Number(sourceVenta?.cartId || sourceVenta?.origenVentaId || String(sourceVenta?.id || '').replace('cart-', ''));
+      return this.ventas.find((item) => String(item.id) === String(sourceVenta?.id) || Number(item.cartId || item.origenVentaId || 0) === cartId) || sourceVenta;
+    },
+    qrPayloadFromVenta(venta) {
+      const respuesta = venta?.respuesta_emision || {};
+      return this.extractQrPayloadFromConsultResponse({
+        qr_data: respuesta?.qr_data || {},
+        respuesta,
+        cart: venta
+      });
+    },
+    shouldKeepShowingQr(venta, qrPayload = null) {
+      if (!this.canViewQr(venta)) {
+        return false;
+      }
+
+      const resolvedPayload = qrPayload || this.qrPayloadFromVenta(venta);
+      if (!resolvedPayload) {
+        return Boolean(venta?.qr_transaction_id);
+      }
+
+      return ['holding', 'pending', 'pendiente'].includes(String(resolvedPayload.paymentStatus || '').trim().toLowerCase());
+    },
+    async showPendingQrModal(qrPayload, pendingText = 'El QR sigue vigente, pero no se recibio la imagen en esta consulta.') {
+      const imageSrc = this.normalizeQrImageSrc(qrPayload?.imageData);
+      const html = imageSrc
+        ? `<div style="text-align:center"><img src="${imageSrc}" alt="QR" style="max-width:260px;width:100%;border-radius:12px;border:1px solid #e5e7eb;padding:8px;background:#fff"></div>`
+        : `<p class="mb-0">${pendingText}</p>`;
+      await this.$swal.fire({
+        title: 'QR vigente',
+        html,
+        confirmButtonText: 'Entendido',
+        footer: qrPayload?.transactionId ? `Tx: ${qrPayload.transactionId}` : ''
+      });
+    },
     normalizeQrImageSrc(value) {
       const image = String(value || '').trim();
       if (!image) {
@@ -1523,6 +1632,56 @@ export default {
         return image;
       }
       return `data:image/png;base64,${image}`;
+    },
+    async verQrVenta(venta) {
+      const originUserId = this.usuarioId(venta);
+      const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
+
+      if (!originUserId || !cartId) {
+        await this.notifyAnulacion('warning', 'Venta no disponible', 'No se pudo identificar la venta QR para visualizar.');
+        return;
+      }
+
+      this.load = true;
+      try {
+        const response = await this.$axios.$post('/api/factura-venta/cart/ver-qr', {
+          origen_usuario_id: originUserId,
+          cart_id: cartId
+        });
+        const qrPayload = this.extractQrPayloadFromConsultResponse(response);
+
+        await this.loadVentas();
+        const refreshedVenta = this.findVentaByCartId(venta);
+        const refreshedQrPayload = this.qrPayloadFromVenta(refreshedVenta);
+        const activeQrPayload = refreshedQrPayload || qrPayload;
+
+        if (Boolean(response?.force_open_qr) || this.shouldKeepShowingQr(refreshedVenta, activeQrPayload)) {
+          await this.showPendingQrModal(
+            activeQrPayload || {
+              imageData: '',
+              transactionId: String(response?.cart?.qr_transaction_id || refreshedVenta?.qr_transaction_id || ''),
+              paymentStatus: String(response?.cart?.estado_pago || refreshedVenta?.estado_pago || 'pendiente')
+            },
+            'El QR sigue vigente, pero no se recibio la imagen en esta consulta.'
+          );
+          return;
+        }
+
+        const feedback = this.qrFeedbackMessage(response, 'Estado QR actualizado');
+        await this.$swal.fire({
+          icon: feedback.icon,
+          title: feedback.title,
+          text: feedback.text || 'La consulta del QR fue procesada correctamente.',
+          confirmButtonText: 'Entendido'
+        });
+      } catch (error) {
+        const message = error?.response?.data?.feedback?.message
+          || error?.response?.data?.message
+          || 'No se pudo recuperar el QR de la venta.';
+        await this.$swal.fire({ icon: 'error', title: 'No se pudo mostrar el QR', text: message });
+      } finally {
+        this.load = false;
+      }
     },
     async consultarQrVenta(venta, autoEmitInvoice = false) {
       const originUserId = this.usuarioId(venta);
@@ -1544,22 +1703,22 @@ export default {
         const qrPayload = this.extractQrPayloadFromConsultResponse(response);
 
         await this.loadVentas();
+        const refreshedVenta = this.findVentaByCartId(venta);
+        const refreshedQrPayload = this.qrPayloadFromVenta(refreshedVenta);
+        const activeQrPayload = refreshedQrPayload || qrPayload;
 
-        if (qrPayload && ['holding', 'pending', 'pendiente'].includes(qrPayload.paymentStatus)) {
-          const imageSrc = this.normalizeQrImageSrc(qrPayload.imageData);
-          const html = imageSrc
-            ? `<div style="text-align:center"><img src="${imageSrc}" alt="QR" style="max-width:260px;width:100%;border-radius:12px;border:1px solid #e5e7eb;padding:8px;background:#fff"></div>`
-            : '<p class="mb-0">El QR sigue pendiente, pero el proveedor no devolvió la imagen en esta consulta.</p>';
-          await this.$swal.fire({
-            title: 'QR vigente',
-            html,
-            confirmButtonText: 'Entendido',
-            footer: qrPayload.transactionId ? `Tx: ${qrPayload.transactionId}` : ''
-          });
+        if (this.shouldKeepShowingQr(refreshedVenta, activeQrPayload)) {
+          await this.showPendingQrModal(
+            activeQrPayload || {
+              imageData: '',
+              transactionId: String(refreshedVenta?.qr_transaction_id || ''),
+              paymentStatus: String(refreshedVenta?.estado_pago || 'pendiente')
+            },
+            'El QR sigue pendiente, pero el proveedor no devolvio la imagen en esta consulta.'
+          );
           return;
         }
 
-        const refreshedVenta = this.ventas.find((item) => String(item.id) === String(venta.id) || Number(item.cartId || item.origenVentaId || 0) === cartId) || venta;
         const finalState = this.emissionStateLabel(refreshedVenta);
         const message = response?.respuesta?.mensaje || response?.respuesta?.message || `Estado actualizado: ${finalState}`;
 
@@ -1677,6 +1836,48 @@ export default {
         return;
       }
 
+      if (this.isRejectedVenta(venta) && this.isCartVenta(venta)) {
+        const { value } = await this.$swal.fire({
+          title: 'Anular venta rechazada',
+          html: `
+            <div class="protocol-annul-form">
+              <label class="protocol-annul-label" for="discard-rejected-note">Motivo</label>
+              <input id="discard-rejected-note" class="swal2-input protocol-annul-input" value="Venta rechazada descartada localmente">
+            </div>
+          `,
+          focusConfirm: false,
+          showCancelButton: true,
+          confirmButtonText: 'Anular venta',
+          cancelButtonText: 'Volver',
+          preConfirm: () => {
+            const note = document.getElementById('discard-rejected-note')?.value?.trim();
+            return { note: note || 'Venta rechazada descartada localmente' };
+          }
+        });
+
+        if (!value) return;
+
+        this.load = true;
+        try {
+          const response = await this.$admin.$post('ventas/rechazadas/descartar', {
+            cart_id: Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', '')),
+            note: value.note
+          });
+          await this.notifyAnulacion('success', 'Venta anulada', response?.message || 'La venta rechazada fue descartada localmente.');
+          await this.loadVentas();
+          if (this.activeDetailVenta?.id === venta.id) {
+            this.activeDetailVenta = this.findVentaByCartId(venta);
+          }
+        } catch (error) {
+          const data = error?.response?.data || {};
+          const message = data.message || data.error || 'No se pudo anular la venta rechazada.';
+          await this.notifyAnulacion('error', 'No se pudo anular', message);
+        } finally {
+          this.load = false;
+        }
+        return;
+      }
+
       const authorized = await this.ensureAnulacionAuthorization();
       if (!authorized) return;
 
@@ -1741,7 +1942,14 @@ export default {
           transaction_id: transactionId > 0 ? transactionId : undefined,
           reason: payload.reason
         });
-        await this.notifyAnulacion('success', 'Cobro QR cancelado', response?.message || 'El QR pendiente fue cancelado correctamente.');
+        const isLocalOnly = Boolean(response?.local_only);
+        await this.notifyAnulacion(
+          'success',
+          isLocalOnly ? 'Venta anulada' : 'Cobro QR cancelado',
+          response?.message || (isLocalOnly
+            ? 'La venta QR sin checkout valido fue anulada localmente.'
+            : 'El QR pendiente fue cancelado correctamente.')
+        );
         await this.loadVentas();
         if (this.activeDetailVenta?.id === venta.id) {
           this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
@@ -1750,6 +1958,59 @@ export default {
         const data = error?.response?.data || {};
         const message = data.message || data.error || 'No se pudo cancelar el cobro QR.';
         await this.notifyAnulacion('error', 'No se pudo cancelar', message);
+      } finally {
+        this.load = false;
+      }
+    },
+    async markQrIncidentReviewed(venta) {
+      if (!this.canMarkQrIncidentReviewed(venta)) {
+        return;
+      }
+
+      const { value } = await this.$swal.fire({
+        title: 'Marcar incidencia revisada',
+        html: `
+          <div class="protocol-annul-form">
+            <label class="protocol-annul-label" for="review-incident-note">Nota</label>
+            <input id="review-incident-note" class="swal2-input protocol-annul-input" value="${this.isRejectedDiscardedIncident(venta) ? 'Factura rechazada descartada y validada manualmente' : 'QR cancelado validado manualmente'}">
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar revision',
+        cancelButtonText: 'Volver',
+        preConfirm: () => {
+          const note = document.getElementById('review-incident-note')?.value?.trim();
+          return {
+            note: note || (this.isRejectedDiscardedIncident(venta)
+              ? 'Factura rechazada descartada y validada manualmente'
+              : 'QR cancelado validado manualmente')
+          };
+        }
+      });
+
+      if (!value) return;
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$post('qr/incidencia/revisar', {
+          cart_id: Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', '')),
+          note: value.note
+        });
+        await this.notifyAnulacion(
+          'success',
+          'Incidencia revisada',
+          response?.message || (this.isRejectedDiscardedIncident(venta)
+            ? 'La factura rechazada descartada fue marcada como revisada.'
+            : 'La incidencia QR fue marcada como revisada.')
+        );
+        await this.loadVentas();
+        if (this.activeDetailVenta?.id === venta.id) {
+          this.activeDetailVenta = this.findVentaByCartId(venta);
+        }
+      } catch (error) {
+        const message = error?.response?.data?.message || 'No se pudo marcar la incidencia como revisada.';
+        await this.notifyAnulacion('error', 'No se pudo revisar', message);
       } finally {
         this.load = false;
       }
