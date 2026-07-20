@@ -1743,9 +1743,9 @@ export default {
 
         const tableRows = visibleBranches.map((branch) => [
           `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`,
-          '',
-          '',
-          ''
+          this.buildPdfIncidentBlocks(branch).map((block) => block.text).join('\n'),
+          this.buildPdfSalesBlocks(branch).map((block) => block.text).join('\n'),
+          this.buildPdfTotalBlocks(branch).map((block) => block.text).join('\n')
         ]);
 
         autoTable(doc, {
@@ -1769,92 +1769,28 @@ export default {
             minCellHeight: 10
           },
           styles: {
-            fontSize: 8.2,
-            cellPadding: 0.9,
-            minCellHeight: 12.2,
+            fontSize: 7.5,
+            cellPadding: 1.4,
+            minCellHeight: 9,
             lineColor: [90, 90, 90],
             textColor: [20, 20, 20],
             overflow: 'linebreak',
-            valign: 'middle'
+            valign: 'top'
           },
           tableWidth: reportWidth,
           columnStyles: {
-            0: { cellWidth: 56, valign: 'middle' },
-            1: { cellWidth: 50, valign: 'middle' },
-            2: { cellWidth: 40, halign: 'left', valign: 'middle' },
-            3: { cellWidth: 58, halign: 'left', valign: 'middle' }
+            0: { cellWidth: 48, valign: 'middle' },
+            1: { cellWidth: 50, valign: 'top' },
+            2: { cellWidth: 36, halign: 'left', valign: 'top' },
+            3: { cellWidth: 70, halign: 'left', valign: 'top' }
           },
-          margin: { left: reportMarginX, right: reportMarginX },
-          didParseCell: (data) => {
-            if (data.section === 'body' && data.column.index >= 1) {
-              data.cell.text = [''];
-            }
-
-            if (data.section !== 'body') {
-              return;
-            }
-
-            const branch = visibleBranches[data.row.index];
-            if (!branch) {
-              return;
-            }
-
-            if (data.column.index === 1) {
-              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfIncidentBlocks(branch));
-            }
-
-            if (data.column.index === 2) {
-              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfSalesBlocks(branch));
-            }
-
-            if (data.column.index === 3) {
-              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfTotalBlocks(branch));
-            }
-          },
-          didDrawCell: (data) => {
-            if (data.section !== 'body') {
-              return;
-            }
-
-            const branch = visibleBranches[data.row.index];
-            if (!branch) {
-              return;
-            }
-
-            if (data.column.index === 1) {
-              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfIncidentBlocks(branch));
-            }
-
-            if (data.column.index === 2) {
-              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfSalesBlocks(branch));
-            }
-
-            if (data.column.index === 3) {
-              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfTotalBlocks(branch));
-            }
-          }
+          margin: { left: reportMarginX, right: reportMarginX }
         });
 
         const footerRows = [
-          [
-            {
-              content: '',
-              colSpan: 3,
-              styles: {
-                halign: 'left',
-                lineWidth: { top: 0.1, right: 0, bottom: 0, left: 0 }
-              }
-            },
-            { content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }
-          ],
-          [
-            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
-            { content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
-          ],
-          [
-            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
-            { content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
-          ]
+          [{ content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }],
+          [{ content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }],
+          [{ content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }]
         ];
 
         const totalFacturasAnuladas = visibleBranches.reduce(
@@ -1897,14 +1833,11 @@ export default {
             textColor: [20, 20, 20],
             valign: 'middle'
           },
-          tableWidth: reportWidth,
+          tableWidth: 58,
           columnStyles: {
-            0: { cellWidth: 56 },
-            1: { cellWidth: 50 },
-            2: { cellWidth: 40 },
-            3: { cellWidth: 58 }
+            0: { cellWidth: 58 }
           },
-          margin: { left: reportMarginX, right: reportMarginX }
+          margin: { left: reportMarginX + reportWidth - 58, right: reportMarginX }
         });
 
         this.drawPdfFooter(doc, generatedBy, generatedAt);
