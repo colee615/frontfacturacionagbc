@@ -127,45 +127,6 @@
                 </button>
               </div>
 
-              <div v-if="false" class="branch-summary-grid">
-                <div class="branch-summary-card">
-                  <span>Ventas filtradas</span>
-                  <strong>{{ filteredVentas.length }}</strong>
-                </div>
-                <div class="branch-summary-card">
-                  <span>Total general</span>
-                  <strong>{{ formatCurrency(summary.totalGeneral) }}</strong>
-                </div>
-                <div class="branch-summary-card">
-                  <span>Usuarios visibles</span>
-                  <strong>{{ filteredUserSummaries.length }}</strong>
-                </div>
-                <div class="branch-summary-card">
-                  <span>Total caja</span>
-                  <strong>{{ formatCurrency(summary.totalCaja) }}</strong>
-                </div>
-                <div class="branch-summary-card">
-                  <span>Factura electrónica</span>
-                  <strong>{{ deliverySummary.factura_electronica.count }}</strong>
-                  <small>{{ formatCurrency(deliverySummary.factura_electronica.total) }}</small>
-                </div>
-                <div class="branch-summary-card">
-                  <span>QR facturado</span>
-                  <strong>{{ deliverySummary.qr_facturado.count }}</strong>
-                  <small>{{ formatCurrency(deliverySummary.qr_facturado.total) }}</small>
-                </div>
-                <div class="branch-summary-card">
-                  <span>QR pendiente / pago</span>
-                  <strong>{{ deliverySummary.qr_pagado_pendiente_factura.count }}</strong>
-                  <small>{{ formatCurrency(deliverySummary.qr_pagado_pendiente_factura.total) }}</small>
-                </div>
-                <div class="branch-summary-card">
-                  <span>Registro oficial</span>
-                  <strong>{{ deliverySummary.oficial.count }}</strong>
-                  <small>{{ formatCurrency(deliverySummary.oficial.total) }}</small>
-                </div>
-              </div>
-
               <div v-if="false" class="table-wrap enterprise-table-wrap branch-resume-table">
                 <table class="sales-table enterprise-table">
                   <thead>
@@ -295,6 +256,12 @@
                                 {{ emissionStateLabel(venta) }}
                               </span>
                             </strong>
+                            <small v-if="hasAnulacionAudit(venta)" class="audit-inline-copy">
+                              Anulada por {{ venta.anulacion?.anuladaPorNombre || venta.anulacion?.anuladaPorEmail || 'usuario no identificado' }}
+                            </small>
+                            <small v-if="hasAnulacionAudit(venta)" class="audit-inline-copy">
+                              {{ formatDateTime(venta.anulacion?.anuladaAt) }}
+                            </small>
                           </div>
                         </td>
                         <td><strong>{{ ventaItemsCount(venta) }}</strong></td>
@@ -490,6 +457,22 @@
               {{ activeDetailVenta.incidencia_revision_nota }}
             </div>
 
+            <div v-if="hasAnulacionAudit(activeDetailVenta)" class="detail-audit-card">
+              <h4>Auditoria de anulacion</h4>
+              <div class="detail-audit-grid">
+                <div><strong>Factura:</strong> {{ activeDetailVenta.anulacion?.numeroFactura || numeroFacturaValue(activeDetailVenta) || '-' }}</div>
+                <div><strong>Orden:</strong> {{ activeDetailVenta.anulacion?.codigoOrden || activeDetailVenta.codigoOrden || '-' }}</div>
+                <div><strong>CUF:</strong> {{ activeDetailVenta.anulacion?.cuf || activeDetailVenta.status?.cuf || activeDetailVenta.cuf || '-' }}</div>
+                <div><strong>Anulada por:</strong> {{ activeDetailVenta.anulacion?.anuladaPorNombre || activeDetailVenta.anulacion?.anuladaPorEmail || 'Sin registro' }}</div>
+                <div><strong>Fecha y hora:</strong> {{ formatDateTime(activeDetailVenta.anulacion?.anuladaAt) }}</div>
+                <div><strong>Tipo:</strong> {{ activeDetailVenta.anulacion?.tipo || 'Sin registro' }}</div>
+                <div class="detail-audit-full"><strong>Motivo:</strong> {{ activeDetailVenta.anulacion?.motivo || 'Sin motivo registrado' }}</div>
+                <div v-if="activeDetailVenta.anulacion?.autorizadaPorEmail" class="detail-audit-full">
+                  <strong>Autorizada por:</strong> {{ activeDetailVenta.anulacion.autorizadaPorEmail }}
+                </div>
+              </div>
+            </div>
+
             <div class="detail-modal-body">
               <table class="sales-table enterprise-table">
                 <thead>
@@ -544,18 +527,12 @@ export default {
       activeTab: 'detalle',
       currentPage: 1,
       pageSize: 15,
-      showDateRangePicker: false,
-      draftDateRange: {
-        fechaInicio: '',
-        fechaFin: ''
-      },
       detailFilters: {
         q: '',
         estado: 'all',
         estadoEmision: 'all'
       },
       activeDetailVenta: null,
-      activeQrVenta: null,
       branchName: '',
       branchDepartment: '',
       ventas: []
@@ -590,14 +567,6 @@ export default {
       }
 
       return `Hasta ${this.formatShortDate(this.filters.fechaFin)}`;
-    },
-    activeUserLabel() {
-      if (this.activeUserId === 'all') {
-        return 'Historial completo de la sucursal';
-      }
-
-      const match = this.userSummaries.find((user) => user.id === this.activeUserId);
-      return match ? `Ventas de ${match.nombre}` : 'Historial filtrado';
     },
     branchHeroSubtitle() {
       const base = this.hasDateRange
@@ -672,19 +641,6 @@ export default {
         return nombre.includes(term);
       });
     },
-    summary() {
-      return this.filteredVentas.reduce((acc, venta) => {
-        if (this.countsTowardCollectedTotal(venta)) {
-          acc.totalGeneral += Number(venta.total || 0);
-          acc.countCobrado += 1;
-        }
-        if (this.countsTowardCashTotal(venta)) {
-          acc.totalCaja += Number(venta.total || 0);
-        }
-        acc.count += 1;
-        return acc;
-      }, { totalGeneral: 0, totalCaja: 0, count: 0, countCobrado: 0 });
-    },
     branchOverview() {
       return this.scopeVentas.reduce((acc, venta) => {
         const total = Number(venta.total || 0);
@@ -738,14 +694,6 @@ export default {
       }, {
         totalGeneral: 0
       });
-    },
-    deliverySummary() {
-      return this.filteredVentas.reduce((acc, venta) => {
-        const sectionKey = this.resolveSectionKey(venta);
-        acc[sectionKey].count += 1;
-        acc[sectionKey].total += Number(venta.total || 0);
-        return acc;
-      }, this.buildDeliveryAccumulator());
     },
     branchDeliverySummary() {
       return this.scopeVentas.reduce((acc, venta) => {
@@ -832,18 +780,12 @@ export default {
       routeQuery: { ...this.$route.query }
     });
     this.syncRouteFilters();
-    this.syncDraftDateRange();
     this.loadVentas();
-    document.addEventListener('click', this.handleOutsideDatePickerClick);
-    document.addEventListener('keydown', this.handleDatePickerEscape);
   },
   beforeDestroy() {
     if (this.searchTimer) {
       clearTimeout(this.searchTimer);
     }
-
-    document.removeEventListener('click', this.handleOutsideDatePickerClick);
-    document.removeEventListener('keydown', this.handleDatePickerEscape);
   },
   watch: {
     'filters.q'() {
@@ -876,11 +818,6 @@ export default {
     },
     filteredUserSummaries() {
       this.scrollActiveSelectorIntoView();
-    },
-    showDateRangePicker(value) {
-      if (value) {
-        this.syncDraftDateRange();
-      }
     }
   },
   methods: {
@@ -893,108 +830,12 @@ export default {
       });
       return codigoSucursal !== '';
     },
-    syncDraftDateRange() {
-      this.draftDateRange = {
-        fechaInicio: this.filters.fechaInicio || '',
-        fechaFin: this.filters.fechaFin || ''
-      };
-    },
-    toggleDateRangePicker() {
-      if (!this.showDateRangePicker) {
-        this.syncDraftDateRange();
-      }
-      this.showDateRangePicker = !this.showDateRangePicker;
-    },
-    closeDateRangePicker() {
-      this.showDateRangePicker = false;
-    },
-    handleOutsideDatePickerClick(event) {
-      if (!this.showDateRangePicker) {
-        return;
-      }
-
-      const root = this.$refs.dateFilter;
-      if (root && !root.contains(event.target)) {
-        this.closeDateRangePicker();
-      }
-    },
-    handleDatePickerEscape(event) {
-      if (event.key === 'Escape' && this.showDateRangePicker) {
-        this.closeDateRangePicker();
-      }
-    },
     todayIso() {
       const date = new Date();
       const year = date.getFullYear();
       const month = `${date.getMonth() + 1}`.padStart(2, '0');
       const day = `${date.getDate()}`.padStart(2, '0');
       return `${year}-${month}-${day}`;
-    },
-    shiftIsoDate(baseIso, diffDays) {
-      const date = new Date(`${baseIso}T00:00:00`);
-      if (Number.isNaN(date.getTime())) {
-        return baseIso;
-      }
-      date.setDate(date.getDate() + diffDays);
-      const year = date.getFullYear();
-      const month = `${date.getMonth() + 1}`.padStart(2, '0');
-      const day = `${date.getDate()}`.padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    },
-    setQuickDateRange(type) {
-      const today = this.todayIso();
-
-      if (type === 'today') {
-        this.draftDateRange.fechaInicio = today;
-        this.draftDateRange.fechaFin = today;
-        return;
-      }
-
-      if (type === 'last7') {
-        this.draftDateRange.fechaInicio = this.shiftIsoDate(today, -6);
-        this.draftDateRange.fechaFin = today;
-        return;
-      }
-
-      if (type === 'last30') {
-        this.draftDateRange.fechaInicio = this.shiftIsoDate(today, -29);
-        this.draftDateRange.fechaFin = today;
-        return;
-      }
-
-      const date = new Date(`${today}T00:00:00`);
-      const year = date.getFullYear();
-      const month = `${date.getMonth() + 1}`.padStart(2, '0');
-      this.draftDateRange.fechaInicio = `${year}-${month}-01`;
-      this.draftDateRange.fechaFin = today;
-    },
-    applyDateRange() {
-      const start = this.draftDateRange.fechaInicio || '';
-      const end = this.draftDateRange.fechaFin || '';
-
-      if (start && end && start > end) {
-        this.$swal.fire({
-          icon: 'warning',
-          title: 'Rango inválido',
-          text: 'La fecha inicial no puede ser mayor que la fecha final.',
-          confirmButtonText: 'Entendido'
-        });
-        return;
-      }
-
-      this.isSyncingFilters = true;
-      this.filters.fechaInicio = start;
-      this.filters.fechaFin = end;
-      this.isSyncingFilters = false;
-      this.currentPage = 1;
-      this.activeUserId = 'all';
-      this.closeDateRangePicker();
-      this.loadVentas();
-    },
-    clearDateRange() {
-      this.draftDateRange.fechaInicio = '';
-      this.draftDateRange.fechaFin = '';
-      this.applyDateRange();
     },
     scrollActiveSelectorIntoView() {
       this.$nextTick(() => {
@@ -1430,13 +1271,6 @@ export default {
     },
     paymentOriginLabel(venta) {
       return this.isQrPaymentVenta(venta) ? 'QR' : 'Efectivo';
-    },
-    facturacionModeLabel(venta) {
-      if (this.isCartVenta(venta) && venta?.modalidad_facturacion) {
-        return String(venta.modalidad_facturacion).replace(/_/g, ' ');
-      }
-
-      return venta?.status?.label || 'Factura emitida';
     },
     emissionStateLabel(venta) {
       if (this.isCartVenta(venta)) {
@@ -1882,7 +1716,11 @@ export default {
             note: value.note
           });
           await this.notifyAnulacion('success', 'Venta anulada', response?.message || 'La venta rechazada fue descartada localmente.');
-          await this.loadVentas();
+          try {
+            await this.refreshVentaInPlace(venta);
+          } catch (refreshError) {
+            await this.loadVentas();
+          }
           if (this.activeDetailVenta?.id === venta.id) {
             this.activeDetailVenta = this.findVentaByCartId(venta);
           }
@@ -1906,7 +1744,11 @@ export default {
       try {
         const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
         await this.notifyAnulacion('success', 'Solicitud enviada', response?.message || 'La anulación fue recibida correctamente.');
-        await this.loadVentas();
+        try {
+          await this.refreshVentaInPlace(venta);
+        } catch (refreshError) {
+          await this.loadVentas();
+        }
         if (this.activeDetailVenta?.id === venta.id) {
           this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
         }
@@ -2119,6 +1961,31 @@ export default {
         this.load = false;
       }
     },
+    async refreshVentaInPlace(sourceVenta) {
+      const ventaId = Number(sourceVenta?.id || 0);
+      if (!ventaId) {
+        return null;
+      }
+
+      const refreshed = await this.$admin.$get(`ventas/${ventaId}`);
+      const index = this.ventas.findIndex((item) => String(item.id) === String(ventaId));
+
+      if (index >= 0) {
+        const mergedVenta = {
+          ...this.ventas[index],
+          ...refreshed
+        };
+        this.$set(this.ventas, index, mergedVenta);
+
+        if (this.activeDetailVenta?.id === ventaId) {
+          this.activeDetailVenta = mergedVenta;
+        }
+
+        return mergedVenta;
+      }
+
+      return refreshed;
+    },
     resetFilters() {
       if (this.searchTimer) {
         clearTimeout(this.searchTimer);
@@ -2224,6 +2091,17 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+    formatDateTime(value) {
+      return this.formatDate(value);
+    },
+    hasAnulacionAudit(venta) {
+      return Boolean(
+        venta?.anulacion?.anuladaAt
+        || venta?.anulacion?.motivo
+        || venta?.anulacion?.anuladaPorNombre
+        || venta?.anulacion?.anuladaPorEmail
+      );
     }
   }
 };
@@ -2578,10 +2456,6 @@ export default {
   font-size: 0.82rem;
 }
 
-.branch-date-filter {
-  position: relative;
-}
-
 .branch-date-inline-group {
   display: flex;
   align-items: center;
@@ -2619,176 +2493,8 @@ export default {
   cursor: pointer;
 }
 
-.branch-range-chip-button {
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.branch-range-chip-button:hover {
-  transform: translateY(-1px);
-  border-color: #cfdaed;
-  box-shadow: 0 10px 18px rgba(29, 56, 104, 0.08);
-}
-
-.branch-range-chip-active {
-  border-color: #c9d9f6;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
-  color: #294c89;
-}
-
-.date-range-popover {
-  position: absolute;
-  top: calc(100% + 0.65rem);
-  right: 0;
-  z-index: 30;
-  width: min(420px, 92vw);
-  padding: 1rem;
-  border: 1px solid #e5ebf4;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
-}
-
-.date-range-popover-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.date-range-popover-head strong {
-  display: block;
-  color: #223658;
-  font-size: 0.95rem;
-}
-
-.date-range-popover-head small {
-  display: block;
-  margin-top: 0.2rem;
-  color: #71809a;
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.date-range-close {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #e1e7f0;
-  border-radius: 10px;
-  background: #fff;
-  color: #52607a;
-}
-
-.date-range-quick-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.95rem;
-}
-
-.date-quick-btn {
-  height: 32px;
-  padding: 0 0.72rem;
-  border: 1px solid #dbe4f0;
-  border-radius: 999px;
-  background: #fff;
-  color: #44536c;
-  font-size: 0.76rem;
-  font-weight: 700;
-}
-
-.date-range-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.date-range-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.38rem;
-}
-
-.date-range-field span {
-  color: #66758f;
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.date-range-field input {
-  height: 42px;
-  padding: 0 0.85rem;
-  border: 1px solid #dde4ef;
-  border-radius: 12px;
-  background: #fff;
-  color: #23314d;
-  font-size: 0.82rem;
-}
-
-.date-range-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.date-range-link {
-  border: 0;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.date-range-apply {
-  min-width: 110px;
-  height: 36px;
-  padding: 0 0.9rem;
-  border: 1px solid #c9d9f6;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #f8fbff 0%, #edf3ff 100%);
-  color: #234b8b;
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.branch-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.7rem;
-}
-
 .branch-resume-table {
   margin-top: 0.85rem;
-}
-
-.branch-summary-card {
-  padding: 0.82rem 0.9rem;
-  border-radius: 18px;
-  border: 1px solid #e6ebf3;
-  background: #f8fafc;
-}
-
-.branch-summary-card span {
-  display: block;
-  color: #667085;
-  font-size: 0.72rem;
-  font-weight: 800;
-  margin-bottom: 0.25rem;
-}
-
-.branch-summary-card strong {
-  color: #1d3360;
-  font-size: 1.02rem;
-  font-weight: 800;
-}
-
-.branch-summary-card small {
-  font-size: 0.8rem;
 }
 
 .branch-comparative-card h4 {
@@ -3030,6 +2736,12 @@ export default {
   word-break: break-word;
 }
 
+.audit-inline-copy {
+  color: #8a5a20 !important;
+  font-size: 0.72rem !important;
+  line-height: 1.2 !important;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -3230,6 +2942,32 @@ export default {
   color: #61708a;
 }
 
+.detail-audit-card {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #e6ecf5;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.detail-audit-card h4 {
+  margin: 0 0 0.8rem;
+  color: #1d3360;
+  font-size: 0.98rem;
+}
+
+.detail-audit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 1rem;
+  color: #40506f;
+  font-size: 0.92rem;
+}
+
+.detail-audit-full {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 1199px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3253,10 +2991,6 @@ export default {
 }
 
 @media (max-width: 991px) {
-  .branch-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .branch-hero-toolbar,
   .branch-toolbar-group {
     flex-direction: column;
@@ -3265,10 +2999,6 @@ export default {
 
   .branch-toolbar-actions {
     width: 100%;
-  }
-
-  .branch-date-filter {
-    margin-left: 0;
   }
 
   .detail-filters {
@@ -3290,8 +3020,7 @@ export default {
 }
 
 @media (max-width: 767px) {
-  .stats-grid,
-  .branch-summary-grid {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3302,16 +3031,6 @@ export default {
   .branch-toolbar-actions,
   .branch-export-btn {
     width: 100%;
-  }
-
-  .date-range-popover {
-    left: 0;
-    right: auto;
-    width: min(100%, 92vw);
-  }
-
-  .date-range-fields {
-    grid-template-columns: 1fr;
   }
 
   .detail-filters {
