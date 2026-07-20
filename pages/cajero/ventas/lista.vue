@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div>
     <JcLoader :load="load" />
     <AdminTemplate :page="page" :modulo="modulo">
@@ -6,14 +6,18 @@
         <div class="closure-shell">
           <section class="hero-card">
             <div class="hero-copy">
-              <h1>Control de cierre diario</h1>
-              <p>Fecha de trabajo: {{ formattedSelectedDate }}</p>
+              <h1>Control de cierre</h1>
             </div>
 
             <div class="toolbar-grid">
               <label class="toolbar-field toolbar-field-date">
                 <i class="far fa-calendar-alt"></i>
-                <input v-model="selectedDate" type="date" />
+                <input v-model="startDate" type="date" />
+              </label>
+
+              <label class="toolbar-field toolbar-field-date">
+                <i class="far fa-calendar-alt"></i>
+                <input v-model="endDate" type="date" />
               </label>
 
               <label class="toolbar-field toolbar-field-search">
@@ -31,6 +35,12 @@
                   <option value="sin_ventas">Sin ventas</option>
                 </select>
               </label>
+              <div class="toolbar-actions">
+                <button type="button" class="toolbar-export-btn" @click="downloadResumenPdf">
+                  <i class="fas fa-file-pdf"></i>
+                  <span>Exportar PDF</span>
+                </button>
+              </div>
             </div>
 
             <section v-if="error" class="error-card">
@@ -112,9 +122,8 @@
                     <thead>
                       <tr>
                         <th>Sucursal</th>
-                        <th>Ventas</th>
                         <th>Total vendido</th>
-                        <th>Facturación</th>
+                        <th>Ventas</th>
                         <th>Incidencias</th>
                         <th>Estado</th>
                         <th>Accion</th>
@@ -137,12 +146,10 @@
                             </span>
                             <div class="branch-cell-copy">
                               <strong>{{ item.displayName }}</strong>
-                              <small>Sucursal {{ item.codigoSucursalLabel }} · Punto {{ item.puntoVentaLabel }}</small>
+                              <small>Sucursal {{ item.codigoSucursalLabel }} Â· Punto {{ item.puntoVentaLabel }}</small>
                             </div>
                           </div>
                         </td>
-
-                        <td>{{ item.ventasNetas }}</td>
                         <td>
                           <div class="metric-stack">
                             <strong>{{ formatCurrency(item.totalVendido) }}</strong>
@@ -160,7 +167,7 @@
                         </td>
                         <td>
                           <div class="metric-stack">
-                            <strong>{{ item.facturadas }} facturadas</strong>
+                            <strong>{{ item.facturadas }} ventas</strong>
                             <div class="metric-tags">
                               <span class="metric-tag metric-tag-info">QR {{ item.qrFacturadas }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ item.electronicasFacturadas }}</span>
@@ -299,7 +306,7 @@
               <div v-for="incident in activeIncidentsModal.items" :key="incident.key" class="users-modal-item incidents-modal-item">
                 <div class="users-modal-item-main">
                   <strong>{{ incident.title }}</strong>
-                  <small>{{ incident.code }}<span v-if="incident.tracking"> · {{ incident.tracking }}</span></small>
+                  <small>{{ incident.code }}<span v-if="incident.tracking"> Â· {{ incident.tracking }}</span></small>
                   <small>{{ incident.customer }}</small>
                   <small>{{ incident.message }}</small>
                 </div>
@@ -324,6 +331,9 @@
 </template>
 
 <script>
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 export default {
   data() {
     return {
@@ -333,7 +343,8 @@ export default {
       error: '',
       isSyncingFilters: false,
       searchTimer: null,
-      selectedDate: '',
+      startDate: '',
+      endDate: '',
       statusFilter: 'all',
       filters: {
         codigoSucursal: '',
@@ -408,6 +419,9 @@ export default {
         acc.total += 1;
         acc.totalVendido += item.totalVendido;
         acc.ventasNetas += item.ventasNetas;
+        acc.totalQrFacturado += item.totalQrFacturado || 0;
+        acc.totalEfectivoFacturado += item.totalEfectivoFacturado || 0;
+        acc.totalQrPagadoPendienteFactura += item.totalQrPagadoPendienteFactura || 0;
 
         if (item.status.key === 'cerrada') acc.conformes += 1;
         if (item.status.key === 'pendiente') acc.pendientes += 1;
@@ -422,20 +436,21 @@ export default {
         diferencias: 0,
         sinVentas: 0,
         totalVendido: 0,
-        ventasNetas: 0
+        ventasNetas: 0,
+        totalQrFacturado: 0,
+        totalEfectivoFacturado: 0,
+        totalQrPagadoPendienteFactura: 0
       });
     },
     formattedSelectedDate() {
-      if (!this.selectedDate) {
-        return 'Hoy';
+      const startDate = this.startDate;
+      const endDate = this.endDate;
+
+      if (!startDate && !endDate) {
+        return 'Mes actual';
       }
 
-      const [year, month, day] = String(this.selectedDate).split('-');
-      if (!year || !month || !day) {
-        return this.selectedDate;
-      }
-
-      return `${day}/${month}/${year}`;
+      return `${this.formatDateLabel(startDate)} al ${this.formatDateLabel(endDate)}`;
     },
     progressSummary() {
       const total = this.dashboardMetrics.total;
@@ -461,7 +476,7 @@ export default {
     }
   },
   mounted() {
-    this.selectedDate = this.defaultToday();
+    this.initializeDateRange();
     this.loadReport();
   },
   beforeDestroy() {
@@ -470,7 +485,10 @@ export default {
     }
   },
   watch: {
-    selectedDate() {
+    startDate() {
+      this.scheduleLoadReport();
+    },
+    endDate() {
       this.scheduleLoadReport();
     },
     'filters.q'() {
@@ -484,6 +502,11 @@ export default {
     }
   },
   methods: {
+    initializeDateRange() {
+      const today = this.defaultToday();
+      this.endDate = today;
+      this.startDate = today;
+    },
     branchKey(codigoSucursal, puntoVenta) {
       const codigo = String(codigoSucursal ?? '0').padStart(3, '0');
       const punto = String(puntoVenta ?? '0');
@@ -524,7 +547,7 @@ export default {
     },
     async ensureBranchUserCounts() {
       try {
-        const fecha = this.selectedDate || this.defaultToday();
+        const fecha = this.endDate || this.defaultToday();
         const response = await this.$admin.$get(`caja/reporte-diario?fecha=${encodeURIComponent(fecha)}`);
         const rows = Array.isArray(response?.porSucursal) ? response.porSucursal : [];
         const nextCounts = {};
@@ -570,6 +593,149 @@ export default {
       const day = String(now.getDate()).padStart(2, '0');
 
       return `${year}-${month}-${day}`;
+    },
+    async fetchBranchVentas(branch) {
+      const params = new URLSearchParams();
+      params.append('codigoSucursal', String(branch?.codigoSucursal ?? ''));
+      params.append('puntoVenta', String(branch?.puntoVenta ?? '0'));
+      if (this.startDate) {
+        params.append('fechaInicio', this.startDate);
+      }
+      if (this.endDate) {
+        params.append('fechaFin', this.endDate);
+      }
+
+      const path = `ventas?${params.toString()}`;
+      const response = await this.$admin.$get(path);
+      return Array.isArray(response) ? response : [];
+    },
+    startOfMonth(isoDate) {
+      const [year, month] = String(isoDate || '').split('-');
+      if (!year || !month) {
+        return '';
+      }
+
+      return `${year}-${month}-01`;
+    },
+    formatDateLabel(isoDate) {
+      const [year, month, day] = String(isoDate || '').split('-');
+      if (!year || !month || !day) {
+        return isoDate || '-';
+      }
+
+      return `${day}/${month}/${year}`;
+    },
+    usuarioIdFromVenta(venta) {
+      return venta?.usuario?.id || venta?.origen_usuario_id || 'sin-usuario';
+    },
+    usuarioNombreFromVenta(venta) {
+      return venta?.usuario?.nombre || venta?.origen_usuario_nombre || 'Sin usuario';
+    },
+    usuarioEmailFromVenta(venta) {
+      return venta?.usuario?.email || venta?.origen_usuario_email || '';
+    },
+    isQrVenta(venta) {
+      const codigoOrden = String(venta?.codigoOrden || '').toUpperCase();
+      const metodoPago = String(venta?.metodo_pago || '').toLowerCase();
+      const canalEmision = String(venta?.canal_emision || '').toLowerCase();
+      return codigoOrden.startsWith('VQ-')
+        || codigoOrden.startsWith('VQC-')
+        || metodoPago === 'qr'
+        || canalEmision === 'qr';
+    },
+    isPendingVenta(venta) {
+      const estado = String(venta?.estado_pago || venta?.status?.key || venta?.estado_emision || '').toUpperCase();
+      return estado.includes('PENDIENT');
+    },
+    countsTowardCashVenta(venta) {
+      return !this.isQrVenta(venta);
+    },
+    numeroFacturaFromVenta(venta) {
+      return String(
+        venta?.numeroFactura
+        || venta?.respuesta_emision?.factura?.nroFactura
+        || venta?.respuesta_emision?.nroFactura
+        || venta?.seguimiento?.numeroFactura
+        || '-'
+      ).trim() || '-';
+    },
+    formatPdfDateTime(value) {
+      if (!value) {
+        return '-';
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return String(value);
+      }
+
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+
+      return `${day}/${month}/${year}\n${hours}:${minutes}`;
+    },
+    buildVentaDetallePdf(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return {
+          detalle: '-',
+          paquetes: '-'
+        };
+      }
+
+      const firstItem = detalle[0] || {};
+      const principal = String(
+        firstItem?.titulo
+        || firstItem?.nombre_servicio
+        || firstItem?.descripcion
+        || 'Sin detalle'
+      ).trim();
+      const paquetes = detalle
+        .map((item) => {
+          const codigo = String(item?.codigo || item?.resumen_origen?.codigo || '').trim();
+          return codigo;
+        })
+        .filter(Boolean);
+
+      return {
+        detalle: `${principal}\n${detalle.length} paquete${detalle.length === 1 ? '' : 's'}`,
+        paquetes: paquetes.length ? paquetes.join('\n') : '-'
+      };
+    },
+    groupVentasByUserForPdf(ventas) {
+      const grouped = new Map();
+
+      ventas.forEach((venta) => {
+        const userId = this.usuarioIdFromVenta(venta);
+        if (!grouped.has(userId)) {
+          grouped.set(userId, {
+            id: userId,
+            nombre: this.usuarioNombreFromVenta(venta),
+            email: this.usuarioEmailFromVenta(venta),
+            ventas: []
+          });
+        }
+
+        grouped.get(userId).ventas.push(venta);
+      });
+
+      return Array.from(grouped.values())
+        .map((group) => {
+          const totalCaja = group.ventas.reduce((acc, venta) => acc + (this.countsTowardCashVenta(venta) ? Number(venta?.total || 0) : 0), 0);
+          const cobradas = group.ventas.filter((venta) => !this.isPendingVenta(venta)).length;
+          const pendientes = group.ventas.filter((venta) => this.isPendingVenta(venta)).length;
+
+          return {
+            ...group,
+            totalCaja,
+            cobradas,
+            pendientes
+          };
+        })
+        .sort((a, b) => b.ventas.length - a.ventas.length);
     },
     normalizeBranch(item, index) {
       const totalQrFacturado = Number(item?.totalQrFacturado || 0);
@@ -697,11 +863,14 @@ export default {
       this.error = '';
 
       try {
-        const dateValue = this.selectedDate || this.defaultToday();
+        const endDate = this.endDate || this.defaultToday();
+        const startDate = this.startDate || endDate;
         const params = new URLSearchParams();
-        if (dateValue) {
-          params.append('fechaInicio', dateValue);
-          params.append('fechaFin', dateValue);
+        if (startDate) {
+          params.append('fechaInicio', startDate);
+        }
+        if (endDate) {
+          params.append('fechaFin', endDate);
         }
         Object.keys(this.filters).forEach((key) => {
           const value = this.filters[key];
@@ -751,7 +920,7 @@ export default {
         clearTimeout(this.searchTimer);
       }
 
-      this.selectedDate = this.defaultToday();
+      this.initializeDateRange();
       this.statusFilter = 'all';
       this.filters = {
         codigoSucursal: '',
@@ -793,7 +962,9 @@ export default {
           codigoSucursal,
           puntoVenta: item.puntoVenta ?? '',
           nombre: item.nombre || '',
-          departamento: item.departamento || ''
+          departamento: item.departamento || '',
+          fechaInicio: this.startDate || '',
+          fechaFin: this.endDate || this.defaultToday()
         }
       });
     },
@@ -846,7 +1017,7 @@ export default {
       this.load = true;
       this.activeUsersModal = {
         title: item.departamento || item.nombre || 'Sucursal',
-        subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
+        subtitle: `CÃ³d. ${item.codigoSucursal ?? 0} Â· Punto ${item.puntoVenta ?? 0}`,
         users: this.resolveBranchUsers(item),
         loading: true,
         error: '',
@@ -906,7 +1077,7 @@ export default {
           return {
             key: user?.usuarioId || user?.id || user?.codigo || `${item.id || 'branch'}-${index}`,
             nombre,
-            detalle: detalleParts.length ? detalleParts.join(' · ') : 'Sin detalle',
+            detalle: detalleParts.length ? detalleParts.join(' Â· ') : 'Sin detalle',
             rol: user?.rol || user?.role || user?.cargo || (user?.cantidadVentas !== undefined ? 'Usuario' : 'Cajero'),
             ultimaVenta: this.formatDate(user?.ultimaVenta || user?.ultima_venta || user?.lastSaleAt || user?.ultimaVentaAt)
           };
@@ -947,7 +1118,7 @@ export default {
       this.load = true;
       this.activeIncidentsModal = {
         title: item.departamento || item.nombre || 'Sucursal',
-        subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
+        subtitle: `CÃ³d. ${item.codigoSucursal ?? 0} Â· Punto ${item.puntoVenta ?? 0}`,
         items: [],
         loading: true,
         error: '',
@@ -968,7 +1139,7 @@ export default {
             ...this.activeIncidentsModal,
             items: source,
             loading: false,
-            error: source.length ? '' : 'La API no devolvió incidencias para esta sucursal.'
+            error: source.length ? '' : 'La API no devolviÃ³ incidencias para esta sucursal.'
           };
         }
       } catch (err) {
@@ -1012,6 +1183,575 @@ export default {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}`;
+    },
+    resolvePdfIncidenceLabel(item) {
+      const parts = [];
+
+      if (item.observadas > 0) parts.push(`Obs ${item.observadas}`);
+      if (item.pendientes > 0) parts.push(`Pend ${item.pendientes}`);
+      if (item.conCufOtroEstado > 0) parts.push(`Fac anul ${item.conCufOtroEstado}`);
+      if (item.qrPagadoPendienteFactura > 0) parts.push(`QR s/f ${item.qrPagadoPendienteFactura}`);
+      if (item.qrCancelado > 0) parts.push(`QR anul ${item.qrCancelado}`);
+      if (item.qrPendiente > 0) parts.push(`QR pend ${item.qrPendiente}`);
+
+      return parts.length ? parts.join(' | ') : 'Sin incidencias';
+    },
+    async loadImageDataUrl(src) {
+      const response = await fetch(src);
+      const blob = await response.blob();
+
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    },
+    async drawPdfHeader(doc) {
+      try {
+        const ministerioDataUrl = await this.loadImageDataUrl('/assets/imagenes/MOPSV.png');
+        const correosDataUrl = await this.loadImageDataUrl('/assets/imagenes/AGBClogo1.png');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const rightLogoWidth = 46;
+        const rightLogoX = pageWidth - 8 - rightLogoWidth;
+
+        doc.setFillColor(255, 255, 255);
+        doc.rect(8, 5, pageWidth - 16, 21, 'F');
+        doc.addImage(ministerioDataUrl, 'PNG', 10, 6.4, 82, 15);
+        doc.addImage(correosDataUrl, 'PNG', rightLogoX, 5.8, rightLogoWidth, 16.5);
+      } catch (error) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        doc.setFillColor(255, 255, 255);
+        doc.rect(8, 5, pageWidth - 16, 21, 'F');
+      }
+    },
+    drawPdfInfoBlocks(doc, cell, blocks) {
+      const filteredBlocks = (blocks || []).filter((block) => block && block.text);
+
+      if (!filteredBlocks.length) {
+        return;
+      }
+
+      const startX = cell.x + 0.55;
+      const startY = cell.y + 0.55;
+      const width = cell.width - 1.1;
+      const blockHeight = 3.35;
+      const gap = 0.15;
+
+      filteredBlocks.forEach((block, index) => {
+        const y = startY + ((blockHeight + gap) * index);
+
+        doc.setTextColor(20, 20, 20);
+        doc.setFont('helvetica', block.bold ? 'bold' : 'normal');
+        doc.setFontSize(block.fontSize || 6.7);
+        doc.text(String(block.text), startX, y + 2.35);
+      });
+    },
+    currentPdfUserLabel() {
+      const user = this.$store?.state?.auth?.user || {};
+      return user?.name || user?.nombre || user?.email || 'Usuario no identificado';
+    },
+    currentPdfTimestamp() {
+      const now = new Date();
+      const date = now.toLocaleDateString('es-BO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const time = now.toLocaleTimeString('es-BO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${date} ${time}`;
+    },
+    drawPdfFooter(doc, generatedBy, generatedAt) {
+      const pageCount = doc.internal.getNumberOfPages();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      for (let page = 1; page <= pageCount; page += 1) {
+        doc.setPage(page);
+        doc.setDrawColor(210, 218, 232);
+        doc.line(10, pageHeight - 12, pageWidth - 10, pageHeight - 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`Emitido por: ${generatedBy}`, 10, pageHeight - 7);
+        doc.text(`Fecha y hora: ${generatedAt}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+      }
+    },
+    addBranchMetaTable(doc, branch, groupedUsers) {
+      const encargado = groupedUsers.length ? groupedUsers[0].nombre : 'Sin responsable';
+      autoTable(doc, {
+        startY: 28,
+        body: [[
+          'Oficina Postal:',
+          branch.displayName || branch.sucursalNombre || '-',
+          'Encargado sucursal:',
+          encargado
+        ], [
+          'Ventanilla:',
+          `Punto ${branch.puntoVentaLabel || branch.puntoVenta || 0}`,
+          'Fecha de recaudacion:',
+          this.endDate || this.defaultToday()
+        ]],
+        theme: 'grid',
+        styles: {
+          fontSize: 7.4,
+          cellPadding: 2,
+          lineColor: [90, 90, 90],
+          textColor: [20, 20, 20]
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 28 },
+          1: { cellWidth: 46 },
+          2: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 34 },
+          3: { cellWidth: 50 }
+        },
+        margin: { left: 12, right: 12 }
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 2,
+        body: [['KARDEX AGRUPADO POR CAJERO']],
+        theme: 'grid',
+        styles: {
+          fontSize: 7.8,
+          fontStyle: 'bold',
+          cellPadding: 2,
+          fillColor: [245, 245, 245],
+          textColor: [20, 20, 20]
+        },
+        margin: { left: 12, right: 12 }
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 2,
+        body: [[
+          'CAJEROS CON VENTAS',
+          String(groupedUsers.length),
+          'TOTAL VENTAS',
+          String(groupedUsers.reduce((acc, group) => acc + group.ventas.length, 0))
+        ], [
+          'TOTAL EN CAJA',
+          this.formatCurrency(branch.totalEfectivoFacturado || branch.totalCaja || 0),
+          'TOTAL EMITIDO',
+          this.formatCurrency(branch.totalVendido || 0)
+        ]],
+        theme: 'grid',
+        styles: {
+          fontSize: 7.4,
+          cellPadding: 2,
+          lineColor: [90, 90, 90],
+          textColor: [20, 20, 20]
+        },
+        columnStyles: {
+          0: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 38 },
+          1: { cellWidth: 38 },
+          2: { fontStyle: 'bold', fillColor: [250, 250, 250], cellWidth: 38 },
+          3: { cellWidth: 38 }
+        },
+        margin: { left: 12, right: 12 }
+      });
+    },
+    addUserSectionToPdf(doc, group, index) {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 3,
+        body: [[`CAJERO ${index + 1}: ${String(group.nombre || 'Sin usuario').toUpperCase()}`]],
+        theme: 'grid',
+        styles: {
+          fontSize: 7.8,
+          fontStyle: 'bold',
+          cellPadding: 2,
+          fillColor: [245, 245, 245],
+          textColor: [20, 20, 20]
+        },
+        margin: { left: 12, right: 12 }
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 1.5,
+        body: [[
+          `${String(group.nombre || '').toUpperCase()}\n${group.email || ''}`,
+          `${group.ventas.length}\nventas`,
+          `${group.cobradas}\ncobradas`,
+          `${group.pendientes}\npendientes`,
+          `${this.formatCurrency(group.totalCaja)}\ntotal en caja`
+        ]],
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 1.8,
+          lineColor: [90, 90, 90],
+          textColor: [20, 20, 20]
+        },
+        columnStyles: {
+          0: { cellWidth: 58, fontStyle: 'bold' },
+          1: { cellWidth: 20, halign: 'center' },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 34, halign: 'right' }
+        },
+        margin: { left: 12, right: 12 }
+      });
+
+      const detailRows = group.ventas.map((venta, rowIndex) => {
+        const detailPayload = this.buildVentaDetallePdf(venta);
+        return [
+          String(rowIndex + 1),
+          this.formatPdfDateTime(venta?.fecha),
+          String(venta?.codigoOrden || '-'),
+          String(venta?.cliente?.razonSocial || 'Sin cliente'),
+          detailPayload.detalle,
+          detailPayload.paquetes,
+          this.numeroFacturaFromVenta(venta),
+          String(venta?.status?.label || venta?.estado_emision || venta?.estado_pago || 'Emitida'),
+          this.formatCurrency(Number(venta?.total || 0))
+        ];
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 1.5,
+        head: [[
+          'Nro.',
+          'Fecha',
+          'Orden',
+          'Cliente',
+          'Detalle',
+          'Paquete / codigos',
+          'Factura',
+          'Estado',
+          'Importe'
+        ]],
+        body: detailRows,
+        theme: 'grid',
+        styles: {
+          fontSize: 6.2,
+          cellPadding: 1.5,
+          lineColor: [90, 90, 90],
+          textColor: [20, 20, 20],
+          overflow: 'linebreak',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [20, 20, 20],
+          fontStyle: 'bold',
+          fontSize: 6.2
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 16, halign: 'center' },
+          2: { cellWidth: 17 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 36 },
+          5: { cellWidth: 28 },
+          6: { cellWidth: 11, halign: 'center' },
+          7: { cellWidth: 11, halign: 'center' },
+          8: { cellWidth: 13, halign: 'right' }
+        },
+        margin: { left: 12, right: 12 }
+      });
+
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY,
+        body: [[
+          { content: `SUBTOTAL ${String(group.nombre || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: this.formatCurrency(group.totalCaja), styles: { halign: 'right', fontStyle: 'bold' } }
+        ]],
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 1.8,
+          lineColor: [90, 90, 90],
+          textColor: [20, 20, 20]
+        },
+        columnStyles: {
+          0: { cellWidth: 166 },
+          1: { cellWidth: 16 }
+        },
+        margin: { left: 12, right: 12 }
+      });
+    },
+    async downloadResumenPdf() {
+      try {
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'letter'
+        });
+        const generatedBy = this.currentPdfUserLabel();
+        const generatedAt = this.currentPdfTimestamp();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const reportWidth = 204;
+        const reportMarginX = (pageWidth - reportWidth) / 2;
+        const statusLabel = {
+          all: 'Todos',
+          cerrada: 'Sin observaciones',
+          pendiente: 'Con pendientes',
+          diferencia: 'Con observaciones',
+          sin_ventas: 'Sin ventas'
+        }[this.statusFilter] || 'Todos';
+        const visibleBranches = this.filteredBranches;
+
+        if (!visibleBranches.length) {
+          this.$swal.fire({
+            icon: 'warning',
+            title: 'Sin datos para exportar',
+            text: 'No hay sucursales visibles con el filtro actual.'
+          });
+          return;
+        }
+
+        await this.drawPdfHeader(doc);
+
+        doc.setFontSize(13);
+        doc.setTextColor(20, 20, 20);
+        doc.text('CONTROL DE CIERRE', pageWidth / 2, 33, { align: 'center' });
+
+        autoTable(doc, {
+          startY: 39,
+          body: [[
+            'Fecha inicio:',
+            this.startDate || this.defaultToday(),
+            'Fecha fin:',
+            this.endDate || this.defaultToday(),
+            'Estado:',
+            statusLabel
+          ], [
+            'Busqueda:',
+            this.filters.q || 'Todas las sucursales',
+            'Sucursales visibles:',
+            String(this.dashboardMetrics.total),
+            'Total vendido:',
+            this.formatCurrency(this.dashboardMetrics.totalVendido)
+          ]],
+          theme: 'grid',
+          styles: {
+            fontSize: 7.1,
+            cellPadding: 1.9,
+            minCellHeight: 8,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          tableWidth: reportWidth,
+          columnStyles: {
+            0: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 22 },
+            1: { cellWidth: 46 },
+            2: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 22 },
+            3: { cellWidth: 46 },
+            4: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 22 },
+            5: { cellWidth: 46 }
+          },
+          margin: { left: reportMarginX, right: reportMarginX }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 3,
+          body: [['KARDEX DE VENTAS COBRADAS']],
+          theme: 'grid',
+          styles: {
+            fontSize: 8.4,
+            fontStyle: 'bold',
+            cellPadding: 2.4,
+            minCellHeight: 8,
+            fillColor: [245, 245, 245],
+            textColor: [20, 20, 20],
+            lineColor: [90, 90, 90]
+          },
+          tableWidth: reportWidth,
+          margin: { left: reportMarginX, right: reportMarginX }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY,
+          body: [[
+            'Sucursales del dia',
+            String(this.dashboardMetrics.total),
+            'Sin observaciones',
+            String(this.dashboardMetrics.conformes),
+            'Con pendientes',
+            String(this.dashboardMetrics.pendientes)
+          ], [
+            'Con observaciones',
+            String(this.dashboardMetrics.diferencias),
+            'Sin ventas',
+            String(this.dashboardMetrics.sinVentas),
+            'Total vendido',
+            this.formatCurrency(this.dashboardMetrics.totalVendido)
+          ]],
+          theme: 'grid',
+          styles: {
+            fontSize: 7.1,
+            cellPadding: 1.9,
+            minCellHeight: 8,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          tableWidth: reportWidth,
+          columnStyles: {
+            0: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 26 },
+            1: { cellWidth: 42, halign: 'right' },
+            2: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 26 },
+            3: { cellWidth: 42, halign: 'right' },
+            4: { fontStyle: 'bold', fillColor: [245, 245, 245], cellWidth: 26 },
+            5: { cellWidth: 42, halign: 'right' }
+          },
+          margin: { left: reportMarginX, right: reportMarginX }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 3,
+          body: [['RESUMEN DE SUCURSALES']],
+          theme: 'grid',
+          styles: {
+            fontSize: 8.6,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            minCellHeight: 7,
+            fillColor: [245, 245, 245],
+            textColor: [20, 20, 20],
+            lineColor: [90, 90, 90]
+          },
+          tableWidth: reportWidth,
+          margin: { left: reportMarginX, right: reportMarginX }
+        });
+
+        const tableRows = visibleBranches.map((branch) => [
+          `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`,
+          '',
+          '',
+          ''
+        ]);
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY,
+          head: [[
+            'Sucursal',
+            'Estado e incidencias',
+            'Total ventas',
+            'Total vendido'
+          ]],
+          body: tableRows,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [245, 245, 245],
+            textColor: [20, 20, 20],
+            fontSize: 7.8,
+            fontStyle: 'bold',
+            halign: 'center',
+            valign: 'middle',
+            lineColor: [90, 90, 90],
+            minCellHeight: 10
+          },
+          styles: {
+            fontSize: 8.2,
+            cellPadding: 0.9,
+            minCellHeight: 12.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            overflow: 'linebreak',
+            valign: 'middle'
+          },
+          tableWidth: reportWidth,
+          columnStyles: {
+            0: { cellWidth: 56, valign: 'middle' },
+            1: { cellWidth: 50, valign: 'middle' },
+            2: { cellWidth: 40, halign: 'left', valign: 'middle' },
+            3: { cellWidth: 58, halign: 'left', valign: 'middle' }
+          },
+          margin: { left: reportMarginX, right: reportMarginX },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index >= 1) {
+              data.cell.text = [''];
+            }
+          },
+          didDrawCell: (data) => {
+            if (data.section !== 'body') {
+              return;
+            }
+
+            const branch = visibleBranches[data.row.index];
+            if (!branch) {
+              return;
+            }
+
+            if (data.column.index === 1) {
+              this.drawPdfInfoBlocks(doc, data.cell, [
+                { text: `Estado: ${branch.status?.label || '-'}`, bold: true },
+                { text: `Incidencias: ${this.resolvePdfIncidenceLabel(branch)}` }
+              ]);
+            }
+
+            if (data.column.index === 2) {
+              this.drawPdfInfoBlocks(doc, data.cell, [
+                { text: `Ventas total: ${Number(branch.qrFacturadas || 0) + Number(branch.electronicasFacturadas || 0)}`, bold: true },
+                { text: `Ventas QR: ${branch.qrFacturadas || 0}` },
+                { text: `Ventas Ef: ${branch.electronicasFacturadas || 0}` }
+              ]);
+            }
+
+            if (data.column.index === 3) {
+              this.drawPdfInfoBlocks(doc, data.cell, [
+                { text: `Total: ${this.formatCurrency(branch.totalVendido)}`, bold: true },
+                { text: `QR: ${this.formatCurrency(branch.totalQrFacturado)}` },
+                { text: `Efectivo: ${this.formatCurrency(branch.totalEfectivoFacturado)}` }
+              ]);
+            }
+          }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY,
+          body: [
+            [
+              {
+                content: '',
+                colSpan: 3,
+                styles: {
+                  halign: 'left',
+                  lineWidth: { top: 0.1, right: 0, bottom: 0, left: 0 }
+                }
+              },
+              { content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }
+            ],
+            [
+              { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+              { content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
+            ],
+            [
+              { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+              { content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
+            ]
+          ],
+          theme: 'grid',
+          styles: {
+            fontSize: 7.2,
+            cellPadding: 1.7,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            valign: 'middle'
+          },
+          tableWidth: reportWidth,
+          columnStyles: {
+            0: { cellWidth: 56 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 40 },
+            3: { cellWidth: 58 }
+          },
+          margin: { left: reportMarginX, right: reportMarginX }
+        });
+
+        this.drawPdfFooter(doc, generatedBy, generatedAt);
+        doc.save(`control-cierre-${this.startDate || 'inicio'}-${this.endDate || 'fin'}.pdf`);
+      } catch (error) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Exportacion no disponible',
+          text: 'No se pudo generar el PDF del control de cierre.'
+        });
+      }
     }
   }
 };
@@ -1041,6 +1781,10 @@ export default {
   padding: 1rem;
 }
 
+.hero-copy {
+  text-align: center;
+}
+
 .hero-copy h1 {
   margin: 0;
   color: #173163;
@@ -1057,9 +1801,51 @@ export default {
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: 190px minmax(320px, 1fr) 220px;
+  grid-template-columns: 190px 190px minmax(320px, 1fr) 220px 170px;
   gap: 0.7rem;
   margin-top: 0.95rem;
+  align-items: center;
+}
+
+.toolbar-field-date {
+  min-width: 0;
+}
+
+.toolbar-field-search {
+  min-width: 0;
+}
+
+.toolbar-field-select {
+  min-width: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.toolbar-export-btn {
+  border: 1px solid #f0c36a;
+  background: linear-gradient(180deg, #fff7e5 0%, #fff1cc 100%);
+  color: #9a6200;
+  border-radius: 12px;
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.toolbar-export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(154, 98, 0, 0.12);
 }
 
 .toolbar-field {
@@ -1778,3 +2564,4 @@ export default {
   }
 }
 </style>
+

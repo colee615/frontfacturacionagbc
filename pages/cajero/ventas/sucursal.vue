@@ -31,57 +31,18 @@
 
             <div class="branch-hero-toolbar">
               <div class="branch-toolbar-group">
-                <div class="branch-date-filter" ref="dateFilter">
-                  <button
-                    type="button"
-                    class="branch-range-chip branch-range-chip-button"
-                    :class="{ 'branch-range-chip-active': hasDateRange }"
-                    @click.stop="toggleDateRangePicker"
-                  >
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>{{ currentDateRangeLabel }}</span>
-                  </button>
+                <div class="branch-date-inline-group">
+                  <label class="branch-date-inline">
+                    <i class="far fa-calendar-alt"></i>
+                    <input v-model="filters.fechaInicio" type="date" aria-label="Fecha inicio" />
+                  </label>
 
-                  <div v-if="showDateRangePicker" class="date-range-popover" @click.stop>
-                    <div class="date-range-popover-head">
-                      <div>
-                        <strong>Seleccionar fechas</strong>
-                        <small>Filtra el kardex por rango de fechas.</small>
-                      </div>
-                      <button type="button" class="date-range-close" @click="closeDateRangePicker">
-                        <i class="fas fa-times"></i>
-                      </button>
-                    </div>
-
-                    <div class="date-range-quick-actions">
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('today')">Hoy</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last7')">7 dias</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('last30')">30 dias</button>
-                      <button type="button" class="date-quick-btn" @click="setQuickDateRange('month')">Este mes</button>
-                    </div>
-
-                    <div class="date-range-fields">
-                      <label class="date-range-field">
-                        <span>Desde</span>
-                        <input v-model="draftDateRange.fechaInicio" type="date" />
-                      </label>
-                      <label class="date-range-field">
-                        <span>Hasta</span>
-                        <input v-model="draftDateRange.fechaFin" type="date" />
-                      </label>
-                    </div>
-
-                    <div class="date-range-actions">
-                      <button type="button" class="date-range-link" @click="clearDateRange">Limpiar</button>
-                      <button type="button" class="date-range-apply" @click="applyDateRange">Aplicar</button>
-                    </div>
-                  </div>
+                  <label class="branch-date-inline">
+                    <i class="far fa-calendar-alt"></i>
+                    <input v-model="filters.fechaFin" type="date" aria-label="Fecha fin" />
+                  </label>
                 </div>
 
-                <div class="branch-range-chip branch-range-chip-muted">
-                  <i class="fas fa-users"></i>
-                  <span>{{ activeUserLabel }}</span>
-                </div>
               </div>
 
               <div class="branch-toolbar-actions">
@@ -159,30 +120,14 @@
                 <button
                   type="button"
                   class="branch-tab"
-                  :class="{ active: activeTab === 'resumen' }"
-                  @click="activeTab = 'resumen'"
-                >
-                  Resumen
-                </button>
-                <button
-                  type="button"
-                  class="branch-tab"
                   :class="{ active: activeTab === 'detalle' }"
                   @click="activeTab = 'detalle'"
                 >
-                  Detalle de ventas
-                </button>
-                <button
-                  type="button"
-                  class="branch-tab"
-                  :class="{ active: activeTab === 'comparativo' }"
-                  @click="activeTab = 'comparativo'"
-                >
-                  Comparativo
+                  Todas las ventas
                 </button>
               </div>
 
-              <div v-if="activeTab === 'resumen'" class="branch-summary-grid">
+              <div v-if="false" class="branch-summary-grid">
                 <div class="branch-summary-card">
                   <span>Ventas filtradas</span>
                   <strong>{{ filteredVentas.length }}</strong>
@@ -221,7 +166,7 @@
                 </div>
               </div>
 
-              <div v-if="activeTab === 'resumen'" class="table-wrap enterprise-table-wrap branch-resume-table">
+              <div v-if="false" class="table-wrap enterprise-table-wrap branch-resume-table">
                 <table class="sales-table enterprise-table">
                   <thead>
                     <tr>
@@ -253,24 +198,7 @@
                 </table>
               </div>
 
-              <div v-else-if="activeTab === 'comparativo'" class="branch-comparative">
-                <div class="branch-comparative-card">
-                  <h4>Ranking de usuarios</h4>
-                  <div class="ranking-list">
-                    <div v-for="user in userSummaries" :key="user.id" class="ranking-item">
-                      <div>
-                        <strong>{{ user.nombre }}</strong>
-                        <small>
-                          {{ user.ventas }} ventas · Factura electrónica {{ user.deliveries.factura_electronica.count }} · QR {{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}
-                        </small>
-                      </div>
-                      <strong>{{ formatCurrency(user.total) }}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div v-else>
+              <div>
                 <div v-if="!filteredVentas.length" class="empty-state">
                   <h3>Sin ventas</h3>
                   <p>No encontramos ventas para esta sucursal con los filtros actuales.</p>
@@ -319,6 +247,7 @@
                         <th>Fecha</th>
                         <th>Código de orden</th>
                         <th>Cliente</th>
+                        <th>Nro. factura</th>
                         <th>Facturación</th>
                         <th>Estado</th>
                         <th>Items</th>
@@ -337,7 +266,6 @@
                         <td>
                           <div class="cell-stack">
                             <strong>{{ venta.codigoOrden || `#${venta.id}` }}</strong>
-                            <small>{{ venta.codigoSeguimiento || venta.qr_transaction_id || 'Sin seguimiento' }}</small>
                           </div>
                         </td>
                         <td>
@@ -348,12 +276,16 @@
                         </td>
                         <td>
                           <div class="cell-stack">
+                            <strong>{{ numeroFacturaValue(venta) || '-' }}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="cell-stack">
                             <strong>
                               <span class="status-pill" :class="channelPillClass(venta)">
-                                {{ deliveryChannelLabel(venta) }}
+                                {{ paymentOriginLabel(venta) }}
                               </span>
                             </strong>
-                            <small>{{ facturacionModeLabel(venta) }}</small>
                           </div>
                         </td>
                         <td>
@@ -363,7 +295,6 @@
                                 {{ emissionStateLabel(venta) }}
                               </span>
                             </strong>
-                            <small>{{ cartStateLabel(venta) }}</small>
                           </div>
                         </td>
                         <td><strong>{{ ventaItemsCount(venta) }}</strong></td>
@@ -502,7 +433,7 @@
                   @click="selectUser('all')"
                 >
                   <span class="selector-name">Todos los usuarios</span>
-                  <small>{{ visibleVentas.length }} ventas · {{ formatCurrency(branchOverview.totalGeneral) }}</small>
+                  <small>{{ visibleVentas.length }} ventas · {{ formatCurrency(branchGlobalOverview.totalGeneral) }}</small>
                 </button>
 
                 <button
@@ -610,7 +541,7 @@ export default {
       },
       userSearch: '',
       activeUserId: 'all',
-      activeTab: 'resumen',
+      activeTab: 'detalle',
       currentPage: 1,
       pageSize: 15,
       showDateRangePicker: false,
@@ -673,17 +604,31 @@ export default {
         ? this.currentDateRangeLabel
         : 'Sin rango de fechas aplicado';
 
-      return `${base} · ${this.visibleVentas.length} venta(s) visibles en la sucursal`;
+      return `${base} · ${this.scopeVentas.length} venta(s) visibles${this.activeUserId === 'all' ? ' en la sucursal' : ` para ${this.activeUserName}`}`;
     },
     visibleVentas() {
       return this.ventas.filter((venta) => this.isVentaInDateRange(venta));
     },
-    filteredVentas() {
-      const ventas = this.activeUserId === 'all'
+    scopeVentas() {
+      return this.activeUserId === 'all'
         ? this.visibleVentas
         : this.visibleVentas.filter((venta) => this.usuarioId(venta) === this.activeUserId);
+    },
+    activeUserName() {
+      if (this.activeUserId === 'all') {
+        return 'la sucursal';
+      }
 
-      return ventas.filter((venta) => this.matchesDetailFilters(venta));
+      const match = this.userSummaries.find((user) => user.id === this.activeUserId);
+      return match?.nombre || 'el usuario seleccionado';
+    },
+    filteredVentas() {
+      const ventas = this.scopeVentas;
+
+      return ventas
+        .filter((venta) => this.matchesDetailFilters(venta))
+        .slice()
+        .sort((a, b) => this.compareVentasByFactura(a, b));
     },
     userSummaries() {
       const map = new Map();
@@ -741,7 +686,7 @@ export default {
       }, { totalGeneral: 0, totalCaja: 0, count: 0, countCobrado: 0 });
     },
     branchOverview() {
-      return this.visibleVentas.reduce((acc, venta) => {
+      return this.scopeVentas.reduce((acc, venta) => {
         const total = Number(venta.total || 0);
         const sectionKey = this.resolveSectionKey(venta);
         const reviewedQrIncident = this.isReviewedQrIncident(venta);
@@ -781,6 +726,19 @@ export default {
         incidencias: 0
       });
     },
+    branchGlobalOverview() {
+      return this.visibleVentas.reduce((acc, venta) => {
+        const total = Number(venta.total || 0);
+
+        if (this.countsTowardCollectedTotal(venta)) {
+          acc.totalGeneral += total;
+        }
+
+        return acc;
+      }, {
+        totalGeneral: 0
+      });
+    },
     deliverySummary() {
       return this.filteredVentas.reduce((acc, venta) => {
         const sectionKey = this.resolveSectionKey(venta);
@@ -790,7 +748,7 @@ export default {
       }, this.buildDeliveryAccumulator());
     },
     branchDeliverySummary() {
-      return this.visibleVentas.reduce((acc, venta) => {
+      return this.scopeVentas.reduce((acc, venta) => {
         const sectionKey = this.resolveSectionKey(venta);
         acc[sectionKey].count += 1;
         acc[sectionKey].total += Number(venta.total || 0);
@@ -798,16 +756,18 @@ export default {
       }, this.buildDeliveryAccumulator());
     },
     branchHealth() {
-      const observed = this.visibleVentas.filter((venta) => this.isReviewableCartIncident(venta) && !this.isReviewedQrIncident(venta)).length;
+      const observed = this.scopeVentas.filter((venta) => this.isReviewableCartIncident(venta) && !this.isReviewedQrIncident(venta)).length;
       const pending = this.branchDeliverySummary.qr_pagado_pendiente_factura.count
         + this.branchDeliverySummary.qr_pendiente.count;
 
-      if (!this.visibleVentas.length) {
+      if (!this.scopeVentas.length) {
         return {
           key: 'empty',
           label: 'Sin ventas',
           icon: 'far fa-times-circle',
-          message: 'No se encontraron ventas para este rango en la sucursal.'
+          message: this.activeUserId === 'all'
+            ? 'No se encontraron ventas para este rango en la sucursal.'
+            : `No se encontraron ventas para ${this.activeUserName} en este rango.`
         };
       }
 
@@ -1059,10 +1019,11 @@ export default {
     },
     syncRouteFilters() {
       this.isSyncingFilters = true;
+      const defaultDate = this.todayIso();
       const hasFechaInicio = Object.prototype.hasOwnProperty.call(this.$route.query, 'fechaInicio');
       const hasFechaFin = Object.prototype.hasOwnProperty.call(this.$route.query, 'fechaFin');
-      const fechaInicio = hasFechaInicio ? this.$route.query.fechaInicio : '';
-      const fechaFin = hasFechaFin ? this.$route.query.fechaFin : '';
+      const fechaInicio = hasFechaInicio ? this.$route.query.fechaInicio : defaultDate;
+      const fechaFin = hasFechaFin ? this.$route.query.fechaFin : defaultDate;
 
       this.filters.fechaInicio = fechaInicio;
       this.filters.fechaFin = fechaFin;
@@ -1402,10 +1363,56 @@ export default {
     usuarioNombre(venta) {
       return venta?.usuario?.nombre || venta?.origen_usuario_nombre || 'Sin usuario';
     },
+    numeroFacturaValue(venta) {
+      const raw = String(
+        venta?.numeroFactura
+        || venta?.numero_factura
+        || venta?.respuesta_emision?.factura?.nroFactura
+        || venta?.respuesta_emision?.nroFactura
+        || venta?.seguimiento?.numeroFactura
+        || ''
+      ).trim();
+
+      if (!raw) {
+        return '';
+      }
+
+      return raw;
+    },
+    numeroFacturaSortable(venta) {
+      const numeroFactura = this.numeroFacturaValue(venta);
+      if (!numeroFactura) {
+        return null;
+      }
+
+      const numeric = numeroFactura.replace(/\D+/g, '');
+      return numeric ? Number(numeric) : null;
+    },
+    compareVentasByFactura(a, b) {
+      const facturaA = this.numeroFacturaSortable(a);
+      const facturaB = this.numeroFacturaSortable(b);
+
+      if (facturaA !== null && facturaB !== null && facturaA !== facturaB) {
+        return facturaB - facturaA;
+      }
+
+      if (facturaA !== null && facturaB === null) {
+        return -1;
+      }
+
+      if (facturaA === null && facturaB !== null) {
+        return 1;
+      }
+
+      const dateA = new Date(a?.fecha || a?.created_at || 0).getTime();
+      const dateB = new Date(b?.fecha || b?.created_at || 0).getTime();
+
+      return dateB - dateA;
+    },
     selectUser(userId) {
       this.activeUserId = userId;
       this.currentPage = 1;
-      this.activeTab = 'resumen';
+      this.activeTab = 'detalle';
     },
     ventaItemsCount(venta) {
       if (Array.isArray(venta?.detalle) && venta.detalle.length) {
@@ -1420,6 +1427,9 @@ export default {
       }
 
       return this.resolveDeliveryType(venta).label;
+    },
+    paymentOriginLabel(venta) {
+      return this.isQrPaymentVenta(venta) ? 'QR' : 'Efectivo';
     },
     facturacionModeLabel(venta) {
       if (this.isCartVenta(venta) && venta?.modalidad_facturacion) {
@@ -1453,7 +1463,7 @@ export default {
     },
     statusPillClass(venta) {
       const label = this.emissionStateLabel(venta).toUpperCase();
-      if (label.includes('FACTURADA') || label.includes('PAGADO')) return 'status-pill-success';
+      if (label.includes('FACTURAD') || label.includes('PAGADO')) return 'status-pill-success';
       if (label.includes('ANULAD')) return 'status-pill-dark';
       if (label.includes('DESCARTAD')) return 'status-pill-dark';
       if (label.includes('PENDIENTE')) return 'status-pill-warning';
@@ -1466,7 +1476,10 @@ export default {
     },
     pdfOriginalUrl(venta) {
       const response = venta?.respuesta_emision || {};
-      return response?.factura?.pdfUrl || response?.pdfUrl || '';
+      return response?.factura?.pdfUrl
+        || response?.pdfUrl
+        || venta?.seguimiento?.urlPdf
+        || '';
     },
     isRejectedVenta(venta) {
       const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
@@ -1515,9 +1528,14 @@ export default {
         && this.isQrPaymentVenta(venta)
         && ['pendiente', 'cancelado', 'fallido'].includes(String(venta?.estado_pago || 'pendiente').trim().toLowerCase());
     },
+    needsFacturaRefresh(venta) {
+      return this.isCartVenta(venta)
+        && this.hasFacturaEmitidaEvidence(venta)
+        && !this.pdfOriginalUrl(venta);
+    },
     canConsultarEstadoVenta(venta) {
       return this.isCartVenta(venta)
-        && Boolean(venta?.status?.can_consult)
+        && (Boolean(venta?.status?.can_consult) || this.needsFacturaRefresh(venta))
         && !this.canViewQr(venta);
     },
     canFacturarQrVenta(venta) {
@@ -2085,7 +2103,7 @@ export default {
         this.ventas = Array.isArray(response) ? response : [];
         this.activeUserId = 'all';
         this.currentPage = 1;
-        this.activeTab = 'resumen';
+        this.activeTab = 'detalle';
         this.scrollActiveSelectorIntoView();
       } catch (err) {
         console.error('[ventas/sucursal] loadVentas:error', {
@@ -2106,13 +2124,14 @@ export default {
         clearTimeout(this.searchTimer);
       }
 
+      const defaultDate = this.todayIso();
       this.filters = {
         fechaInicio: Object.prototype.hasOwnProperty.call(this.$route.query, 'fechaInicio')
           ? this.$route.query.fechaInicio
-          : '',
+          : defaultDate,
         fechaFin: Object.prototype.hasOwnProperty.call(this.$route.query, 'fechaFin')
           ? this.$route.query.fechaFin
-          : '',
+          : defaultDate,
         codigoSucursal: this.$route.query.codigoSucursal || '',
         puntoVenta: this.$route.query.puntoVenta || '',
         q: ''
@@ -2563,6 +2582,43 @@ export default {
   position: relative;
 }
 
+.branch-date-inline-group {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.branch-date-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0 0.85rem;
+  border-radius: 14px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  color: #40506f;
+}
+
+.branch-date-inline i {
+  color: #5d6d89;
+  font-size: 0.92rem;
+}
+
+.branch-date-inline input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #23314d;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.branch-date-inline input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 .branch-range-chip-button {
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
@@ -2977,12 +3033,17 @@ export default {
 .status-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 28px;
   padding: 0.2rem 0.62rem;
   border-radius: 999px;
   background: #f2f5fa;
   font-weight: 700;
   color: #53627d;
+  white-space: nowrap;
+  word-break: normal;
+  text-align: center;
+  line-height: 1.1;
 }
 
 .amount-text {
