@@ -530,15 +530,19 @@ export default {
         qrFacturadas: 0,
         electronicasFacturadas: 0,
         oficiales: 0,
+        facturasAnuladas: 0,
+        totalFacturasAnuladas: 0,
         conCufOtroEstado: 0,
         observadas: 0,
         pendientes: 0,
         qrPagadoPendienteFactura: 0,
         qrCancelado: 0,
         qrPendiente: 0,
+        cartRechazadoDescartado: 0,
         totalQrPagadoPendienteFactura: 0,
         totalQrCancelado: 0,
-        totalQrPendiente: 0
+        totalQrPendiente: 0,
+        totalCartRechazadoDescartado: 0
       };
     },
     cachedUserCount(codigoSucursal, puntoVenta) {
@@ -783,12 +787,16 @@ export default {
         electronicasFacturadas: Number(item?.electronicasFacturadas || 0),
         cajerosUnicos: Number(item?.cajerosUnicos || this.cachedUserCount(item?.codigoSucursal, item?.puntoVenta)),
         oficiales: Number(item?.oficiales || 0),
+        facturasAnuladas: Number(item?.facturasAnuladas || 0),
+        totalFacturasAnuladas: Number(item?.totalFacturasAnuladas || 0),
         conCufOtroEstado: Number(item?.conCufOtroEstado || 0),
         observadas,
         pendientes,
         qrPagadoPendienteFactura,
         qrCancelado,
         qrPendiente,
+        cartRechazadoDescartado: Number(item?.cartRechazadoDescartado || 0),
+        totalCartRechazadoDescartado: Number(item?.totalCartRechazadoDescartado || 0),
         hasPendingIncidences: incidentSummary.hasPendingIncidences,
         hasObservedIncidences: incidentSummary.hasObservedIncidences,
         status,
@@ -1184,16 +1192,53 @@ export default {
         maximumFractionDigits: 2
       })}`;
     },
-    resolvePdfIncidenceLabel(item) {
+    resolvePdfIncidenceDetails(item) {
       const parts = [];
+      const facturasAnuladas = Number(item?.facturasAnuladas || 0);
+      const totalFacturasAnuladas = Number(item?.totalFacturasAnuladas || 0);
+      const cartRechazadoDescartado = Number(item?.cartRechazadoDescartado || 0);
+      const totalCartRechazadoDescartado = Number(item?.totalCartRechazadoDescartado || 0);
+      const otrasConCuf = Math.max(
+        0,
+        Number(item?.conCufOtroEstado || 0) - facturasAnuladas - cartRechazadoDescartado
+      );
 
-      if (item.observadas > 0) parts.push(`Obs ${item.observadas}`);
-      if (item.pendientes > 0) parts.push(`Pend ${item.pendientes}`);
-      if (item.conCufOtroEstado > 0) parts.push(`Fac anul ${item.conCufOtroEstado}`);
-      if (item.qrPagadoPendienteFactura > 0) parts.push(`QR s/f ${item.qrPagadoPendienteFactura}`);
-      if (item.qrCancelado > 0) parts.push(`QR anul ${item.qrCancelado}`);
-      if (item.qrPendiente > 0) parts.push(`QR pend ${item.qrPendiente}`);
+      if (Number(item?.observadas || 0) > 0) {
+        parts.push(`Observadas: ${item.observadas}`);
+      }
 
+      if (Number(item?.pendientes || 0) > 0) {
+        parts.push(`Pendientes: ${item.pendientes}`);
+      }
+
+      if (facturasAnuladas > 0) {
+        parts.push(`Facturas anuladas: ${facturasAnuladas} por ${this.formatCurrency(totalFacturasAnuladas)} (no suma al total vendido)`);
+      }
+
+      if (cartRechazadoDescartado > 0) {
+        parts.push(`QR rechazado/descartado: ${cartRechazadoDescartado} por ${this.formatCurrency(totalCartRechazadoDescartado)}`);
+      }
+
+      if (otrasConCuf > 0) {
+        parts.push(`Otros estados con CUF: ${otrasConCuf}`);
+      }
+
+      if (Number(item?.qrPagadoPendienteFactura || 0) > 0) {
+        parts.push(`QR pagado sin factura: ${item.qrPagadoPendienteFactura}`);
+      }
+
+      if (Number(item?.qrCancelado || 0) > 0) {
+        parts.push(`QR anulados: ${item.qrCancelado}`);
+      }
+
+      if (Number(item?.qrPendiente || 0) > 0) {
+        parts.push(`QR pendientes: ${item.qrPendiente}`);
+      }
+
+      return parts;
+    },
+    resolvePdfIncidenceLabel(item) {
+      const parts = this.resolvePdfIncidenceDetails(item);
       return parts.length ? parts.join(' | ') : 'Sin incidencias';
     },
     async loadImageDataUrl(src) {
@@ -1225,26 +1270,104 @@ export default {
         doc.rect(8, 5, pageWidth - 16, 21, 'F');
       }
     },
+    normalizePdfBlocks(blocks) {
+      return (blocks || [])
+        .filter((block) => block && block.text)
+        .map((block) => ({
+          text: String(block.text),
+          bold: Boolean(block.bold),
+          fontSize: block.fontSize || 6.7
+        }));
+    },
+    getPdfBlockLines(doc, text, width) {
+      const safeWidth = Math.max(8, Number(width || 0));
+      const normalizedText = String(text || '').trim();
+      if (!normalizedText) {
+        return [''];
+      }
+
+      return doc.splitTextToSize(normalizedText, safeWidth);
+    },
+    measurePdfInfoBlocks(doc, cellWidth, blocks) {
+      const filteredBlocks = this.normalizePdfBlocks(blocks);
+      if (!filteredBlocks.length) {
+        return 12.2;
+      }
+
+      const contentWidth = Math.max(8, cellWidth - 1.1);
+      const topPadding = 1;
+      const bottomPadding = 1;
+      const blockGap = 0.7;
+      let totalHeight = topPadding + bottomPadding;
+
+      filteredBlocks.forEach((block, index) => {
+        const lines = this.getPdfBlockLines(doc, block.text, contentWidth);
+        const lineHeight = Math.max(2.7, block.fontSize * 0.6);
+
+        totalHeight += lines.length * lineHeight;
+        if (index < filteredBlocks.length - 1) {
+          totalHeight += blockGap;
+        }
+      });
+
+      return Math.max(12.2, totalHeight);
+    },
+    buildPdfIncidentBlocks(branch) {
+      return [
+        { text: `Estado: ${branch.status?.label || '-'}`, bold: true },
+        { text: `Incidencias: ${this.resolvePdfIncidenceLabel(branch)}` }
+      ];
+    },
+    buildPdfSalesBlocks(branch) {
+      return [
+        { text: `Ventas total: ${Number(branch.qrFacturadas || 0) + Number(branch.electronicasFacturadas || 0)}`, bold: true },
+        { text: `Ventas QR: ${branch.qrFacturadas || 0}` },
+        { text: `Ventas Ef: ${branch.electronicasFacturadas || 0}` }
+      ];
+    },
+    buildPdfTotalBlocks(branch) {
+      const blocks = [
+        { text: `Total: ${this.formatCurrency(branch.totalVendido)}`, bold: true },
+        { text: `QR: ${this.formatCurrency(branch.totalQrFacturado)}` },
+        { text: `Efectivo: ${this.formatCurrency(branch.totalEfectivoFacturado)}` }
+      ];
+
+      if (Number(branch.totalFacturasAnuladas || 0) > 0) {
+        blocks.push({ text: `Anulado no sumado: ${this.formatCurrency(branch.totalFacturasAnuladas)}` });
+      }
+
+      if (Number(branch.totalCartRechazadoDescartado || 0) > 0) {
+        blocks.push({ text: `QR rechazado/desc.: ${this.formatCurrency(branch.totalCartRechazadoDescartado)}` });
+      }
+
+      return blocks;
+    },
     drawPdfInfoBlocks(doc, cell, blocks) {
-      const filteredBlocks = (blocks || []).filter((block) => block && block.text);
+      const filteredBlocks = this.normalizePdfBlocks(blocks);
 
       if (!filteredBlocks.length) {
         return;
       }
 
       const startX = cell.x + 0.55;
-      const startY = cell.y + 0.55;
-      const width = cell.width - 1.1;
-      const blockHeight = 3.35;
-      const gap = 0.15;
+      const startY = cell.y + 1;
+      const width = Math.max(8, cell.width - 1.1);
+      const gap = 0.7;
+      let cursorY = startY;
 
       filteredBlocks.forEach((block, index) => {
-        const y = startY + ((blockHeight + gap) * index);
+        const lines = this.getPdfBlockLines(doc, block.text, width);
+        const lineHeight = Math.max(2.7, block.fontSize * 0.6);
 
         doc.setTextColor(20, 20, 20);
         doc.setFont('helvetica', block.bold ? 'bold' : 'normal');
-        doc.setFontSize(block.fontSize || 6.7);
-        doc.text(String(block.text), startX, y + 2.35);
+        doc.setFontSize(block.fontSize);
+        doc.text(lines, startX, cursorY + lineHeight);
+
+        cursorY += (lines.length * lineHeight);
+        if (index < filteredBlocks.length - 1) {
+          cursorY += gap;
+        }
       });
     },
     currentPdfUserLabel() {
@@ -1666,6 +1789,27 @@ export default {
             if (data.section === 'body' && data.column.index >= 1) {
               data.cell.text = [''];
             }
+
+            if (data.section !== 'body') {
+              return;
+            }
+
+            const branch = visibleBranches[data.row.index];
+            if (!branch) {
+              return;
+            }
+
+            if (data.column.index === 1) {
+              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfIncidentBlocks(branch));
+            }
+
+            if (data.column.index === 2) {
+              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfSalesBlocks(branch));
+            }
+
+            if (data.column.index === 3) {
+              data.cell.styles.minCellHeight = this.measurePdfInfoBlocks(doc, data.cell.width, this.buildPdfTotalBlocks(branch));
+            }
           },
           didDrawCell: (data) => {
             if (data.section !== 'body') {
@@ -1678,53 +1822,73 @@ export default {
             }
 
             if (data.column.index === 1) {
-              this.drawPdfInfoBlocks(doc, data.cell, [
-                { text: `Estado: ${branch.status?.label || '-'}`, bold: true },
-                { text: `Incidencias: ${this.resolvePdfIncidenceLabel(branch)}` }
-              ]);
+              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfIncidentBlocks(branch));
             }
 
             if (data.column.index === 2) {
-              this.drawPdfInfoBlocks(doc, data.cell, [
-                { text: `Ventas total: ${Number(branch.qrFacturadas || 0) + Number(branch.electronicasFacturadas || 0)}`, bold: true },
-                { text: `Ventas QR: ${branch.qrFacturadas || 0}` },
-                { text: `Ventas Ef: ${branch.electronicasFacturadas || 0}` }
-              ]);
+              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfSalesBlocks(branch));
             }
 
             if (data.column.index === 3) {
-              this.drawPdfInfoBlocks(doc, data.cell, [
-                { text: `Total: ${this.formatCurrency(branch.totalVendido)}`, bold: true },
-                { text: `QR: ${this.formatCurrency(branch.totalQrFacturado)}` },
-                { text: `Efectivo: ${this.formatCurrency(branch.totalEfectivoFacturado)}` }
-              ]);
+              this.drawPdfInfoBlocks(doc, data.cell, this.buildPdfTotalBlocks(branch));
             }
           }
         });
 
+        const footerRows = [
+          [
+            {
+              content: '',
+              colSpan: 3,
+              styles: {
+                halign: 'left',
+                lineWidth: { top: 0.1, right: 0, bottom: 0, left: 0 }
+              }
+            },
+            { content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }
+          ],
+          [
+            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+            { content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
+          ],
+          [
+            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+            { content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
+          ]
+        ];
+
+        const totalFacturasAnuladas = visibleBranches.reduce(
+          (acc, branch) => acc + Number(branch.totalFacturasAnuladas || 0),
+          0
+        );
+        const totalCartRechazadoDescartado = visibleBranches.reduce(
+          (acc, branch) => acc + Number(branch.totalCartRechazadoDescartado || 0),
+          0
+        );
+
+        if (totalFacturasAnuladas > 0) {
+          footerRows.push([
+            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+            {
+              content: `Facturas anuladas no sumadas: ${this.formatCurrency(totalFacturasAnuladas)}`,
+              styles: { halign: 'left', fontStyle: 'bold' }
+            }
+          ]);
+        }
+
+        if (totalCartRechazadoDescartado > 0) {
+          footerRows.push([
+            { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
+            {
+              content: `QR rechazado/descartado: ${this.formatCurrency(totalCartRechazadoDescartado)}`,
+              styles: { halign: 'left', fontStyle: 'bold' }
+            }
+          ]);
+        }
+
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY,
-          body: [
-            [
-              {
-                content: '',
-                colSpan: 3,
-                styles: {
-                  halign: 'left',
-                  lineWidth: { top: 0.1, right: 0, bottom: 0, left: 0 }
-                }
-              },
-              { content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }
-            ],
-            [
-              { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
-              { content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
-            ],
-            [
-              { content: '', colSpan: 3, styles: { halign: 'left', lineWidth: 0 } },
-              { content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }
-            ]
-          ],
+          body: footerRows,
           theme: 'grid',
           styles: {
             fontSize: 7.2,
