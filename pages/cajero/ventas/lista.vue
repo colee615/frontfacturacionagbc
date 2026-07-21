@@ -951,6 +951,7 @@ export default {
     },
     goToSucursal(item) {
       const codigoSucursal = String(item?.codigoSucursal ?? '').trim();
+      const today = this.defaultToday();
       console.log('[ventas/lista] goToSucursal', {
         item,
         query: {
@@ -971,8 +972,8 @@ export default {
           puntoVenta: item.puntoVenta ?? '',
           nombre: item.nombre || '',
           departamento: item.departamento || '',
-          fechaInicio: this.startDate || '',
-          fechaFin: this.endDate || this.defaultToday()
+          fechaInicio: today,
+          fechaFin: today
         }
       });
     },

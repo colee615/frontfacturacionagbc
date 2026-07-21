@@ -31,7 +31,7 @@
 
             <div class="branch-hero-toolbar">
               <div class="branch-toolbar-group">
-                <div class="branch-date-inline-group">
+                <div v-if="activeTab === 'fechas'" class="branch-date-inline-group">
                   <label class="branch-date-inline">
                     <i class="far fa-calendar-alt"></i>
                     <input v-model="filters.fechaInicio" type="date" aria-label="Fecha inicio" />
@@ -43,17 +43,6 @@
                   </label>
                 </div>
 
-              </div>
-
-              <div class="branch-toolbar-actions">
-                <button
-                  type="button"
-                  class="branch-export-btn"
-                  @click="downloadKardexPdf"
-                >
-                  <i class="fas fa-file-pdf"></i>
-                  <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
-                </button>
               </div>
             </div>
           </section>
@@ -116,15 +105,40 @@
 
           <section class="branch-workspace">
             <section class="branch-main-card enterprise-content-card">
-              <div class="branch-tabs">
+              <div class="branch-main-head">
+                <div>
+                  <p class="branch-kicker mb-1">Vista</p>
+                  <h3 class="branch-main-title">{{ activeTab === 'fechas' ? 'Fechas seleccionadas' : 'Todas las ventas' }}</h3>
+                </div>
                 <button
                   type="button"
-                  class="branch-tab"
-                  :class="{ active: activeTab === 'detalle' }"
-                  @click="activeTab = 'detalle'"
+                  class="branch-export-btn"
+                  @click="downloadKardexPdf"
                 >
-                  Todas las ventas
+                  <i class="fas fa-file-pdf"></i>
+                  <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
                 </button>
+              </div>
+
+              <div class="branch-tabs">
+                <div class="branch-tabs-group">
+                  <button
+                    type="button"
+                    class="branch-tab"
+                    :class="{ active: activeTab === 'fechas' }"
+                    @click="selectTab('fechas')"
+                  >
+                    Fechas seleccionadas
+                  </button>
+                  <button
+                    type="button"
+                    class="branch-tab"
+                    :class="{ active: activeTab === 'todas' }"
+                    @click="selectTab('todas')"
+                  >
+                    Todas las ventas
+                  </button>
+                </div>
               </div>
 
               <div v-if="false" class="table-wrap enterprise-table-wrap branch-resume-table">
@@ -381,9 +395,12 @@
             <aside class="branch-selector-card enterprise-content-card">
               <div class="selector-head">
                 <div>
-                  <h3 class="mb-1">Detalle por usuario</h3>
-                  <p class="detail-copy mb-0">La vista por cajero se mantiene activa para revisar el kardex sin perder el consolidado de sucursal.</p>
+                  <h3 class="mb-1">Resumen</h3>
                 </div>
+                <button type="button" class="selector-export-btn" @click="downloadUserSummaryPdf">
+                  <i class="fas fa-file-pdf"></i>
+                  <span>Exportar PDF</span>
+                </button>
               </div>
 
               <label class="selector-search">
@@ -399,8 +416,15 @@
                   data-user-id="all"
                   @click="selectUser('all')"
                 >
-                  <span class="selector-name">Todos los usuarios</span>
-                  <small>{{ visibleVentas.length }} ventas · {{ formatCurrency(branchGlobalOverview.totalGeneral) }}</small>
+                  <span class="selector-content">
+                    <span class="selector-name">Todos los usuarios</span>
+                    <span class="selector-metrics">
+                      <small><strong>Ventas</strong> {{ branchGlobalOverview.countCobrado }}</small>
+                      <small><strong>Total</strong> {{ formatCurrency(branchGlobalOverview.totalGeneral) }}</small>
+                      <small><strong>QR</strong> {{ formatCurrency(branchGlobalOverview.totalQr) }}</small>
+                      <small><strong>Ef</strong> {{ formatCurrency(branchGlobalOverview.totalEf) }}</small>
+                    </span>
+                  </span>
                 </button>
 
                 <button
@@ -412,8 +436,15 @@
                   :data-user-id="String(user.id)"
                   @click="selectUser(user.id)"
                 >
-                  <span class="selector-name">{{ user.nombre }}</span>
-                  <small>{{ user.ventas }} ventas · {{ formatCurrency(user.total) }}</small>
+                  <span class="selector-content">
+                    <span class="selector-name">{{ user.nombre }}</span>
+                    <span class="selector-metrics">
+                      <small><strong>Ventas</strong> {{ user.countCobrado }}</small>
+                      <small><strong>Total</strong> {{ formatCurrency(user.total) }}</small>
+                      <small><strong>QR</strong> {{ formatCurrency(user.totalQr) }}</small>
+                      <small><strong>Ef</strong> {{ formatCurrency(user.totalCaja) }}</small>
+                    </span>
+                  </span>
                 </button>
               </div>
             </aside>
@@ -506,6 +537,9 @@
 </template>
 
 <script>
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 export default {
   data() {
     return {
@@ -524,7 +558,7 @@ export default {
       },
       userSearch: '',
       activeUserId: 'all',
-      activeTab: 'detalle',
+      activeTab: 'fechas',
       currentPage: 1,
       pageSize: 15,
       detailFilters: {
@@ -569,13 +603,17 @@ export default {
       return `Hasta ${this.formatShortDate(this.filters.fechaFin)}`;
     },
     branchHeroSubtitle() {
-      const base = this.hasDateRange
-        ? this.currentDateRangeLabel
-        : 'Sin rango de fechas aplicado';
+      const base = this.activeTab === 'todas'
+        ? 'Historial completo'
+        : (this.hasDateRange ? this.currentDateRangeLabel : 'Sin rango de fechas aplicado');
 
       return `${base} · ${this.scopeVentas.length} venta(s) visibles${this.activeUserId === 'all' ? ' en la sucursal' : ` para ${this.activeUserName}`}`;
     },
     visibleVentas() {
+      if (this.activeTab === 'todas') {
+        return this.ventas;
+      }
+
       return this.ventas.filter((venta) => this.isVentaInDateRange(venta));
     },
     scopeVentas() {
@@ -612,9 +650,11 @@ export default {
             id,
             nombre,
             ventas: 0,
+            countCobrado: 0,
             total: 0,
             totalCobrado: 0,
             totalCaja: 0,
+            totalQr: 0,
             deliveries: this.buildDeliveryAccumulator()
           });
         }
@@ -622,11 +662,15 @@ export default {
         const current = map.get(id);
         current.ventas += 1;
         if (this.countsTowardCollectedTotal(venta)) {
+          current.countCobrado += 1;
           current.total += Number(venta.total || 0);
           current.totalCobrado += Number(venta.total || 0);
         }
         if (this.countsTowardCashTotal(venta)) {
           current.totalCaja += Number(venta.total || 0);
+        }
+        if (this.countsTowardCollectedQrTotal(venta)) {
+          current.totalQr += Number(venta.total || 0);
         }
         current.deliveries[sectionKey].count += 1;
         current.deliveries[sectionKey].total += Number(venta.total || 0);
@@ -656,7 +700,7 @@ export default {
           acc.totalCaja += total;
         }
 
-        if (sectionKey === 'qr_facturado') {
+        if (sectionKey === 'qr_facturado' && this.countsTowardCollectedQrTotal(venta)) {
           acc.totalQrConfirmado += total;
           acc.qrConfirmados += 1;
         }
@@ -687,12 +731,24 @@ export default {
         const total = Number(venta.total || 0);
 
         if (this.countsTowardCollectedTotal(venta)) {
+          acc.countCobrado += 1;
           acc.totalGeneral += total;
+        }
+
+        if (this.countsTowardCollectedQrTotal(venta)) {
+          acc.totalQr += total;
+        }
+
+        if (this.countsTowardCashTotal(venta)) {
+          acc.totalEf += total;
         }
 
         return acc;
       }, {
-        totalGeneral: 0
+        countCobrado: 0,
+        totalGeneral: 0,
+        totalQr: 0,
+        totalEf: 0
       });
     },
     branchDeliverySummary() {
@@ -795,11 +851,17 @@ export default {
     },
     'filters.fechaInicio'() {
       this.currentPage = 1;
-      this.scheduleLoadVentas();
+      const synced = this.syncFiltersToRoute();
+      if (!synced && this.activeTab === 'fechas') {
+        this.scheduleLoadVentas();
+      }
     },
     'filters.fechaFin'() {
       this.currentPage = 1;
-      this.scheduleLoadVentas();
+      const synced = this.syncFiltersToRoute();
+      if (!synced && this.activeTab === 'fechas') {
+        this.scheduleLoadVentas();
+      }
     },
     'detailFilters.q'() {
       this.currentPage = 1;
@@ -818,6 +880,20 @@ export default {
     },
     filteredUserSummaries() {
       this.scrollActiveSelectorIntoView();
+    },
+    '$route.query': {
+      deep: true,
+      handler(nextQuery, previousQuery) {
+        const nextSignature = JSON.stringify(nextQuery || {});
+        const previousSignature = JSON.stringify(previousQuery || {});
+
+        if (nextSignature === previousSignature) {
+          return;
+        }
+
+        this.syncRouteFilters();
+        this.loadVentas();
+      }
     }
   },
   methods: {
@@ -878,6 +954,37 @@ export default {
         branchName: this.branchName,
         branchDepartment: this.branchDepartment
       });
+    },
+    syncFiltersToRoute() {
+      if (this.isSyncingFilters) {
+        return false;
+      }
+
+      const nextQuery = {
+        ...this.$route.query,
+        fechaInicio: this.filters.fechaInicio || '',
+        fechaFin: this.filters.fechaFin || '',
+        codigoSucursal: this.filters.codigoSucursal || '',
+        puntoVenta: this.filters.puntoVenta || '',
+        nombre: this.branchName || this.$route.query.nombre || '',
+        departamento: this.branchDepartment || this.$route.query.departamento || ''
+      };
+
+      Object.keys(nextQuery).forEach((key) => {
+        if (nextQuery[key] === '') {
+          delete nextQuery[key];
+        }
+      });
+
+      const currentSignature = JSON.stringify(this.$route.query || {});
+      const nextSignature = JSON.stringify(nextQuery);
+
+      if (currentSignature === nextSignature) {
+        return false;
+      }
+
+      this.$router.replace({ query: nextQuery });
+      return true;
     },
     formatShortDate(value) {
       if (!value) {
@@ -981,9 +1088,30 @@ export default {
     isQrFacturadoVenta(venta) {
       return this.isQrPaymentVenta(venta)
         && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && !this.isAnuladaVenta(venta)
         && this.hasFacturaEmitidaEvidence(venta);
     },
+    isAnuladaVenta(venta) {
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const estadoSufe = String(
+        venta?.respuesta_emision?.estadoSufe
+        || venta?.estadoSufe
+        || venta?.estado_sufe
+        || ''
+      ).trim().toUpperCase();
+
+      return [
+        statusKey,
+        estadoEmision,
+        estadoSufe
+      ].some((value) => ['ANULADA', 'ANULADO', 'ANULACION_SOLICITADA', 'DESCARTADA'].includes(value));
+    },
     countsTowardCashTotal(venta) {
+      if (this.isAnuladaVenta(venta)) {
+        return false;
+      }
+
       if (this.isQrPaymentVenta(venta)) {
         return false;
       }
@@ -1013,11 +1141,18 @@ export default {
       return estado === 'emitido';
     },
     countsTowardCollectedTotal(venta) {
+      if (this.isAnuladaVenta(venta)) {
+        return false;
+      }
+
       if (this.isQrPaymentVenta(venta)) {
         return String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado';
       }
 
       return this.countsTowardCashTotal(venta);
+    },
+    countsTowardCollectedQrTotal(venta) {
+      return this.countsTowardCollectedTotal(venta) && this.isQrPaymentVenta(venta);
     },
     resolveSectionKey(venta) {
       if (this.isQrPaymentVenta(venta)) {
@@ -1253,7 +1388,16 @@ export default {
     selectUser(userId) {
       this.activeUserId = userId;
       this.currentPage = 1;
-      this.activeTab = 'detalle';
+    },
+    async selectTab(tabKey) {
+      if (this.activeTab === tabKey) {
+        return;
+      }
+
+      this.activeTab = tabKey;
+      this.activeUserId = 'all';
+      this.currentPage = 1;
+      await this.loadVentas();
     },
     ventaItemsCount(venta) {
       if (Array.isArray(venta?.detalle) && venta.detalle.length) {
@@ -1590,8 +1734,16 @@ export default {
     async fetchAnulacionGuardStatus() {
       try {
         const response = await this.$admin.$get('ventas/anulacion/guard-status');
+        console.log('[ventas/sucursal] fetchAnulacionGuardStatus:success', {
+          response
+        });
         return response?.guard || null;
       } catch (error) {
+        console.error('[ventas/sucursal] fetchAnulacionGuardStatus:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
         return null;
       }
     },
@@ -1625,24 +1777,47 @@ export default {
       return value || null;
     },
     async ensureAnulacionAuthorization() {
+      const singleRole = this.$store?.state?.auth?.role || this.$store?.state?.auth?.user?.role || null;
       const roles = this.$store?.state?.auth?.roles || [];
       const permissions = this.$store?.state?.auth?.permissions || [];
       const isHigherRole =
+        ['admin', 'administrador', 'supervisor'].includes(String(singleRole || '').toLowerCase())
+        || 
         (Array.isArray(roles) && roles.some((r) => ['admin', 'administrador', 'supervisor'].includes(String(r).toLowerCase())))
         || (Array.isArray(permissions) && permissions.some((p) => ['rbac.manage', 'usuarios.manage', 'ventas.manage'].includes(String(p).toLowerCase())));
+      console.log('[ventas/sucursal] ensureAnulacionAuthorization:start', {
+        singleRole,
+        roles,
+        permissions,
+        isHigherRole
+      });
       if (isHigherRole) return true;
 
       const guard = await this.fetchAnulacionGuardStatus();
+      console.log('[ventas/sucursal] ensureAnulacionAuthorization:guard', {
+        guard
+      });
       if (guard?.allowed) return true;
 
       const credentials = await this.promptSupervisorAuthorization();
+      console.log('[ventas/sucursal] ensureAnulacionAuthorization:credentials-provided', {
+        provided: Boolean(credentials)
+      });
       if (!credentials) return false;
 
       try {
         const response = await this.$admin.$post('ventas/anulacion/autorizar', credentials);
+        console.log('[ventas/sucursal] ensureAnulacionAuthorization:authorized', {
+          response
+        });
         await this.notifyAnulacion('success', 'Autorización concedida', response?.message || 'Anulación habilitada temporalmente.');
         return true;
       } catch (error) {
+        console.error('[ventas/sucursal] ensureAnulacionAuthorization:authorize-error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
         const data = error?.response?.data || {};
         const message = data.message || data.error || 'No se pudo validar la autorización del supervisor.';
         await this.notifyAnulacion('error', 'Autorización rechazada', message);
@@ -1683,6 +1858,17 @@ export default {
       return value || null;
     },
     async anularVenta(venta) {
+      console.log('[ventas/sucursal] anularVenta:start', {
+        ventaId: venta?.id || null,
+        codigoOrden: venta?.codigoOrden || null,
+        numeroFactura: this.numeroFacturaValue(venta) || null,
+        cuf: venta?.status?.cuf || venta?.cuf || null,
+        status: venta?.status || null,
+        estadoSufe: venta?.estadoSufe || venta?.estado_sufe || null,
+        canAnular: this.canAnularVenta(venta),
+        isRejected: this.isRejectedVenta(venta),
+        isCart: this.isCartVenta(venta)
+      });
       if (!this.canAnularVenta(venta)) {
         await this.notifyAnulacion('warning', 'No disponible', 'Solo se puede anular una factura procesada y con CUF.');
         return;
@@ -1735,24 +1921,45 @@ export default {
       }
 
       const authorized = await this.ensureAnulacionAuthorization();
+      console.log('[ventas/sucursal] anularVenta:authorized', {
+        authorized
+      });
       if (!authorized) return;
 
       const payload = await this.promptAnulacion();
+      console.log('[ventas/sucursal] anularVenta:payload', payload);
       if (!payload) return;
 
       this.load = true;
       try {
+        console.log('[ventas/sucursal] anularVenta:request', {
+          url: `ventas/anular/${venta.status.cuf}`,
+          payload
+        });
         const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
+        console.log('[ventas/sucursal] anularVenta:success', {
+          response
+        });
         await this.notifyAnulacion('success', 'Solicitud enviada', response?.message || 'La anulación fue recibida correctamente.');
         try {
           await this.refreshVentaInPlace(venta);
         } catch (refreshError) {
+          console.error('[ventas/sucursal] anularVenta:refresh-error', {
+            status: refreshError?.response?.status || null,
+            data: refreshError?.response?.data || null,
+            message: refreshError?.message || null
+          });
           await this.loadVentas();
         }
         if (this.activeDetailVenta?.id === venta.id) {
           this.activeDetailVenta = this.ventas.find((item) => item.id === venta.id) || null;
         }
       } catch (error) {
+        console.error('[ventas/sucursal] anularVenta:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
         const data = error?.response?.data || {};
         const message = data.message || data.error || data.details?.mensaje || 'No se pudo solicitar la anulación.';
         await this.notifyAnulacion('error', 'No se pudo anular', message);
@@ -1922,10 +2129,10 @@ export default {
         const params = new URLSearchParams();
         params.append('codigoSucursal', this.filters.codigoSucursal);
         params.append('puntoVenta', this.filters.puntoVenta);
-        if (this.filters.fechaInicio) {
+        if (this.activeTab === 'fechas' && this.filters.fechaInicio) {
           params.append('fechaInicio', this.filters.fechaInicio);
         }
-        if (this.filters.fechaFin) {
+        if (this.activeTab === 'fechas' && this.filters.fechaFin) {
           params.append('fechaFin', this.filters.fechaFin);
         }
         if (this.filters.q) {
@@ -1945,7 +2152,6 @@ export default {
         this.ventas = Array.isArray(response) ? response : [];
         this.activeUserId = 'all';
         this.currentPage = 1;
-        this.activeTab = 'detalle';
         this.scrollActiveSelectorIntoView();
       } catch (err) {
         console.error('[ventas/sucursal] loadVentas:error', {
@@ -2007,51 +2213,894 @@ export default {
       this.loadVentas();
     },
     async downloadKardexPdf() {
+      return this.downloadKardexPdfForUser(this.activeUserId);
+    },
+    async loadImageDataUrl(src) {
+      const response = await fetch(src);
+      const blob = await response.blob();
+
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    },
+    async drawPdfHeader(doc) {
+      try {
+        const ministerioDataUrl = await this.loadImageDataUrl('/assets/imagenes/MOPSV.png');
+        const correosDataUrl = await this.loadImageDataUrl('/assets/imagenes/AGBClogo1.png');
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const rightLogoWidth = 46;
+        const rightLogoX = pageWidth - 8 - rightLogoWidth;
+
+        doc.setFillColor(255, 255, 255);
+        doc.rect(8, 5, pageWidth - 16, 21, 'F');
+        doc.addImage(ministerioDataUrl, 'PNG', 10, 6.4, 82, 15);
+        doc.addImage(correosDataUrl, 'PNG', rightLogoX, 5.8, rightLogoWidth, 16.5);
+      } catch (error) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        doc.setFillColor(255, 255, 255);
+        doc.rect(8, 5, pageWidth - 16, 21, 'F');
+      }
+    },
+    currentPdfUserLabel() {
+      const user = this.$store?.state?.auth?.user || {};
+      return user?.name || user?.nombre || user?.email || 'Usuario no identificado';
+    },
+    currentPdfTimestamp() {
+      const now = new Date();
+      const date = now.toLocaleDateString('es-BO', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const time = now.toLocaleTimeString('es-BO', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${date} ${time}`;
+    },
+    drawPdfFooter(doc, generatedBy, generatedAt) {
+      const pageCount = doc.internal.getNumberOfPages();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      for (let page = 1; page <= pageCount; page += 1) {
+        doc.setPage(page);
+        doc.setDrawColor(210, 218, 232);
+        doc.line(10, pageHeight - 12, pageWidth - 10, pageHeight - 12);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.2);
+        doc.setTextColor(90, 90, 90);
+        doc.text(`Emitido por: ${generatedBy}`, 10, pageHeight - 7);
+        doc.text(`Fecha y hora: ${generatedAt}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+      }
+    },
+    async downloadUserSummaryPdf() {
       this.load = true;
 
       try {
-        const params = {
-          codigoSucursal: this.filters.codigoSucursal,
-          puntoVenta: this.filters.puntoVenta
-        };
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'letter'
+        });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const generatedBy = this.currentPdfUserLabel();
+        const generatedAt = this.currentPdfTimestamp();
+        const recaudacionLabel = this.activeTab === 'fechas'
+          ? (this.filters.fechaFin || this.filters.fechaInicio || this.todayIso())
+          : this.todayIso();
+        const rows = [
+          [
+            'Todos los usuarios',
+            String(this.branchGlobalOverview.countCobrado || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalGeneral || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalQr || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalEf || 0)
+          ],
+          ...this.filteredUserSummaries.map((user) => ([
+            user.nombre || 'Sin usuario',
+            String(user.countCobrado || 0),
+            this.formatCurrency(user.total || 0),
+            this.formatCurrency(user.totalQr || 0),
+            this.formatCurrency(user.totalCaja || 0)
+          ]))
+        ];
+        const rangeLabel = this.activeTab === 'fechas'
+          ? `${this.filters.fechaInicio || '-'} al ${this.filters.fechaFin || '-'}`
+          : 'Todas las ventas';
 
-        if (this.filters.fechaInicio) {
-          params.fechaInicio = this.filters.fechaInicio;
-        }
+        await this.drawPdfHeader(doc);
 
-        if (this.filters.fechaFin) {
-          params.fechaFin = this.filters.fechaFin;
-        }
-
-        if (this.filters.q) {
-          params.q = this.filters.q;
-        }
-
-        if (this.activeUserId !== 'all') {
-          params.origen_usuario_id = this.activeUserId;
-        }
-
-        const response = await this.$admin.get('ventas/reportes/kardex-pdf', {
-          params,
-          responseType: 'blob'
+        autoTable(doc, {
+          startY: 28,
+          body: [[
+            'Oficina Postal:',
+            this.branchLabel || 'Sin sucursal',
+            'Encargado sucursal:',
+            generatedBy
+          ], [
+            'Ventanilla:',
+            `Punto ${this.branchPointLabel || '0'}`,
+            'Fecha de recaudacion:',
+            recaudacionLabel
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            minCellHeight: 10,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 32, fontStyle: 'bold' },
+            1: { cellWidth: 58 },
+            2: { cellWidth: 32, fontStyle: 'bold' },
+            3: { cellWidth: 58 }
+          },
+          margin: { left: 15, right: 15 }
         });
 
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [['RESUMEN POR USUARIO']],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 2,
+          body: [[
+            'Cajeros visibles',
+            String(this.filteredUserSummaries.length),
+            'Total ventas',
+            String(this.branchGlobalOverview.countCobrado || 0)
+          ], [
+            'Vista',
+            this.activeTab === 'fechas' ? 'Fechas seleccionadas' : 'Todas las ventas',
+            'Total emitido',
+            this.formatCurrency(this.branchGlobalOverview.totalGeneral || 0)
+          ], [
+            'Rango',
+            rangeLabel,
+            'Total QR',
+            this.formatCurrency(this.branchGlobalOverview.totalQr || 0)
+          ], [
+            'Total efectivo',
+            this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
+            '',
+            ''
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.3,
+            cellPadding: 1.8,
+            minCellHeight: 8,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 45, fontStyle: 'bold' },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 45, fontStyle: 'bold' },
+            3: { cellWidth: 45 }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [['RESUMEN VISIBLE DEL PANEL']],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 2,
+          head: [['Usuario', 'Ventas', 'Total', 'QR', 'Ef']],
+          body: rows,
+          theme: 'grid',
+          tableWidth: 180,
+          headStyles: {
+            fillColor: [241, 245, 249],
+            textColor: [20, 20, 20],
+            fontStyle: 'bold',
+            halign: 'center',
+            lineColor: [90, 90, 90]
+          },
+          styles: {
+            fontSize: 8.2,
+            cellPadding: 2.1,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 76 },
+            1: { cellWidth: 26, halign: 'center' },
+            2: { cellWidth: 26, halign: 'right' },
+            3: { cellWidth: 26, halign: 'right' },
+            4: { cellWidth: 26, halign: 'right' }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        this.drawPdfFooter(doc, generatedBy, generatedAt);
+        const blob = doc.output('blob');
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        const disposition = response.headers['content-disposition'] || '';
-        const filenameMatch = disposition.match(/filename=\"?([^"]+)\"?/i);
 
         link.href = url;
-        link.download = filenameMatch ? filenameMatch[1] : 'kardex-facturacion.pdf';
+        link.download = `resumen-usuarios-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Exportación no disponible',
+          text: 'No se pudo generar el PDF del resumen.',
+          confirmButtonText: 'Entendido'
+        });
+      } finally {
+        this.load = false;
+      }
+    },
+    async downloadKardexPdfForUser(userId = 'all') {
+      this.load = true;
+
+      try {
+        const isAllVentasPdf = this.activeTab === 'todas' && userId === 'all';
+        const withinSelectedRange = (venta) => {
+          if (!isAllVentasPdf) {
+            return true;
+          }
+
+          const rawDate = venta?.fecha || venta?.created_at || null;
+          if (!rawDate) {
+            return false;
+          }
+
+          const ventaDate = new Date(rawDate);
+          if (Number.isNaN(ventaDate.getTime())) {
+            return false;
+          }
+
+          const ventaIso = [
+            ventaDate.getFullYear(),
+            String(ventaDate.getMonth() + 1).padStart(2, '0'),
+            String(ventaDate.getDate()).padStart(2, '0')
+          ].join('-');
+
+          if (this.filters.fechaInicio && ventaIso < this.filters.fechaInicio) {
+            return false;
+          }
+
+          if (this.filters.fechaFin && ventaIso > this.filters.fechaFin) {
+            return false;
+          }
+
+          return true;
+        };
+        const exportVentas = this.filteredVentas.filter((venta) => withinSelectedRange(venta));
+
+        if (!exportVentas.length) {
+          throw new Error('No hay ventas visibles para exportar.');
+        }
+
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'letter'
+        });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const generatedBy = this.currentPdfUserLabel();
+        const generatedAt = this.currentPdfTimestamp();
+        const recaudacionLabel = this.activeTab === 'fechas'
+          ? (this.filters.fechaFin || this.filters.fechaInicio || this.todayIso())
+          : this.todayIso();
+        const title = isAllVentasPdf
+          ? 'LISTADO GENERAL DE VENTAS'
+          : (userId === 'all' ? 'KARDEX DE SUCURSAL' : 'KARDEX DE CAJERO');
+        const subtitle = isAllVentasPdf
+          ? 'Ventas visibles ordenadas por numero de factura'
+          : (userId === 'all'
+            ? 'Resumen detallado por cajero y ventas del rango seleccionado'
+            : `Resumen detallado de ventas para ${this.activeUserName}`);
+        const totalEmitido = exportVentas.reduce((sum, venta) => (
+          this.countsTowardCollectedTotal(venta) ? sum + Number(venta.total || 0) : sum
+        ), 0);
+        const totalCaja = exportVentas.reduce((sum, venta) => (
+          this.countsTowardCashTotal(venta) ? sum + Number(venta.total || 0) : sum
+        ), 0);
+        const totalQr = exportVentas.reduce((sum, venta) => (
+          this.countsTowardCollectedQrTotal(venta) ? sum + Number(venta.total || 0) : sum
+        ), 0);
+        const totalVentas = exportVentas.filter((venta) => this.countsTowardCollectedTotal(venta)).length;
+        const summaryLabel = userId === 'all' ? 'KARDEX AGRUPADO POR CAJERO' : 'RESUMEN DEL CAJERO';
+        const buildDetailRows = (ventas, rowOffset = 0) => ventas.map((venta, index) => {
+          const detailItems = Array.isArray(venta?.detalle) ? venta.detalle : [];
+          const detailText = detailItems.length
+            ? detailItems
+              .map((item) => {
+                const descripcion = item?.descripcion || item?.titulo || 'Sin detalle';
+                const cantidad = Number(item?.cantidad || 1);
+                return `${descripcion}${cantidad > 1 ? ` (${cantidad})` : ''}`;
+              })
+              .join('\n')
+            : (venta?.cliente?.razonSocial || 'Sin cliente');
+
+          const codeText = detailItems.length
+            ? detailItems
+              .map((item) => item?.codigo || item?.codigoSeguimiento || item?.tracking || '')
+              .filter(Boolean)
+              .join('\n')
+            : '-';
+
+          return [
+            String(rowOffset + index + 1),
+            this.formatDate(venta.fecha),
+            detailText,
+            codeText || '-',
+            String(this.numeroFacturaValue(venta) || '-'),
+            this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
+            this.formatCurrency(venta.total || 0)
+          ];
+        });
+        const groupedVentas = [];
+        const groupedMap = new Map();
+
+        exportVentas.forEach((venta) => {
+          const currentUserId = this.usuarioId(venta);
+          const currentUserName = this.usuarioNombre(venta);
+
+          if (!groupedMap.has(currentUserId)) {
+            const bucket = {
+              id: currentUserId,
+              nombre: currentUserName,
+              ventas: []
+            };
+            groupedMap.set(currentUserId, bucket);
+            groupedVentas.push(bucket);
+          }
+
+          groupedMap.get(currentUserId).ventas.push(venta);
+        });
+
+        await this.drawPdfHeader(doc);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(29, 51, 96);
+        doc.text(title, pageWidth / 2, 31.5, { align: 'center' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.8);
+        doc.setTextColor(107, 114, 128);
+        doc.text(subtitle, pageWidth / 2, 36.2, { align: 'center' });
+
+        autoTable(doc, {
+          startY: 41,
+          body: [[
+            'Oficina Postal:',
+            this.branchLabel || 'Sin sucursal',
+            userId === 'all' ? 'Encargado sucursal:' : 'Cajero:',
+            userId === 'all' ? generatedBy : this.activeUserName
+          ], [
+            'Ventanilla:',
+            `Punto ${this.branchPointLabel || '0'}`,
+            'Fecha de recaudacion:',
+            recaudacionLabel
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            minCellHeight: 10,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 32, fontStyle: 'bold' },
+            1: { cellWidth: 58 },
+            2: { cellWidth: 32, fontStyle: 'bold' },
+            3: { cellWidth: 58 }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [[isAllVentasPdf ? 'RESUMEN GENERAL DE VENTAS' : summaryLabel]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 2,
+          body: [[
+            'TOTAL GENERAL',
+            this.formatCurrency(totalEmitido),
+            'TOTAL VENTAS',
+            String(totalVentas)
+          ], [
+            'TOTAL EFECTIVO',
+            this.formatCurrency(totalCaja),
+            'TOTAL QR',
+            this.formatCurrency(totalQr)
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            minCellHeight: 9,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 45, fontStyle: 'bold' },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 45, fontStyle: 'bold' },
+            3: { cellWidth: 45 }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [['RESUMEN POR CAJERO']],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        if (isAllVentasPdf) {
+          const visibleVentas = exportVentas
+            .slice()
+            .sort((a, b) => this.compareVentasByFactura(a, b));
+
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 2,
+            body: [[
+              'TOTAL GENERAL',
+              this.formatCurrency(totalEmitido),
+              'TOTAL VENTAS',
+              String(totalVentas)
+            ], [
+              'TOTAL EFECTIVO',
+              this.formatCurrency(totalCaja),
+              'TOTAL QR',
+              this.formatCurrency(totalQr)
+            ]],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 7.5,
+              cellPadding: 2,
+              minCellHeight: 9,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20]
+            },
+            columnStyles: {
+              0: { cellWidth: 45, fontStyle: 'bold' },
+              1: { cellWidth: 45 },
+              2: { cellWidth: 45, fontStyle: 'bold' },
+              3: { cellWidth: 45 }
+            },
+            margin: { left: 15, right: 15 }
+          });
+
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 4,
+            body: [['DETALLE DE TODAS LAS VENTAS']],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 8.1,
+              fontStyle: 'bold',
+              cellPadding: 2.2,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              fillColor: [250, 250, 250]
+            },
+            margin: { left: 15, right: 15 }
+          });
+
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 2,
+            head: [['Nro.', 'Fecha', 'Cajero', 'Detalle', 'Factura', 'Estado', 'Importe']],
+            body: visibleVentas.map((venta, index) => {
+              const detailItems = Array.isArray(venta?.detalle) ? venta.detalle : [];
+              const detailText = detailItems.length
+                ? detailItems
+                  .map((item) => {
+                    const descripcion = item?.descripcion || item?.titulo || 'Sin detalle';
+                    const cantidad = Number(item?.cantidad || 1);
+                    return `${descripcion}${cantidad > 1 ? ` (${cantidad})` : ''}`;
+                  })
+                  .join('\n')
+                : (venta?.cliente?.razonSocial || 'Sin cliente');
+
+              return [
+                String(index + 1),
+                this.formatDate(venta.fecha),
+                this.usuarioNombre(venta),
+                detailText,
+                String(this.numeroFacturaValue(venta) || '-'),
+                this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
+                this.formatCurrency(venta.total || 0)
+              ];
+            }),
+            theme: 'grid',
+            tableWidth: 180,
+            headStyles: {
+              fillColor: [248, 250, 252],
+              textColor: [20, 20, 20],
+              fontStyle: 'bold',
+              halign: 'center',
+              lineColor: [90, 90, 90]
+            },
+            styles: {
+              fontSize: 7,
+              cellPadding: 1.7,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              overflow: 'linebreak',
+              valign: 'top'
+            },
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              1: { cellWidth: 22, halign: 'center' },
+              2: { cellWidth: 28 },
+              3: { cellWidth: 66 },
+              4: { cellWidth: 14, halign: 'center' },
+              5: { cellWidth: 20, halign: 'center' },
+              6: { cellWidth: 20, halign: 'right' }
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: () => {
+              this.drawPdfHeader(doc);
+            }
+          });
+
+          this.drawPdfFooter(doc, generatedBy, generatedAt);
+
+          const blob = doc.output('blob');
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+
+          link.href = url;
+          link.download = `kardex-facturacion-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 2,
+          head: [['Cajero', 'Ventas', 'Total general', 'Total efectivo', 'Total QR']],
+          body: groupedVentas.map((group) => {
+            const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
+            const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
+            const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
+            const totalUsuario = ventasUsuarioActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+            const totalUsuarioEf = ventasEfectivoActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+            const totalUsuarioQr = ventasQrActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+
+            return [
+              group.nombre,
+              String(ventasUsuarioActivas.length),
+              this.formatCurrency(totalUsuario),
+              this.formatCurrency(totalUsuarioEf),
+              this.formatCurrency(totalUsuarioQr)
+            ];
+          }),
+          theme: 'grid',
+          tableWidth: 180,
+          headStyles: {
+            fillColor: [248, 250, 252],
+            textColor: [20, 20, 20],
+            fontStyle: 'bold',
+            halign: 'center',
+            lineColor: [90, 90, 90]
+          },
+          styles: {
+            fontSize: 7.3,
+            cellPadding: 1.9,
+            minCellHeight: 8.5,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 68 },
+            1: { cellWidth: 20, halign: 'center' },
+            2: { cellWidth: 31, halign: 'right' },
+            3: { cellWidth: 31, halign: 'right' },
+            4: { cellWidth: 30, halign: 'right' }
+          },
+          margin: { left: 15, right: 15 },
+          didDrawPage: () => {
+            this.drawPdfHeader(doc);
+          }
+        });
+
+        let currentY = doc.lastAutoTable.finalY + 4;
+
+        groupedVentas.forEach((group, groupIndex) => {
+          const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
+          const ventasAnuladas = group.ventas.filter((venta) => this.isAnuladaVenta(venta));
+          const ventasEfectivo = group.ventas.filter((venta) => !this.isQrPaymentVenta(venta));
+          const ventasQr = group.ventas.filter((venta) => this.isQrPaymentVenta(venta));
+          const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
+          const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
+          const totalUsuario = ventasUsuarioActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+          const totalUsuarioEf = ventasEfectivoActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+          const totalUsuarioQr = ventasQrActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+
+          autoTable(doc, {
+            startY: currentY,
+            body: [[`${userId === 'all' ? `CAJERO ${groupIndex + 1}` : 'CAJERO'}: ${group.nombre}`]],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 8,
+              fontStyle: 'bold',
+              cellPadding: 2.1,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              fillColor: [250, 250, 250]
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: () => {
+              this.drawPdfHeader(doc);
+            }
+          });
+          currentY = doc.lastAutoTable.finalY + 2;
+
+          autoTable(doc, {
+            startY: currentY,
+            body: [[
+              ventasAnuladas.length
+                ? `Total ventas: ${ventasUsuarioActivas.length} · Anuladas: ${ventasAnuladas.length}`
+                : `Total ventas: ${ventasUsuarioActivas.length}`,
+              `Total emitido: ${this.formatCurrency(totalUsuario)}`,
+              `Efectivo: ${ventasEfectivoActivas.length} · ${this.formatCurrency(totalUsuarioEf)}`,
+              `QR: ${ventasQrActivas.length} · ${this.formatCurrency(totalUsuarioQr)}`
+            ]],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 7.6,
+              cellPadding: 2.2,
+              minCellHeight: 9,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20]
+            },
+            columnStyles: {
+              0: { cellWidth: 45, fontStyle: 'bold' },
+              1: { cellWidth: 45, fontStyle: 'bold' },
+              2: { cellWidth: 45 },
+              3: { cellWidth: 45 }
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: () => {
+              this.drawPdfHeader(doc);
+            }
+          });
+          currentY = doc.lastAutoTable.finalY + 3;
+
+          if (ventasEfectivo.length) {
+            autoTable(doc, {
+              startY: currentY,
+              body: [[`VENTAS EFECTIVO · ${ventasEfectivo.length} · ${this.formatCurrency(totalUsuarioEf)}`]],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 7.8,
+                fontStyle: 'bold',
+                cellPadding: 2,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [248, 250, 252]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 1.5;
+
+            autoTable(doc, {
+              startY: currentY,
+              head: [['Nro.', 'Fecha', 'Detalle', 'Factura', 'Estado', 'Importe']],
+              body: buildDetailRows(ventasEfectivo).map((row) => [row[0], row[1], row[2], row[4], row[5], row[6]]),
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [248, 250, 252],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.1,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 86 },
+                3: { cellWidth: 14, halign: 'center' },
+                4: { cellWidth: 24, halign: 'center' },
+                5: { cellWidth: 24, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 2;
+          }
+
+          if (ventasQr.length) {
+            autoTable(doc, {
+              startY: currentY,
+              body: [[`VENTAS QR · ${ventasQr.length} · ${this.formatCurrency(totalUsuarioQr)}`]],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 7.8,
+                fontStyle: 'bold',
+                cellPadding: 2,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [248, 250, 252]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 1.5;
+
+            autoTable(doc, {
+              startY: currentY,
+              head: [['Nro.', 'Fecha', 'Detalle', 'Factura', 'Estado', 'Importe']],
+              body: buildDetailRows(ventasQr).map((row) => [row[0], row[1], row[2], row[4], row[5], row[6]]),
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [248, 250, 252],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.1,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 86 },
+                3: { cellWidth: 14, halign: 'center' },
+                4: { cellWidth: 24, halign: 'center' },
+                5: { cellWidth: 24, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 2;
+          }
+        });
+
+        autoTable(doc, {
+          startY: currentY,
+          body: [[
+            'TOTAL GENERAL',
+            this.formatCurrency(totalEmitido),
+            'TOTAL EFECTIVO',
+            this.formatCurrency(totalCaja)
+          ], [
+            'TOTAL QR',
+            this.formatCurrency(totalQr),
+            '',
+            ''
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 45, fontStyle: 'bold' },
+            1: { cellWidth: 45 },
+            2: { cellWidth: 45, fontStyle: 'bold' },
+            3: { cellWidth: 45 }
+          },
+          margin: { left: 15, right: 15 },
+          didDrawPage: () => {
+            this.drawPdfHeader(doc);
+          }
+        });
+
+        this.drawPdfFooter(doc, generatedBy, generatedAt);
+
+        const blob = doc.output('blob');
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = userId === 'all'
+          ? `kardex-sucursal-${this.filters.codigoSucursal || '0'}-${this.todayIso()}.pdf`
+          : `kardex-cajero-${userId}-${this.todayIso()}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
       } catch (err) {
-        const message = err?.response?.data?.message
-          ? err.response.data.message
-          : 'No se pudo descargar el kardex PDF.';
+        const message = err?.message || 'No se pudo descargar el kardex PDF.';
 
         this.$swal.fire({
           icon: 'error',
@@ -2350,6 +3399,28 @@ export default {
   font-weight: 800;
 }
 
+.selector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.selector-export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  padding: 0 0.78rem;
+  border: 1px solid #f6c86f;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fff9ed 0%, #fff2d8 100%);
+  color: #b46900;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .selector-search {
   position: relative;
   display: block;
@@ -2382,10 +3453,7 @@ export default {
 }
 
 .selector-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: block;
   width: 100%;
   text-align: left;
   padding: 0.72rem 0.82rem;
@@ -2406,16 +3474,41 @@ export default {
   box-shadow: 0 14px 24px rgba(40, 92, 190, 0.08);
 }
 
+.selector-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .selector-name {
   display: block;
   color: #1d3360;
   font-weight: 800;
   font-size: 0.9rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.selector-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.8rem;
+  justify-items: start;
+  align-items: center;
 }
 
 .selector-item small {
   color: #66758f;
   font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.selector-item small strong {
+  display: block;
+  color: #1d3360;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 0.08rem;
 }
 
 .branch-tabs {
@@ -2426,6 +3519,28 @@ export default {
   border-bottom: 1px solid #edf1f6;
   padding-bottom: 0.7rem;
   margin-bottom: 0.85rem;
+}
+
+.branch-main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.45rem;
+}
+
+.branch-main-title {
+  margin: 0;
+  color: #18315f;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.branch-tabs-group {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .branch-tab {
@@ -2979,6 +4094,15 @@ export default {
 
   .branch-selector-card {
     position: static;
+  }
+
+  .selector-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selector-metrics {
+    grid-template-columns: 1fr;
   }
 
   .branch-hero-head {
