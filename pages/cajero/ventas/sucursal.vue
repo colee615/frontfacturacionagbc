@@ -2547,9 +2547,9 @@ export default {
           const detailText = detailItems.length
             ? detailItems
               .map((item) => {
-                const descripcion = item?.descripcion || item?.titulo || 'Sin detalle';
-                const cantidad = Number(item?.cantidad || 1);
-                return `${descripcion}${cantidad > 1 ? ` (${cantidad})` : ''}`;
+                const servicio = item?.descripcion || item?.nombre || item?.detalle || item?.servicio || 'SIN SERVICIO';
+                const codigoPaquete = item?.codigo || item?.codigoSeguimiento || item?.tracking || item?.guia || '';
+                return codigoPaquete ? `${servicio}\nCod.: ${codigoPaquete}` : servicio;
               })
               .join('\n')
             : (venta?.cliente?.razonSocial || 'Sin cliente');
@@ -2634,76 +2634,13 @@ export default {
           margin: { left: 15, right: 15 }
         });
 
-        autoTable(doc, {
-          startY: doc.lastAutoTable.finalY + 4,
-          body: [[isAllVentasPdf ? 'RESUMEN GENERAL DE VENTAS' : summaryLabel]],
-          theme: 'grid',
-          tableWidth: 180,
-          styles: {
-            fontSize: 8.1,
-            fontStyle: 'bold',
-            cellPadding: 2.2,
-            lineColor: [90, 90, 90],
-            textColor: [20, 20, 20],
-            fillColor: [250, 250, 250]
-          },
-          margin: { left: 15, right: 15 }
-        });
-
-        autoTable(doc, {
-          startY: doc.lastAutoTable.finalY + 2,
-          body: [[
-            'TOTAL GENERAL',
-            this.formatCurrency(totalEmitido),
-            'TOTAL VENTAS',
-            String(totalVentas)
-          ], [
-            'TOTAL EFECTIVO',
-            this.formatCurrency(totalCaja),
-            'TOTAL QR',
-            this.formatCurrency(totalQr)
-          ]],
-          theme: 'grid',
-          tableWidth: 180,
-          styles: {
-            fontSize: 7.5,
-            cellPadding: 2,
-            minCellHeight: 9,
-            lineColor: [90, 90, 90],
-            textColor: [20, 20, 20]
-          },
-          columnStyles: {
-            0: { cellWidth: 45, fontStyle: 'bold' },
-            1: { cellWidth: 45 },
-            2: { cellWidth: 45, fontStyle: 'bold' },
-            3: { cellWidth: 45 }
-          },
-          margin: { left: 15, right: 15 }
-        });
-
-        autoTable(doc, {
-          startY: doc.lastAutoTable.finalY + 4,
-          body: [['RESUMEN POR CAJERO']],
-          theme: 'grid',
-          tableWidth: 180,
-          styles: {
-            fontSize: 8.1,
-            fontStyle: 'bold',
-            cellPadding: 2.2,
-            lineColor: [90, 90, 90],
-            textColor: [20, 20, 20],
-            fillColor: [250, 250, 250]
-          },
-          margin: { left: 15, right: 15 }
-        });
-
         if (isAllVentasPdf) {
           const visibleVentas = exportVentas
             .slice()
             .sort((a, b) => this.compareVentasByFactura(a, b));
 
           autoTable(doc, {
-            startY: doc.lastAutoTable.finalY + 2,
+            startY: doc.lastAutoTable.finalY + 4,
             body: [[
               'TOTAL GENERAL',
               this.formatCurrency(totalEmitido),
@@ -2757,9 +2694,9 @@ export default {
               const detailText = detailItems.length
                 ? detailItems
                   .map((item) => {
-                    const descripcion = item?.descripcion || item?.titulo || 'Sin detalle';
-                    const cantidad = Number(item?.cantidad || 1);
-                    return `${descripcion}${cantidad > 1 ? ` (${cantidad})` : ''}`;
+                    const servicio = item?.descripcion || item?.nombre || item?.detalle || item?.servicio || 'SIN SERVICIO';
+                    const codigoPaquete = item?.codigo || item?.codigoSeguimiento || item?.tracking || item?.guia || '';
+                    return codigoPaquete ? `${servicio}\nCod.: ${codigoPaquete}` : servicio;
                   })
                   .join('\n')
                 : (venta?.cliente?.razonSocial || 'Sin cliente');
@@ -2820,6 +2757,22 @@ export default {
           window.URL.revokeObjectURL(url);
           return;
         }
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [['RESUMEN POR CAJERO']],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
