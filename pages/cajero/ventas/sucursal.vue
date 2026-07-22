@@ -276,6 +276,12 @@
                             <small v-if="hasAnulacionAudit(venta)" class="audit-inline-copy">
                               {{ formatDateTime(venta.anulacion?.anuladaAt) }}
                             </small>
+                            <small v-if="hasQrCancelacionAudit(venta)" class="audit-inline-copy">
+                              QR cancelado por {{ venta.qrCancelacion?.canceladaPorNombre || venta.qrCancelacion?.canceladaPorEmail || 'usuario no identificado' }}
+                            </small>
+                            <small v-if="hasQrCancelacionAudit(venta)" class="audit-inline-copy">
+                              {{ formatDateTime(venta.qrCancelacion?.canceladaAt) }}
+                            </small>
                           </div>
                         </td>
                         <td><strong>{{ ventaItemsCount(venta) }}</strong></td>
@@ -498,9 +504,37 @@
                 <div><strong>Fecha y hora:</strong> {{ formatDateTime(activeDetailVenta.anulacion?.anuladaAt) }}</div>
                 <div><strong>Tipo:</strong> {{ activeDetailVenta.anulacion?.tipo || 'Sin registro' }}</div>
                 <div class="detail-audit-full"><strong>Motivo:</strong> {{ activeDetailVenta.anulacion?.motivo || 'Sin motivo registrado' }}</div>
+                <div v-if="anulacionRespaldoUrl(activeDetailVenta)" class="detail-audit-full">
+                  <strong>Respaldo:</strong>
+                  <a
+                    :href="anulacionRespaldoUrl(activeDetailVenta)"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    {{ anulacionRespaldoNombre(activeDetailVenta) || 'Ver archivo adjunto' }}
+                  </a>
+                  <span v-if="anulacionRespaldoMime(activeDetailVenta) || anulacionRespaldoSize(activeDetailVenta)">
+                    · {{ anulacionRespaldoMime(activeDetailVenta) || 'Archivo' }}
+                    <span v-if="anulacionRespaldoSize(activeDetailVenta)"> · {{ formatFileSize(anulacionRespaldoSize(activeDetailVenta)) }}</span>
+                  </span>
+                </div>
                 <div v-if="activeDetailVenta.anulacion?.autorizadaPorEmail" class="detail-audit-full">
                   <strong>Autorizada por:</strong> {{ activeDetailVenta.anulacion.autorizadaPorEmail }}
                 </div>
+              </div>
+            </div>
+
+            <div v-if="hasQrCancelacionAudit(activeDetailVenta)" class="detail-audit-card">
+              <h4>Auditoria de cancelacion QR</h4>
+              <div class="detail-audit-grid">
+                <div><strong>Orden:</strong> {{ activeDetailVenta.qrCancelacion?.codigoOrden || activeDetailVenta.codigoOrden || '-' }}</div>
+                <div><strong>Tx QR:</strong> {{ activeDetailVenta.qrCancelacion?.transactionId || activeDetailVenta.qr_transaction_id || '-' }}</div>
+                <div><strong>Estado pago:</strong> {{ activeDetailVenta.qrCancelacion?.estadoPago || activeDetailVenta.estado_pago || '-' }}</div>
+                <div><strong>Cancelado por:</strong> {{ activeDetailVenta.qrCancelacion?.canceladaPorNombre || activeDetailVenta.qrCancelacion?.canceladaPorEmail || 'Sin registro' }}</div>
+                <div><strong>Fecha y hora:</strong> {{ formatDateTime(activeDetailVenta.qrCancelacion?.canceladaAt) }}</div>
+                <div><strong>Origen:</strong> {{ activeDetailVenta.qrCancelacion?.origen || 'Sin registro' }}</div>
+                <div class="detail-audit-full"><strong>Motivo:</strong> {{ activeDetailVenta.qrCancelacion?.motivo || 'Sin motivo registrado' }}</div>
+                <div class="detail-audit-full"><strong>Detalle:</strong> {{ activeDetailVenta.qrCancelacion?.mensaje || activeDetailVenta.mensaje_emision || 'Sin detalle registrado' }}</div>
               </div>
             </div>
 
@@ -1479,8 +1513,7 @@ export default {
         && String(venta?.estado_pago || 'pendiente').trim().toLowerCase() === 'pendiente';
     },
     qrCancelActionLabel(venta) {
-      const hasTransactionId = Number(venta?.qr_transaction_id || venta?.respuesta_emision?.transaction_id || 0) > 0;
-      return hasTransactionId ? 'Cancelar pago' : 'Anular venta';
+      return 'Cancelar pago';
     },
     isReviewedQrIncident(venta) {
       return Boolean(venta?.incidencia_revisada_at);
@@ -1537,16 +1570,27 @@ export default {
         || respuesta?.qr_url
         || respuesta?.qrUrl
         || respuesta?.image_url
+        || respuesta?.items?.[0]?.qr_url
+        || respuesta?.items?.[0]?.image_data
+        || respuesta?.items?.[0]?.image_url
         || qhantuy?.qr_url
         || qhantuy?.qrUrl
         || qhantuy?.image_data
         || qhantuy?.items?.[0]?.qr_url
+        || qhantuy?.items?.[0]?.image_data
+        || qhantuy?.items?.[0]?.image_url
+        || cart?.respuesta_emision?.qr_url
+        || cart?.respuesta_emision?.image_data
+        || cart?.respuesta_emision?.items?.[0]?.qr_url
         || ''
       ).trim();
       const transactionId = String(
         qrData?.transaction_id
         || qrData?.transactionId
         || respuesta?.transaction_id
+        || respuesta?.payment_id
+        || respuesta?.paymentId
+        || respuesta?.items?.[0]?.id
         || qhantuy?.transaction_id
         || qhantuy?.id
         || qhantuy?.items?.[0]?.id
@@ -1557,6 +1601,8 @@ export default {
         qrData?.payment_status
         || qrData?.paymentStatus
         || respuesta?.payment_status
+        || respuesta?.paymentStatus
+        || respuesta?.items?.[0]?.payment_status
         || qhantuy?.payment_status
         || qhantuy?.status
         || qhantuy?.items?.[0]?.payment_status
@@ -1632,6 +1678,7 @@ export default {
     async verQrVenta(venta) {
       const originUserId = this.usuarioId(venta);
       const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
+      const localQrPayload = this.qrPayloadFromVenta(venta);
 
       if (!originUserId || !cartId) {
         await this.notifyAnulacion('warning', 'Venta no disponible', 'No se pudo identificar la venta QR para visualizar.');
@@ -1652,6 +1699,7 @@ export default {
         const activeQrPayload = refreshedQrPayload || qrPayload;
 
         if (Boolean(response?.force_open_qr) || this.shouldKeepShowingQr(refreshedVenta, activeQrPayload)) {
+          this.load = false;
           await this.showPendingQrModal(
             activeQrPayload || {
               imageData: '',
@@ -1664,6 +1712,7 @@ export default {
         }
 
         const feedback = this.qrFeedbackMessage(response, 'Estado QR actualizado');
+        this.load = false;
         await this.$swal.fire({
           icon: feedback.icon,
           title: feedback.title,
@@ -1671,9 +1720,19 @@ export default {
           confirmButtonText: 'Entendido'
         });
       } catch (error) {
+        if (this.shouldKeepShowingQr(venta, localQrPayload)) {
+          this.load = false;
+          await this.showPendingQrModal(
+            localQrPayload,
+            'No se pudo refrescar el QR desde el proveedor, pero se muestra el ultimo QR disponible guardado localmente.'
+          );
+          return;
+        }
+
         const message = error?.response?.data?.feedback?.message
           || error?.response?.data?.message
           || 'No se pudo recuperar el QR de la venta.';
+        this.load = false;
         await this.$swal.fire({ icon: 'error', title: 'No se pudo mostrar el QR', text: message });
       } finally {
         this.load = false;
@@ -1704,6 +1763,7 @@ export default {
         const activeQrPayload = refreshedQrPayload || qrPayload;
 
         if (this.shouldKeepShowingQr(refreshedVenta, activeQrPayload)) {
+          this.load = false;
           await this.showPendingQrModal(
             activeQrPayload || {
               imageData: '',
@@ -1718,6 +1778,7 @@ export default {
         const finalState = this.emissionStateLabel(refreshedVenta);
         const message = response?.respuesta?.mensaje || response?.respuesta?.message || `Estado actualizado: ${finalState}`;
 
+        this.load = false;
         await this.$swal.fire({
           icon: 'success',
           title: autoEmitInvoice ? 'Venta actualizada' : 'QR actualizado',
@@ -1726,6 +1787,7 @@ export default {
         });
       } catch (error) {
         const message = error?.response?.data?.message || 'No se pudo consultar el estado de la venta QR.';
+        this.load = false;
         await this.$swal.fire({ icon: 'error', title: 'No se pudo consultar', text: message });
       } finally {
         this.load = false;
@@ -1838,6 +1900,14 @@ export default {
               <option value="3" selected>3 - Datos de emision incorrectos</option>
               <option value="4">4 - Factura o nota devuelta</option>
             </select>
+            <label class="protocol-annul-label" for="annul-respaldo">Respaldo</label>
+            <input
+              id="annul-respaldo"
+              class="swal2-file protocol-annul-file"
+              type="file"
+              accept=".jpg,.jpeg,.png,.pdf,.webp,.doc,.docx"
+            >
+            <p class="protocol-annul-help">Adjunta una foto o documento de respaldo para la anulación.</p>
           </div>
         `,
         focusConfirm: false,
@@ -1847,11 +1917,17 @@ export default {
         preConfirm: () => {
           const motivo = document.getElementById('annul-motivo')?.value?.trim();
           const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
+          const respaldoInput = document.getElementById('annul-respaldo');
+          const respaldo = respaldoInput?.files?.[0] || null;
           if (!motivo) {
             this.$swal.showValidationMessage('El motivo es obligatorio.');
             return false;
           }
-          return { motivo, tipoAnulacion };
+          if (!respaldo) {
+            this.$swal.showValidationMessage('Debes adjuntar un respaldo para continuar.');
+            return false;
+          }
+          return { motivo, tipoAnulacion, respaldo };
         }
       });
 
@@ -1932,11 +2008,30 @@ export default {
 
       this.load = true;
       try {
+        const formData = new FormData();
+        formData.append('motivo', payload.motivo);
+        formData.append('tipoAnulacion', String(payload.tipoAnulacion));
+        if (payload.respaldo) {
+          formData.append('respaldo', payload.respaldo);
+        }
         console.log('[ventas/sucursal] anularVenta:request', {
           url: `ventas/anular/${venta.status.cuf}`,
-          payload
+          motivo: payload.motivo,
+          tipoAnulacion: payload.tipoAnulacion,
+          respaldo: payload.respaldo ? {
+            name: payload.respaldo.name,
+            size: payload.respaldo.size,
+            type: payload.respaldo.type
+          } : null
         });
-        const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
+        const response = await this.$admin.$request({
+          method: 'patch',
+          url: `ventas/anular/${venta.status.cuf}`,
+          data: formData,
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
         console.log('[ventas/sucursal] anularVenta:success', {
           response
         });
@@ -2012,9 +2107,9 @@ export default {
         const isLocalOnly = Boolean(response?.local_only);
         await this.notifyAnulacion(
           'success',
-          isLocalOnly ? 'Venta anulada' : 'Cobro QR cancelado',
+          'Cobro QR cancelado',
           response?.message || (isLocalOnly
-            ? 'La venta QR sin checkout valido fue anulada localmente.'
+            ? 'El cobro QR fue cancelado localmente porque no existia un QR activo para anular.'
             : 'El QR pendiente fue cancelado correctamente.')
         );
         await this.loadVentas();
@@ -3076,6 +3171,22 @@ export default {
       const amount = Number(value || 0);
       return `Bs ${amount.toFixed(2)}`;
     },
+    formatFileSize(bytes) {
+      const size = Number(bytes || 0);
+      if (!size) {
+        return '0 B';
+      }
+
+      if (size < 1024) {
+        return `${size} B`;
+      }
+
+      if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(1)} KB`;
+      }
+
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    },
     formatDate(value) {
       if (!value) {
         return '-';
@@ -3097,12 +3208,60 @@ export default {
     formatDateTime(value) {
       return this.formatDate(value);
     },
+    anulacionRespaldoUrl(venta) {
+      return (
+        venta?.anulacion?.respaldoUrl
+        || venta?.anulacion?.respaldo_url
+        || venta?.anulacion?.url
+        || venta?.anulacion?.archivoUrl
+        || venta?.anulacion?.archivo_url
+        || null
+      );
+    },
+    anulacionRespaldoNombre(venta) {
+      return (
+        venta?.anulacion?.respaldoNombre
+        || venta?.anulacion?.respaldo_nombre
+        || venta?.anulacion?.archivoNombre
+        || venta?.anulacion?.archivo_nombre
+        || venta?.anulacion?.nombre
+        || null
+      );
+    },
+    anulacionRespaldoMime(venta) {
+      return (
+        venta?.anulacion?.respaldoMime
+        || venta?.anulacion?.respaldo_mime
+        || venta?.anulacion?.archivoMime
+        || venta?.anulacion?.archivo_mime
+        || null
+      );
+    },
+    anulacionRespaldoSize(venta) {
+      return (
+        venta?.anulacion?.respaldoSize
+        || venta?.anulacion?.respaldo_size
+        || venta?.anulacion?.archivoSize
+        || venta?.anulacion?.archivo_size
+        || null
+      );
+    },
+    hasQrCancelacionAudit(venta) {
+      return Boolean(
+        venta?.qrCancelacion?.canceladaAt
+        || venta?.qrCancelacion?.motivo
+        || venta?.qrCancelacion?.canceladaPorNombre
+        || venta?.qrCancelacion?.canceladaPorEmail
+        || venta?.qrCancelacion?.mensaje
+      );
+    },
     hasAnulacionAudit(venta) {
       return Boolean(
         venta?.anulacion?.anuladaAt
         || venta?.anulacion?.motivo
         || venta?.anulacion?.anuladaPorNombre
         || venta?.anulacion?.anuladaPorEmail
+        || this.anulacionRespaldoUrl(venta)
       );
     }
   }
