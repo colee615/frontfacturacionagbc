@@ -218,6 +218,15 @@
                               <span>{{ item.status.actionLabel }}</span>
                             </button>
 
+                            <button
+                              class="action-btn action-btn-warning"
+                              type="button"
+                              @click="openConciliationModal(item)"
+                            >
+                              <i class="far fa-calendar-check"></i>
+                              <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliacion' : 'Conciliar sucursal' }}</span>
+                            </button>
+
                             <button class="action-link" type="button" @click="loadUsersModal(item)">
                               {{ item.cajerosUnicos }} usuario(s)
                             </button>
@@ -325,6 +334,316 @@
             </div>
           </div>
         </div>
+
+        <div v-if="activeConciliationModal" class="detail-modal-backdrop" @click.self="closeConciliationModal">
+          <div class="detail-modal-card conciliation-modal-card">
+            <div class="detail-modal-head">
+              <div class="users-modal-head-copy">
+                <p class="detail-kicker mb-1">Conciliacion diaria</p>
+                <h3>{{ activeConciliationModal.title }}</h3>
+                <p class="detail-copy mb-0">{{ activeConciliationModal.subtitle }}</p>
+              </div>
+              <button type="button" class="detail-modal-close" @click="closeConciliationModal">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div ref="conciliationDetailPanel" class="conciliation-form-card conciliation-detail-card">
+              <div class="conciliation-detail-head">
+                <div>
+                  <p class="detail-kicker mb-1">Resumen del dia seleccionado</p>
+                  <h4>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
+                  <p class="detail-copy mb-0">Al tocar una fecha, aqui se actualizan el estado, los comprobantes y la carga del dia elegido.</p>
+                </div>
+                <span class="calendar-selection-pill" :class="conciliacionStatusPillClass(activeConciliationModal.conciliacion)">
+                  {{ conciliacionLabel(activeConciliationModal.conciliacion) }}
+                </span>
+              </div>
+
+              <div class="conciliation-summary-grid">
+                <article class="conciliation-summary-card">
+                  <span>Fecha activa</span>
+                  <strong>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</strong>
+                </article>
+                <article class="conciliation-summary-card">
+                  <span>Efectivo esperado</span>
+                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalEfectivoSistema) }}</strong>
+                </article>
+                <article class="conciliation-summary-card">
+                  <span>Total comprobantes</span>
+                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalComprobantes) }}</strong>
+                </article>
+                <article class="conciliation-summary-card">
+                  <span>Diferencia</span>
+                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.diferencia) }}</strong>
+                </article>
+              </div>
+
+              <div class="conciliation-cta-row">
+                <button type="button" class="toolbar-export-btn" @click="triggerConciliationFilePicker">
+                  <i class="fas fa-upload"></i>
+                  <span>Agregar comprobante de {{ formatDateLabel(activeConciliationModal.selectedDate) }}</span>
+                </button>
+                <span class="detail-copy mb-0">
+                  {{ activeConciliationModal.comprobantes.length
+                    ? `${activeConciliationModal.comprobantes.length} comprobante(s) registrados para esta fecha.`
+                    : 'Todavia no hay comprobantes cargados para esta fecha.' }}
+                </span>
+              </div>
+            </div>
+
+            <section class="calendar-card calendar-card-modal">
+              <div class="calendar-card-head">
+                <div>
+                  <p class="detail-kicker mb-1">Calendario de conciliacion</p>
+                  <h3>{{ activeConciliationCalendarLabel }}</h3>
+                  <p class="calendar-card-copy">Seleccione el dia del comprobante para esta regional. El panel se actualiza solo para la fecha elegida.</p>
+                </div>
+                <div class="calendar-nav">
+                  <button type="button" class="calendar-nav-btn" @click="moveActiveConciliationCalendar(-1)">
+                    <i class="fas fa-chevron-left"></i>
+                  </button>
+                  <button type="button" class="calendar-nav-btn" @click="jumpActiveConciliationCalendarToToday">
+                    Hoy
+                  </button>
+                  <button type="button" class="calendar-nav-btn" @click="moveActiveConciliationCalendar(1)">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="calendar-weekdays">
+                <span v-for="weekday in calendarWeekdays" :key="weekday">{{ weekday }}</span>
+              </div>
+
+              <div class="calendar-grid">
+                <button
+                  v-for="day in activeConciliationCalendarDays"
+                  :key="day.key"
+                  type="button"
+                  class="calendar-day"
+                  :class="{
+                    'calendar-day-muted': !day.isCurrentMonth,
+                    'calendar-day-today': day.isToday,
+                    'calendar-day-selected': day.isSelected,
+                    'calendar-day-has-upload': day.hasReceipts,
+                    'calendar-day-complete': day.isCompleted
+                  }"
+                  @click="selectActiveConciliationDay(day)"
+                >
+                  <span class="calendar-day-number">{{ day.dayNumber }}</span>
+                  <div class="calendar-day-flags">
+                    <small v-if="day.isCompleted" class="calendar-day-badge calendar-day-badge-success">Cumplido</small>
+                    <small v-else-if="day.hasReceipts" class="calendar-day-badge">{{ day.receiptCount }} comp.</small>
+                  </div>
+                </button>
+              </div>
+            </section>
+
+            <div ref="conciliationUploadPanel" class="conciliation-form-card">
+              <div class="conciliation-detail-head conciliation-detail-head-form">
+                <div>
+                  <p class="detail-kicker mb-1">Carga del comprobante</p>
+                  <h4>Comprobante para {{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
+                  <p class="detail-copy mb-0">
+                    Suba una foto del comprobante. Si el QR es legible, intentaremos completar monto, banco y referencia automaticamente.
+                  </p>
+                </div>
+              </div>
+              <div class="conciliation-scanner-card">
+                <div class="conciliation-scanner-head">
+                  <div>
+                    <p class="detail-kicker mb-1">Escanear QR del comprobante</p>
+                    <h4>Vista asistida</h4>
+                  </div>
+                </div>
+
+                <div class="conciliation-scanner-toolbar">
+                  <label class="toolbar-field">
+                    <span>Camaras disponibles</span>
+                    <select v-model="activeConciliationModal.qrScanner.selectedDeviceId" :disabled="activeConciliationModal.qrScanner.loadingDevices || !activeConciliationModal.qrScanner.cameras.length">
+                      <option value="">
+                        {{ activeConciliationModal.qrScanner.loadingDevices ? 'Detectando camaras...' : 'No se detectaron camaras' }}
+                      </option>
+                      <option v-for="camera in activeConciliationModal.qrScanner.cameras" :key="camera.deviceId" :value="camera.deviceId">
+                        {{ camera.label || 'Camara disponible' }}
+                      </option>
+                    </select>
+                  </label>
+
+                  <div class="conciliation-scanner-actions">
+                    <button type="button" class="action-btn action-btn-warning" @click="activateConciliationCamera">
+                      <i class="fas fa-camera"></i>
+                      <span>Activar camara</span>
+                    </button>
+                    <button type="button" class="action-btn action-btn-primary" @click="triggerConciliationScannerImagePicker">
+                      <i class="fas fa-image"></i>
+                      <span>Seleccionar imagen</span>
+                    </button>
+                    <input ref="conciliationQrScannerInput" type="file" accept=".jpg,.jpeg,.png,.webp" class="sr-only-input" @change="onConciliationScannerImageChange" />
+                  </div>
+                </div>
+
+                <div class="conciliation-scanner-stage">
+                  <div
+                    v-if="activeConciliationQrHasSource"
+                    ref="conciliationQrStage"
+                    class="conciliation-scanner-preview"
+                    @click="handleConciliationQrStageClick"
+                  >
+                    <video
+                      v-if="activeConciliationModal.qrScanner.mode === 'camera'"
+                      ref="conciliationQrVideo"
+                      autoplay
+                      playsinline
+                      muted
+                      class="conciliation-scanner-media"
+                    ></video>
+                    <img
+                      v-else-if="activeConciliationModal.qrScanner.previewUrl"
+                      ref="conciliationQrImage"
+                      :src="activeConciliationModal.qrScanner.previewUrl"
+                      alt="Comprobante seleccionado"
+                      class="conciliation-scanner-media"
+                    />
+                    <div class="conciliation-scanner-crop" :style="activeConciliationQrCropStyle"></div>
+                  </div>
+                  <div v-else class="conciliation-scanner-empty">
+                    <p>Pulsa "Activar camara" o selecciona una imagen.</p>
+                  </div>
+                </div>
+
+                <div v-if="activeConciliationQrHasSource" class="conciliation-scanner-footer">
+                  <p class="detail-copy mb-0">Marca solo el QR y procesa el recorte.</p>
+                  <div class="conciliation-scanner-actions">
+                    <button type="button" class="action-btn action-btn-warning" @click="processConciliationQrCrop">
+                      <i class="fas fa-crop-alt"></i>
+                      <span>Procesar recorte</span>
+                    </button>
+                    <button type="button" class="action-btn action-btn-primary" @click="processConciliationQrFullSource">
+                      <i class="fas fa-expand"></i>
+                      <span>Imagen completa</span>
+                    </button>
+                    <button type="button" class="action-btn action-btn-danger" @click="resetConciliationQrSource">
+                      <i class="fas fa-times"></i>
+                      <span>Cancelar</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p class="detail-copy mb-0">{{ activeConciliationModal.qrScanner.statusMessage }}</p>
+              </div>
+              <div class="conciliation-form-grid">
+                <label class="toolbar-field">
+                  <span>Monto depositado</span>
+                  <input ref="conciliationAmountInput" v-model="activeConciliationModal.form.montoDepositado" type="number" min="0" step="0.01" placeholder="0.00" />
+                </label>
+                <label class="toolbar-field">
+                  <span>Banco</span>
+                  <input v-model.trim="activeConciliationModal.form.banco" type="text" placeholder="Banco / entidad" />
+                </label>
+                <label class="toolbar-field">
+                  <span>Referencia</span>
+                  <input v-model.trim="activeConciliationModal.form.referencia" type="text" placeholder="Nro. operacion" />
+                </label>
+                <label class="toolbar-field toolbar-field-file">
+                  <span>Comprobante</span>
+                  <input ref="conciliationFileInput" type="file" accept=".jpg,.jpeg,.png,.pdf,.webp" @change="onConciliationFileChange" />
+                </label>
+                <label class="toolbar-field toolbar-field-wide">
+                  <span>Observacion</span>
+                  <textarea v-model.trim="activeConciliationModal.form.observacion" rows="3" placeholder="Detalle del deposito o nota de control"></textarea>
+                </label>
+              </div>
+              <div v-if="activeConciliationModal.qrScan && activeConciliationModal.qrScan.status !== 'idle'" class="conciliation-qr-panel">
+                <div class="conciliation-qr-head">
+                  <strong>Lectura del QR del comprobante</strong>
+                  <span class="calendar-selection-pill" :class="conciliationQrStatusClass(activeConciliationModal.qrScan.status)">
+                    {{ conciliationQrStatusLabel(activeConciliationModal.qrScan.status) }}
+                  </span>
+                </div>
+                <p v-if="activeConciliationModal.qrScan.message" class="detail-copy mb-0">
+                  {{ activeConciliationModal.qrScan.message }}
+                </p>
+                <div v-if="activeConciliationModal.qrScan.parsed" class="conciliation-qr-grid">
+                  <div v-if="activeConciliationModal.qrScan.parsed.bankName" class="conciliation-qr-chip">
+                    <span>Banco</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.bankName }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.amount !== null" class="conciliation-qr-chip">
+                    <span>Monto detectado</span>
+                    <strong>{{ formatCurrency(activeConciliationModal.qrScan.parsed.amount) }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.reference" class="conciliation-qr-chip">
+                    <span>Referencia</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.reference }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.bank" class="conciliation-qr-chip">
+                    <span>Agencia / entidad</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.bank }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.transaction" class="conciliation-qr-chip">
+                    <span>Transaccion</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.transaction }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.user" class="conciliation-qr-chip">
+                    <span>Usuario</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.user }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.depositante" class="conciliation-qr-chip">
+                    <span>Depositante</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.depositante }}</strong>
+                  </div>
+                  <div v-if="activeConciliationModal.qrScan.parsed.beneficiario" class="conciliation-qr-chip">
+                    <span>Beneficiario</span>
+                    <strong>{{ activeConciliationModal.qrScan.parsed.beneficiario }}</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="conciliation-form-actions">
+                <span v-if="activeConciliationModal.selectedFileName" class="calendar-selection-pill">
+                  Archivo: <strong>{{ activeConciliationModal.selectedFileName }}</strong>
+                </span>
+                <button type="button" class="toolbar-export-btn" @click="submitConciliationReceipt">
+                  <i class="fas fa-upload"></i>
+                  <span>Guardar comprobante</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="activeConciliationModal.loading" class="empty-state users-modal-empty">
+              <h3>Cargando conciliacion</h3>
+              <p>Estamos consultando los comprobantes registrados para esta fecha.</p>
+            </div>
+
+            <div v-else-if="activeConciliationModal.comprobantes.length" class="conciliation-receipts-list">
+              <article v-for="receipt in activeConciliationModal.comprobantes" :key="receipt.id" class="conciliation-receipt-card">
+                <div class="conciliation-receipt-main">
+                  <strong>{{ formatCurrency(receipt.montoDepositado) }}</strong>
+                  <small>{{ formatDateLabel(receipt.fechaDeposito) }}</small>
+                  <small>{{ receipt.banco || 'Sin banco' }}<span v-if="receipt.referencia"> · {{ receipt.referencia }}</span></small>
+                  <small>{{ receipt.observacion || 'Sin observacion' }}</small>
+                  <small>Subido por {{ receipt.subidoPorNombre || receipt.subidoPorEmail || 'Sin usuario' }} · {{ formatDate(receipt.createdAt) }}</small>
+                </div>
+                <div class="conciliation-receipt-actions">
+                  <a class="action-secondary-btn" :href="receipt.archivoUrl" target="_blank" rel="noopener">
+                    <i class="fas fa-paperclip"></i>
+                    <span>Ver archivo</span>
+                  </a>
+                  <button type="button" class="action-danger-btn" @click="deleteConciliationReceipt(receipt)">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Eliminar</span>
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="empty-state users-modal-empty">
+              <h3>Sin comprobantes</h3>
+              <p>Todavia no se cargaron comprobantes para esta sucursal en la fecha seleccionada.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </AdminTemplate>
   </div>
@@ -333,6 +652,7 @@
 <script>
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import jsQR from 'jsqr';
 
 export default {
   data() {
@@ -363,6 +683,7 @@ export default {
         },
         sucursales: []
       },
+      branchTotalsByBranch: {},
       branchCatalog: [
         { id: '000-0', codigoSucursal: '000', puntoVenta: '0', departamento: 'LA PAZ', nombre: 'LA PAZ', sucursalNombre: 'LA PAZ' },
         { id: '001-0', codigoSucursal: '001', puntoVenta: '0', departamento: 'SANTA CRUZ DE LA SIERRA', nombre: 'SANTA CRUZ DE LA SIERRA', sucursalNombre: 'SANTA CRUZ DE LA SIERRA' },
@@ -374,12 +695,129 @@ export default {
         { id: '007-0', codigoSucursal: '007', puntoVenta: '0', departamento: 'COBIJA', nombre: 'COBIJA', sucursalNombre: 'COBIJA' },
         { id: '008-0', codigoSucursal: '008', puntoVenta: '0', departamento: 'TRINIDAD', nombre: 'TRINIDAD', sucursalNombre: 'TRINIDAD' }
       ],
+      calendarAnchorMonth: '',
+      conciliacionSummaryRows: [],
       userCountsByBranch: {},
       activeUsersModal: null,
-      activeIncidentsModal: null
+      activeIncidentsModal: null,
+      activeConciliationModal: null
     };
   },
   computed: {
+    calendarWeekdays() {
+      return ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+    },
+    selectedConciliationDate() {
+      return this.endDate || this.startDate || this.defaultToday();
+    },
+    isSingleDaySelection() {
+      return Boolean(this.startDate && this.endDate && this.startDate === this.endDate);
+    },
+    conciliacionSummaryByBranch() {
+      return (this.conciliacionSummaryRows || []).reduce((acc, row) => {
+        const key = this.branchKey(row?.codigoSucursal, row?.puntoVenta);
+        acc[key] = row;
+        return acc;
+      }, {});
+    },
+    calendarMonthLabel() {
+      const date = this.calendarMonthDate();
+      return date.toLocaleDateString('es-BO', {
+        month: 'long',
+        year: 'numeric'
+      });
+    },
+    activeConciliationCalendarLabel() {
+      if (!this.activeConciliationModal) {
+        return '';
+      }
+
+      const date = this.activeConciliationCalendarMonthDate();
+      return date.toLocaleDateString('es-BO', {
+        month: 'long',
+        year: 'numeric'
+      });
+    },
+    activeConciliationQrHasSource() {
+      const scanner = this.activeConciliationModal?.qrScanner;
+      return Boolean(scanner?.previewUrl || scanner?.mode === 'camera');
+    },
+    activeConciliationQrCropStyle() {
+      const crop = this.activeConciliationModal?.qrScanner?.crop || { x: 0.2, y: 0.2, w: 0.55, h: 0.4 };
+      return {
+        left: `${crop.x * 100}%`,
+        top: `${crop.y * 100}%`,
+        width: `${crop.w * 100}%`,
+        height: `${crop.h * 100}%`
+      };
+    },
+    calendarDays() {
+      const monthDate = this.calendarMonthDate();
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const startWeekDay = (firstDay.getDay() + 6) % 7;
+      const gridStart = new Date(year, month, 1 - startWeekDay);
+      const activeDate = this.selectedConciliationDate;
+      const today = this.defaultToday();
+
+      return Array.from({ length: 42 }, (_, index) => {
+        const current = new Date(gridStart);
+        current.setDate(gridStart.getDate() + index);
+        const iso = this.dateToIso(current);
+        const receipts = this.conciliacionSummaryRows.filter((row) => row?.fecha === iso);
+        const receiptCount = receipts.reduce((acc, row) => acc + Number(row?.receiptCount || 0), 0);
+
+        return {
+          key: `${iso}-${index}`,
+          iso,
+          dayNumber: current.getDate(),
+          isCurrentMonth: current.getMonth() === month,
+          isToday: iso === today,
+          isSelected: iso === activeDate,
+          hasReceipts: receiptCount > 0,
+          receiptCount
+        };
+      });
+    },
+    activeConciliationCalendarDays() {
+      if (!this.activeConciliationModal) {
+        return [];
+      }
+
+      const monthDate = this.activeConciliationCalendarMonthDate();
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const startWeekDay = (firstDay.getDay() + 6) % 7;
+      const gridStart = new Date(year, month, 1 - startWeekDay);
+      const activeDate = this.activeConciliationModal.selectedDate || this.defaultToday();
+      const today = this.defaultToday();
+
+      return Array.from({ length: 42 }, (_, index) => {
+        const current = new Date(gridStart);
+        current.setDate(gridStart.getDate() + index);
+        const iso = this.dateToIso(current);
+        const receipts = this.conciliacionSummaryRows.filter((row) =>
+          row?.fecha === iso
+          && this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey
+        );
+        const receiptCount = receipts.reduce((acc, row) => acc + Number(row?.receiptCount || 0), 0);
+        const hasCompleted = receipts.some((row) => String(row?.estado || '').toLowerCase() === 'conciliado');
+
+        return {
+          key: `${iso}-${index}`,
+          iso,
+          dayNumber: current.getDate(),
+          isCurrentMonth: current.getMonth() === month,
+          isToday: iso === today,
+          isSelected: iso === activeDate,
+          hasReceipts: receiptCount > 0,
+          receiptCount,
+          isCompleted: hasCompleted
+        };
+      });
+    },
     branchRows() {
       const reportedRows = Array.isArray(this.report.sucursales) ? this.report.sucursales : [];
       const reportedMap = reportedRows.reduce((acc, item) => {
@@ -477,18 +915,22 @@ export default {
   },
   mounted() {
     this.initializeDateRange();
+    this.initializeCalendarAnchor();
     this.loadReport();
   },
   beforeDestroy() {
     if (this.searchTimer) {
       clearTimeout(this.searchTimer);
     }
+    this.stopConciliationCameraStream();
   },
   watch: {
     startDate() {
+      this.initializeCalendarAnchor();
       this.scheduleLoadReport();
     },
     endDate() {
+      this.initializeCalendarAnchor();
       this.scheduleLoadReport();
     },
     'filters.q'() {
@@ -507,10 +949,1013 @@ export default {
       this.endDate = today;
       this.startDate = today;
     },
+    initializeCalendarAnchor() {
+      this.calendarAnchorMonth = this.startOfMonth(this.selectedConciliationDate || this.defaultToday());
+    },
     branchKey(codigoSucursal, puntoVenta) {
       const codigo = String(codigoSucursal ?? '0').padStart(3, '0');
       const punto = String(puntoVenta ?? '0');
       return `${codigo}-${punto}`;
+    },
+    dateToIso(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    },
+    calendarMonthDate() {
+      const base = this.calendarAnchorMonth || this.startOfMonth(this.selectedConciliationDate || this.defaultToday());
+      const [year, month] = String(base).split('-');
+      return new Date(Number(year || 0), Math.max(0, Number(month || 1) - 1), 1);
+    },
+    activeConciliationCalendarMonthDate() {
+      const base = this.activeConciliationModal?.calendarAnchorMonth
+        || this.startOfMonth(this.activeConciliationModal?.selectedDate || this.defaultToday());
+      const [year, month] = String(base).split('-');
+      return new Date(Number(year || 0), Math.max(0, Number(month || 1) - 1), 1);
+    },
+    moveCalendarMonth(step) {
+      const current = this.calendarMonthDate();
+      current.setMonth(current.getMonth() + step);
+      this.calendarAnchorMonth = this.startOfMonth(this.dateToIso(current));
+    },
+    jumpCalendarToToday() {
+      const today = this.defaultToday();
+      this.calendarAnchorMonth = this.startOfMonth(today);
+      this.startDate = today;
+      this.endDate = today;
+    },
+    selectCalendarDay(day) {
+      if (!day?.iso) {
+        return;
+      }
+
+      this.startDate = day.iso;
+      this.endDate = day.iso;
+      this.calendarAnchorMonth = this.startOfMonth(day.iso);
+    },
+    moveActiveConciliationCalendar(step) {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      const current = this.activeConciliationCalendarMonthDate();
+      current.setMonth(current.getMonth() + step);
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        calendarAnchorMonth: this.startOfMonth(this.dateToIso(current))
+      };
+    },
+    async jumpActiveConciliationCalendarToToday() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      const today = this.defaultToday();
+      this.resetActiveConciliationEntryState();
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        selectedDate: today,
+        fecha: today,
+        calendarAnchorMonth: this.startOfMonth(today)
+      };
+      await this.reloadActiveConciliationDetail();
+      this.scrollConciliationUploadIntoView();
+    },
+    async selectActiveConciliationDay(day) {
+      if (!day?.iso || !this.activeConciliationModal) {
+        return;
+      }
+
+      this.resetActiveConciliationEntryState();
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        selectedDate: day.iso,
+        fecha: day.iso,
+        calendarAnchorMonth: this.startOfMonth(day.iso)
+      };
+      await this.reloadActiveConciliationDetail();
+      this.scrollConciliationUploadIntoView();
+      this.focusConciliationAmountField();
+    },
+    scrollConciliationDetailIntoView() {
+      this.$nextTick(() => {
+        const panel = this.$refs?.conciliationDetailPanel;
+        if (panel && typeof panel.scrollIntoView === 'function') {
+          panel.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    },
+    scrollConciliationUploadIntoView() {
+      this.$nextTick(() => {
+        const panel = this.$refs?.conciliationUploadPanel;
+        if (panel && typeof panel.scrollIntoView === 'function') {
+          panel.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    },
+    emptyConciliationQrScanner() {
+      return {
+        loadingDevices: true,
+        cameras: [],
+        selectedDeviceId: '',
+        mode: '',
+        previewUrl: '',
+        previewFileName: '',
+        statusMessage: 'Pulsa "Activar camara" o selecciona una imagen.',
+        crop: {
+          x: 0.18,
+          y: 0.28,
+          w: 0.56,
+          h: 0.34
+        },
+        stream: null
+      };
+    },
+    async loadConciliationCameraDevices() {
+      if (!process.client || typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices || !this.activeConciliationModal) {
+        if (this.activeConciliationModal) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              loadingDevices: false,
+              cameras: [],
+              statusMessage: 'Este navegador no permite detectar camaras. Use la opcion de imagen.'
+            }
+          };
+        }
+        return;
+      }
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices
+          .filter((device) => device.kind === 'videoinput')
+          .map((device, index) => ({
+            deviceId: device.deviceId,
+            label: device.label || `Camara ${index + 1}`
+          }));
+
+        if (!this.activeConciliationModal) {
+          return;
+        }
+
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            loadingDevices: false,
+            cameras,
+            selectedDeviceId: this.activeConciliationModal.qrScanner.selectedDeviceId || cameras?.[0]?.deviceId || '',
+            statusMessage: cameras.length
+              ? 'Seleccione una imagen o active la camara para ubicar el QR.'
+              : 'No se detectaron camaras. Puede continuar con una imagen.'
+          }
+        };
+      } catch (error) {
+        if (!this.activeConciliationModal) {
+          return;
+        }
+
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            loadingDevices: false,
+            cameras: [],
+            statusMessage: 'No se pudieron consultar las camaras del dispositivo. Use la opcion de imagen.'
+          }
+        };
+      }
+    },
+    triggerConciliationFilePicker() {
+      this.scrollConciliationUploadIntoView();
+      this.$nextTick(() => {
+        const ref = this.$refs?.conciliationFileInput;
+        const input = Array.isArray(ref) ? ref[0] : ref;
+        if (input && typeof input.click === 'function') {
+          input.click();
+        }
+      });
+    },
+    triggerConciliationScannerImagePicker() {
+      const ref = this.$refs?.conciliationQrScannerInput;
+      const input = Array.isArray(ref) ? ref[0] : ref;
+      if (input && typeof input.click === 'function') {
+        input.click();
+      }
+    },
+    resetActiveConciliationEntryState() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      const currentScanner = this.activeConciliationModal.qrScanner || this.emptyConciliationQrScanner();
+      this.stopConciliationCameraStream();
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        selectedFile: null,
+        selectedFileName: '',
+        qrScan: {
+          status: 'idle',
+          message: '',
+          rawText: '',
+          parsed: null
+        },
+        qrScanner: {
+          ...this.emptyConciliationQrScanner(),
+          loadingDevices: currentScanner.loadingDevices,
+          cameras: currentScanner.cameras || [],
+          selectedDeviceId: currentScanner.selectedDeviceId || ''
+        },
+        form: {
+          montoDepositado: '',
+          banco: '',
+          referencia: '',
+          observacion: ''
+        }
+      };
+    },
+    focusConciliationAmountField() {
+      this.$nextTick(() => {
+        const ref = this.$refs?.conciliationAmountInput;
+        const input = Array.isArray(ref) ? ref[0] : ref;
+        if (input && typeof input.focus === 'function') {
+          input.focus();
+        }
+      });
+    },
+    stopConciliationCameraStream() {
+      const stream = this.activeConciliationModal?.qrScanner?.stream || null;
+      if (stream?.getTracks) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      const ref = this.$refs?.conciliationQrVideo;
+      const video = Array.isArray(ref) ? ref[0] : ref;
+      if (video) {
+        video.srcObject = null;
+      }
+
+      if (this.activeConciliationModal?.qrScanner) {
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            stream: null,
+            mode: this.activeConciliationModal.qrScanner.previewUrl ? 'image' : '',
+            statusMessage: this.activeConciliationModal.qrScanner.previewUrl
+              ? 'Marca solo el QR y procesa el recorte.'
+              : 'Pulsa "Activar camara" o selecciona una imagen.'
+          }
+        };
+      }
+    },
+    async activateConciliationCamera() {
+      if (!process.client || typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia || !this.activeConciliationModal) {
+        return;
+      }
+
+      this.stopConciliationCameraStream();
+
+      try {
+        const selectedDeviceId = this.activeConciliationModal.qrScanner.selectedDeviceId;
+        const constraints = selectedDeviceId
+          ? { video: { deviceId: { exact: selectedDeviceId } } }
+          : { video: { facingMode: 'environment' } };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (!this.activeConciliationModal) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            mode: 'camera',
+            stream,
+            previewUrl: '',
+            statusMessage: 'Camara activa. Toque la vista para centrar el recorte sobre el QR.'
+          }
+        };
+
+        this.$nextTick(() => {
+          const ref = this.$refs?.conciliationQrVideo;
+          const video = Array.isArray(ref) ? ref[0] : ref;
+          if (video) {
+            video.srcObject = stream;
+            video.play?.().catch(() => {});
+          }
+        });
+      } catch (error) {
+        this.stopConciliationCameraStream();
+        if (!this.activeConciliationModal) {
+          return;
+        }
+
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            statusMessage: 'No se detecto ninguna camara. Verifica permisos del navegador o usa la opcion de imagen.'
+          }
+        };
+      }
+    },
+    async onConciliationScannerImageChange(event) {
+      const file = event?.target?.files?.[0] || null;
+      if (!file || !this.activeConciliationModal) {
+        return;
+      }
+
+      this.stopConciliationCameraStream();
+
+      const previewUrl = await this.readFileAsDataUrl(file);
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        selectedFile: file,
+        selectedFileName: file.name || '',
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          mode: 'image',
+          previewUrl,
+          previewFileName: file.name || '',
+          statusMessage: 'Marca solo el QR y procesa el recorte.'
+        }
+      };
+    },
+    readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    },
+    handleConciliationQrStageClick(event) {
+      if (!this.activeConciliationModal?.qrScanner) {
+        return;
+      }
+
+      const stage = event?.currentTarget;
+      if (!stage?.getBoundingClientRect) {
+        return;
+      }
+
+      const rect = stage.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width;
+      const y = (event.clientY - rect.top) / rect.height;
+      const currentCrop = this.activeConciliationModal.qrScanner.crop || { x: 0.18, y: 0.28, w: 0.56, h: 0.34 };
+      const nextCrop = {
+        ...currentCrop,
+        x: Math.min(Math.max(0, x - (currentCrop.w / 2)), 1 - currentCrop.w),
+        y: Math.min(Math.max(0, y - (currentCrop.h / 2)), 1 - currentCrop.h)
+      };
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          crop: nextCrop,
+          statusMessage: 'Recorte ajustado. Procese el recorte cuando el QR quede dentro del marco.'
+        }
+      };
+    },
+    emptyConciliacion(item = {}) {
+      return {
+        id: null,
+        fecha: this.selectedConciliationDate,
+        codigoSucursal: Number(item?.codigoSucursal || 0),
+        puntoVenta: Number(item?.puntoVenta || 0),
+        sucursalNombre: item?.displayName || item?.sucursalNombre || item?.nombre || '',
+        totalEfectivoSistema: Number(item?.totalEfectivoFacturado || 0),
+        totalQrSistema: Number(item?.totalQrFacturado || 0),
+        totalGeneralSistema: Number(item?.totalVendido || 0),
+        totalComprobantes: 0,
+        diferencia: Number(item?.totalEfectivoFacturado || 0) * -1,
+        estado: 'sin_comprobante',
+        receiptCount: 0,
+        updatedAt: null
+      };
+    },
+    conciliacionLabel(conciliacion) {
+      const estado = String(conciliacion?.estado || 'sin_comprobante').toLowerCase();
+      if (estado === 'conciliado') return 'Conciliado';
+      if (estado === 'parcial') return 'Parcial';
+      if (estado === 'con_diferencia') return 'Con diferencia';
+      return 'Sin comprobante';
+    },
+    conciliacionStatusClass(conciliacion) {
+      const estado = String(conciliacion?.estado || 'sin_comprobante').toLowerCase();
+      if (estado === 'conciliado') return 'metric-tag-success';
+      if (estado === 'parcial') return 'metric-tag-warning';
+      if (estado === 'con_diferencia') return 'metric-tag-danger';
+      return 'metric-tag-neutral';
+    },
+    conciliacionStatusPillClass(conciliacion) {
+      const estado = String(conciliacion?.estado || 'sin_comprobante').toLowerCase();
+      if (estado === 'conciliado') return 'calendar-selection-pill-success';
+      if (estado === 'parcial') return 'calendar-selection-pill-warning';
+      if (estado === 'con_diferencia') return 'calendar-selection-pill-danger';
+      return 'calendar-selection-pill-neutral';
+    },
+    conciliationQrStatusLabel(status) {
+      if (status === 'success') return 'QR detectado';
+      if (status === 'loading') return 'Leyendo QR';
+      if (status === 'error') return 'No legible';
+      if (status === 'unsupported') return 'Sin lectura';
+      return 'Sin lectura';
+    },
+    conciliationQrStatusClass(status) {
+      if (status === 'success') return 'calendar-selection-pill-success';
+      if (status === 'loading') return 'calendar-selection-pill-warning';
+      if (status === 'error') return 'calendar-selection-pill-danger';
+      return 'calendar-selection-pill-neutral';
+    },
+    async decodeQrFromImageFile(file) {
+      if (!process.client || typeof window === 'undefined') {
+        return null;
+      }
+
+      const bitmap = await createImageBitmap(file);
+
+      try {
+        const nativeResult = await this.decodeQrFromBitmapWithNativeDetector(bitmap);
+        if (nativeResult) {
+          return nativeResult;
+        }
+
+        const fallbackCanvas = document.createElement('canvas');
+        fallbackCanvas.width = bitmap.width;
+        fallbackCanvas.height = bitmap.height;
+        const ctx = fallbackCanvas.getContext('2d');
+        if (!ctx) {
+          return null;
+        }
+
+        ctx.drawImage(bitmap, 0, 0);
+        return this.decodeQrFromCanvasWithJsQr(fallbackCanvas);
+      } finally {
+        if (bitmap && typeof bitmap.close === 'function') {
+          bitmap.close();
+        }
+      }
+    },
+    async decodeQrFromBitmapWithNativeDetector(bitmap) {
+      if (!process.client || typeof window === 'undefined' || typeof window.BarcodeDetector === 'undefined' || !bitmap) {
+        return null;
+      }
+
+      const supportedFormats = await window.BarcodeDetector.getSupportedFormats();
+      if (!Array.isArray(supportedFormats) || !supportedFormats.includes('qr_code')) {
+        return null;
+      }
+
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const results = await detector.detect(bitmap);
+      return results?.[0]?.rawValue ? String(results[0].rawValue) : null;
+    },
+    async decodeQrFromCanvas(canvas) {
+      if (!process.client || typeof window === 'undefined' || !canvas) {
+        return null;
+      }
+
+      try {
+        const nativeBitmap = await createImageBitmap(canvas);
+        try {
+          const nativeResult = await this.decodeQrFromBitmapWithNativeDetector(nativeBitmap);
+          if (nativeResult) {
+            return nativeResult;
+          }
+        } finally {
+          if (nativeBitmap && typeof nativeBitmap.close === 'function') {
+            nativeBitmap.close();
+          }
+        }
+      } catch (error) {
+        // ignore native path failure and continue with jsQR
+      }
+
+      return this.decodeQrFromCanvasWithJsQr(canvas);
+    },
+    decodeQrFromCanvasWithJsQr(canvas) {
+      if (!canvas) {
+        return null;
+      }
+
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) {
+        return null;
+      }
+
+      const scanAtScale = (scale = 1) => {
+        let workingCanvas = canvas;
+        if (scale !== 1) {
+          workingCanvas = document.createElement('canvas');
+          workingCanvas.width = Math.max(1, Math.round(canvas.width * scale));
+          workingCanvas.height = Math.max(1, Math.round(canvas.height * scale));
+          const workingCtx = workingCanvas.getContext('2d', { willReadFrequently: true });
+          if (!workingCtx) {
+            return null;
+          }
+          workingCtx.drawImage(canvas, 0, 0, workingCanvas.width, workingCanvas.height);
+        }
+
+        const workingCtx = workingCanvas.getContext('2d', { willReadFrequently: true });
+        if (!workingCtx) {
+          return null;
+        }
+
+        const imageData = workingCtx.getImageData(0, 0, workingCanvas.width, workingCanvas.height);
+        const result = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'attemptBoth'
+        });
+        return result?.data ? String(result.data) : null;
+      };
+
+      const scales = [1, 1.5, 2, 2.5, 3];
+      for (const scale of scales) {
+        const value = scanAtScale(scale);
+        if (value) {
+          return value;
+        }
+      }
+
+      return null;
+    },
+    buildConciliationQrCanvas({ cropped = false } = {}) {
+      const scanner = this.activeConciliationModal?.qrScanner;
+      if (!scanner) {
+        return null;
+      }
+
+      let source = null;
+      if (scanner.mode === 'camera') {
+        const ref = this.$refs?.conciliationQrVideo;
+        source = Array.isArray(ref) ? ref[0] : ref;
+      } else if (scanner.previewUrl) {
+        const ref = this.$refs?.conciliationQrImage;
+        source = Array.isArray(ref) ? ref[0] : ref;
+      }
+
+      if (!source) {
+        return null;
+      }
+
+      const naturalWidth = source.videoWidth || source.naturalWidth || source.clientWidth || 0;
+      const naturalHeight = source.videoHeight || source.naturalHeight || source.clientHeight || 0;
+      if (!naturalWidth || !naturalHeight) {
+        return null;
+      }
+
+      const crop = scanner.crop || { x: 0.18, y: 0.28, w: 0.56, h: 0.34 };
+      const sx = cropped ? Math.round(naturalWidth * crop.x) : 0;
+      const sy = cropped ? Math.round(naturalHeight * crop.y) : 0;
+      const sw = cropped ? Math.round(naturalWidth * crop.w) : naturalWidth;
+      const sh = cropped ? Math.round(naturalHeight * crop.h) : naturalHeight;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = sw;
+      canvas.height = sh;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return null;
+      }
+
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, sw, sh);
+      return canvas;
+    },
+    async applyConciliationQrRawText(rawText, successMessage = 'QR detectado. Revise los datos autocompletados antes de guardar.') {
+      if (!this.activeConciliationModal) {
+        return false;
+      }
+
+      if (!rawText) {
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScan: {
+            status: 'error',
+            message: 'No pudimos leer el QR de esta imagen. Puede completar los campos manualmente.',
+            rawText: '',
+            parsed: null
+          }
+        };
+        return false;
+      }
+
+      const parsed = await this.enrichQrPayload(rawText);
+      const shouldApply = await this.confirmQrAutofill(parsed);
+      const nextForm = {
+        ...this.activeConciliationModal.form
+      };
+
+      if (shouldApply) {
+        if (parsed.amount !== null && Number(parsed.amount) > 0) {
+          nextForm.montoDepositado = String(parsed.amount);
+        }
+        if (parsed.bankName || parsed.bank) {
+          nextForm.banco = [parsed.bankName, parsed.bank].filter(Boolean).join(' - ').slice(0, 255);
+        }
+        if (parsed.reference) {
+          nextForm.referencia = parsed.reference;
+        }
+
+        const observationParts = [
+          parsed.transaction ? `Transaccion: ${parsed.transaction}` : '',
+          parsed.date ? `Fecha: ${parsed.date}` : '',
+          parsed.depositante ? `Depositante: ${parsed.depositante}` : '',
+          parsed.beneficiario ? `Beneficiario: ${parsed.beneficiario}` : '',
+          parsed.user ? `Usuario: ${parsed.user}` : ''
+        ].filter(Boolean);
+
+        if (observationParts.length) {
+          nextForm.observacion = observationParts.join(' | ').slice(0, 500);
+        } else if (parsed.rawText && !nextForm.observacion) {
+          nextForm.observacion = `QR detectado: ${parsed.rawText}`.slice(0, 500);
+        }
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        form: nextForm,
+        qrScan: {
+          status: 'success',
+          message: shouldApply
+            ? successMessage
+            : 'QR detectado. Se mostraron los datos, pero decidio revisarlos manualmente.',
+          rawText,
+          parsed
+        }
+      };
+
+      if (shouldApply) {
+        this.focusConciliationAmountField();
+      }
+
+      return true;
+    },
+    async processConciliationQrCrop() {
+      if (!this.activeConciliationModal?.qrScanner) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          statusMessage: 'Procesando el recorte del QR...'
+        }
+      };
+
+      const canvas = this.buildConciliationQrCanvas({ cropped: true });
+      const rawText = canvas ? await this.decodeQrFromCanvas(canvas) : null;
+      const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado desde el recorte. Revise los datos autocompletados antes de guardar.');
+
+      if (this.activeConciliationModal?.qrScanner) {
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            statusMessage: ok
+              ? 'Recorte procesado correctamente.'
+              : 'No se pudo leer el recorte. Ajuste el marco sobre el QR o pruebe con imagen completa.'
+          }
+        };
+      }
+    },
+    async processConciliationQrFullSource() {
+      if (!this.activeConciliationModal?.qrScanner) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          statusMessage: 'Procesando la imagen completa...'
+        }
+      };
+
+      const canvas = this.buildConciliationQrCanvas({ cropped: false });
+      const rawText = canvas ? await this.decodeQrFromCanvas(canvas) : null;
+      const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado desde la imagen completa. Revise los datos autocompletados antes de guardar.');
+
+      if (this.activeConciliationModal?.qrScanner) {
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScanner: {
+            ...this.activeConciliationModal.qrScanner,
+            statusMessage: ok
+              ? 'Imagen completa procesada correctamente.'
+              : 'No se pudo leer la imagen completa. Ajuste el recorte sobre el QR.'
+          }
+        };
+      }
+    },
+    resetConciliationQrSource() {
+      this.stopConciliationCameraStream();
+      if (!this.activeConciliationModal?.qrScanner) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.emptyConciliationQrScanner(),
+          cameras: this.activeConciliationModal.qrScanner.cameras || [],
+          selectedDeviceId: this.activeConciliationModal.qrScanner.selectedDeviceId || '',
+          loadingDevices: false
+        }
+      };
+    },
+    parseQrPayload(rawText) {
+      const fallback = {
+        amount: null,
+        reference: '',
+        bank: '',
+        bankName: '',
+        user: '',
+        transaction: '',
+        date: '',
+        currency: '',
+        depositante: '',
+        beneficiario: '',
+        rawText: rawText || ''
+      };
+
+      if (!rawText) {
+        return fallback;
+      }
+
+      const text = String(rawText).trim();
+
+      try {
+        const parsedJson = JSON.parse(text);
+        const amount = Number(
+          parsedJson.amount
+          || parsedJson.monto
+          || parsedJson.total
+          || parsedJson.importe
+          || 0
+        );
+
+        return {
+          amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+          reference: String(parsedJson.reference || parsedJson.referencia || parsedJson.operation || parsedJson.operacion || '').trim(),
+          bank: String(parsedJson.bank || parsedJson.banco || parsedJson.entity || parsedJson.entidad || parsedJson.agencia || '').trim(),
+          bankName: String(parsedJson.bank_name || parsedJson.nombre_banco || parsedJson.bank || parsedJson.banco || '').trim(),
+          user: String(parsedJson.user || parsedJson.usuario || '').trim(),
+          transaction: String(parsedJson.transaction || parsedJson.transaccion || parsedJson.tipo_transaccion || '').trim(),
+          date: String(parsedJson.date || parsedJson.fecha || '').trim(),
+          currency: String(parsedJson.currency || parsedJson.moneda || '').trim(),
+          depositante: String(parsedJson.depositante || parsedJson.depositor || '').trim(),
+          beneficiario: String(parsedJson.beneficiario || parsedJson.beneficiary || '').trim(),
+          rawText: text
+        };
+      } catch (error) {
+        // Fallback regex parsing
+      }
+
+      const amountMatch = text.match(/(?:monto|amount|importe|total)[^0-9]{0,12}(\d+(?:[.,]\d{1,2})?)/i);
+      const referenceMatch = text.match(/(?:referencia|reference|operacion|operación|transaction|trx)[^A-Z0-9]{0,12}([A-Z0-9-]{4,})/i);
+      const bankMatch = text.match(/(?:banco|bank|entidad)[^A-Z0-9]{0,12}([A-ZÁÉÍÓÚ0-9 .-]{3,})/i);
+      const bankNameMatch = text.match(/(?:banco unión s\.a\.|banco union s\.a\.|banco [a-záéíóú .]+)/i);
+      const userMatch = text.match(/(?:usuario)[^A-Z0-9]{0,12}([A-Z0-9_.-]{4,})/i);
+      const transactionMatch = text.match(/(?:transaccion|transacción)[^A-Z0-9]{0,12}([A-ZÁÉÍÓÚ0-9 .-]{4,})/i);
+      const dateMatch = text.match(/(?:fecha)[^0-9]{0,12}(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/i);
+      const currencyMatch = text.match(/(?:moneda)[^A-Z0-9]{0,12}([A-Z$Bs.]{1,10})/i);
+      const depositanteMatch = text.match(/(?:depositante|depositor)[^A-Z0-9]{0,12}([A-ZÁÉÍÓÚÑ ]{4,})/i);
+      const beneficiarioMatch = text.match(/(?:beneficiario)[^A-Z0-9]{0,12}([A-ZÁÉÍÓÚÑ ]{4,})/i);
+
+      return {
+        amount: amountMatch ? Number(String(amountMatch[1]).replace(',', '.')) : null,
+        reference: referenceMatch ? String(referenceMatch[1]).trim() : '',
+        bank: bankMatch ? String(bankMatch[1]).trim() : '',
+        bankName: bankNameMatch ? String(bankNameMatch[0]).trim() : '',
+        user: userMatch ? String(userMatch[1]).trim() : '',
+        transaction: transactionMatch ? String(transactionMatch[1]).trim() : '',
+        date: dateMatch ? String(dateMatch[1]).trim() : '',
+        currency: currencyMatch ? String(currencyMatch[1]).trim() : '',
+        depositante: depositanteMatch ? String(depositanteMatch[1]).trim() : '',
+        beneficiario: beneficiarioMatch ? String(beneficiarioMatch[1]).trim() : '',
+        rawText: text
+      };
+    },
+    async enrichQrPayload(rawText) {
+      const parsed = this.parseQrPayload(rawText);
+
+      if (!rawText) {
+        return parsed;
+      }
+
+      const text = String(rawText).trim();
+      const isHttp = /^https?:\/\//i.test(text);
+      const bancoUnionBaseUrl = 'https://www.bancounion.com.bo/ComprobantesBun/Index?parametro=';
+
+      let targetUrl = '';
+      let fallbackReference = parsed.reference || '';
+
+      if (isHttp) {
+        targetUrl = text;
+      } else {
+        const sanitizedToken = text
+          .replace(/^parametro=/i, '')
+          .replace(/^["']|["']$/g, '')
+          .trim();
+
+        const looksLikeBancoUnionToken = /^[A-Za-z0-9_\-]{20,}$/.test(sanitizedToken);
+        if (!looksLikeBancoUnionToken) {
+          return parsed;
+        }
+
+        targetUrl = `${bancoUnionBaseUrl}${encodeURIComponent(sanitizedToken)}`;
+        fallbackReference = sanitizedToken;
+      }
+
+      try {
+        const url = new URL(targetUrl);
+        const host = String(url.hostname || '').toLowerCase();
+        const isBancoUnion = host.includes('bancounion.com.bo');
+
+        if (!isBancoUnion || !process.client || typeof window === 'undefined' || typeof window.fetch !== 'function') {
+          return {
+            ...parsed,
+            reference: fallbackReference || String(url.searchParams.get('parametro') || '').trim()
+          };
+        }
+
+        const response = await window.fetch(targetUrl, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit'
+        });
+
+        if (!response.ok) {
+          return {
+            ...parsed,
+            reference: fallbackReference || String(url.searchParams.get('parametro') || '').trim()
+          };
+        }
+
+        const html = await response.text();
+        const enriched = this.parseBankReceiptHtml(html, fallbackReference || targetUrl);
+
+        return {
+          ...parsed,
+          ...enriched,
+          amount: enriched.amount !== null ? enriched.amount : parsed.amount,
+          reference: enriched.reference || fallbackReference || parsed.reference || String(url.searchParams.get('parametro') || '').trim(),
+          bank: enriched.bank || parsed.bank,
+          bankName: enriched.bankName || parsed.bankName,
+          user: enriched.user || parsed.user,
+          transaction: enriched.transaction || parsed.transaction,
+          date: enriched.date || parsed.date,
+          currency: enriched.currency || parsed.currency,
+          depositante: enriched.depositante || parsed.depositante,
+          beneficiario: enriched.beneficiario || parsed.beneficiario,
+          rawText: text,
+          sourceUrl: targetUrl
+        };
+      } catch (error) {
+        return {
+          ...parsed,
+          reference: fallbackReference || parsed.reference
+        };
+      }
+    },
+    parseBankReceiptHtml(html, fallbackReference = '') {
+      const empty = {
+        amount: null,
+        reference: fallbackReference || '',
+        bank: '',
+        bankName: '',
+        user: '',
+        transaction: '',
+        date: '',
+        currency: '',
+        depositante: '',
+        beneficiario: ''
+      };
+
+      if (!html) {
+        return empty;
+      }
+
+      const plainText = String(html)
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, '\n')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\r/g, '\n')
+        .replace(/\n{2,}/g, '\n')
+        .trim();
+
+      const readValue = (label) => {
+        const regex = new RegExp(`${label}\\s*[:\\-]?\\s*([^\\n]+)`, 'i');
+        const match = plainText.match(regex);
+        return match ? String(match[1]).trim() : '';
+      };
+
+      const amountText = readValue('MONTO') || readValue('IMPORTE');
+      const amountNumber = amountText
+        ? Number(String(amountText).replace(/[^\d.,]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.'))
+        : null;
+
+      return {
+        amount: Number.isFinite(amountNumber) && amountNumber > 0 ? amountNumber : null,
+        reference: fallbackReference || '',
+        bank: readValue('AGENCIA') || readValue('BANCO / ENTIDAD'),
+        bankName: readValue('NOMBRE DEL BANCO') || readValue('BANCO') || (plainText.includes('BANCO UNION') ? 'BANCO UNION S.A.' : ''),
+        user: readValue('USUARIO'),
+        transaction: readValue('TRANSACCION') || readValue('TRANSACCIÓN'),
+        date: readValue('FECHA'),
+        currency: readValue('MONEDA'),
+        depositante: readValue('DEPOSITANTE'),
+        beneficiario: readValue('BENEFICIARIO')
+      };
+    },
+    async confirmQrAutofill(parsed) {
+      const lines = [
+        parsed.bankName ? `<div><strong>Banco:</strong> ${parsed.bankName}</div>` : '',
+        parsed.user ? `<div><strong>Usuario:</strong> ${parsed.user}</div>` : '',
+        parsed.bank ? `<div><strong>Agencia:</strong> ${parsed.bank}</div>` : '',
+        parsed.transaction ? `<div><strong>Transaccion:</strong> ${parsed.transaction}</div>` : '',
+        parsed.date ? `<div><strong>Fecha:</strong> ${parsed.date}</div>` : '',
+        parsed.amount !== null ? `<div><strong>Monto:</strong> ${this.formatCurrency(parsed.amount)}</div>` : '',
+        parsed.currency ? `<div><strong>Moneda:</strong> ${parsed.currency}</div>` : '',
+        parsed.depositante ? `<div><strong>Depositante:</strong> ${parsed.depositante}</div>` : '',
+        parsed.beneficiario ? `<div><strong>Beneficiario:</strong> ${parsed.beneficiario}</div>` : ''
+      ].filter(Boolean);
+
+      if (!lines.length) {
+        return true;
+      }
+
+      const result = await this.$swal.fire({
+        icon: 'question',
+        title: 'Datos detectados del comprobante',
+        html: `<div class="text-left" style="display:grid;gap:6px;text-align:left;">${lines.join('')}</div>`,
+        showCancelButton: true,
+        confirmButtonText: 'Usar estos datos',
+        cancelButtonText: 'Revisar manualmente'
+      });
+
+      return Boolean(result?.isConfirmed);
+    },
+    resetConciliationQrScan() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScan: {
+          status: 'idle',
+          message: '',
+          rawText: '',
+          parsed: null
+        }
+      };
+    },
+    conciliationDifferenceTagClass(conciliacion) {
+      const difference = Number(conciliacion?.diferencia || 0);
+      if (Math.abs(difference) < 0.01) {
+        return 'metric-tag-success';
+      }
+
+      return difference > 0 ? 'metric-tag-info' : 'metric-tag-danger';
+    },
+    async loadConciliacionesSummary() {
+      try {
+        const fecha = this.activeConciliationModal?.selectedDate || this.selectedConciliationDate || this.defaultToday();
+        const response = await this.$admin.$get(`caja/conciliaciones?fecha=${encodeURIComponent(fecha)}`);
+        this.conciliacionSummaryRows = Array.isArray(response?.conciliaciones)
+          ? response.conciliaciones.map((item) => ({
+            ...item,
+            receiptCount: Number(item?.receiptCount || 0)
+          }))
+          : [];
+      } catch (error) {
+        console.error('[ventas/lista] loadConciliacionesSummary:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+        this.conciliacionSummaryRows = [];
+      }
     },
     emptyBranchRow(baseItem) {
       return {
@@ -544,6 +1989,265 @@ export default {
         totalQrPendiente: 0,
         totalCartRechazadoDescartado: 0
       };
+    },
+    isAnuladaVenta(venta) {
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const estadoSufe = String(
+        venta?.respuesta_emision?.estadoSufe
+        || venta?.estadoSufe
+        || venta?.estado_sufe
+        || ''
+      ).trim().toUpperCase();
+
+      return [
+        statusKey,
+        estadoEmision,
+        estadoSufe
+      ].some((value) => ['ANULADA', 'ANULADO', 'ANULACION_SOLICITADA', 'DESCARTADA'].includes(value));
+    },
+    isQrPaymentVenta(venta) {
+      const codigoOrden = String(venta?.codigoOrden || '').trim().toUpperCase();
+      const metodoPago = String(venta?.metodo_pago || venta?.metodoPago || '').trim().toLowerCase();
+      const canalEmision = String(venta?.canal_emision || venta?.canalEmision || '').trim().toLowerCase();
+
+      return codigoOrden.startsWith('VQ-')
+        || codigoOrden.startsWith('VQC-')
+        || metodoPago === 'qr'
+        || canalEmision === 'qr';
+    },
+    hasFacturaEmitidaEvidence(venta) {
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const cuf = String(
+        venta?.cuf
+        || venta?.status?.cuf
+        || venta?.seguimiento?.cuf
+        || venta?.respuesta_emision?.factura?.cuf
+        || venta?.respuesta_emision?.cuf
+        || ''
+      ).trim();
+      const pdfUrl = String(
+        venta?.seguimiento?.urlPdf
+        || venta?.respuesta_emision?.factura?.pdfUrl
+        || venta?.respuesta_emision?.pdfUrl
+        || ''
+      ).trim();
+      const numeroFactura = String(
+        venta?.numeroFactura
+        || venta?.respuesta_emision?.factura?.nroFactura
+        || ''
+      ).trim();
+
+      return estadoEmision === 'FACTURADA'
+        || statusKey === 'FACTURADA'
+        || statusLabel.includes('FACTURADA')
+        || cuf !== ''
+        || pdfUrl !== ''
+        || numeroFactura !== '';
+    },
+    isQrFacturadoVenta(venta) {
+      return this.isQrPaymentVenta(venta)
+        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && !this.isAnuladaVenta(venta)
+        && this.hasFacturaEmitidaEvidence(venta);
+    },
+    countsTowardCashTotal(venta) {
+      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta)) {
+        return false;
+      }
+
+      const estado = String(venta?.estado || '').trim().toLowerCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
+
+      if (estadoPago === 'pagado') {
+        return true;
+      }
+
+      if (['FACTURADA', 'EMITIDO'].includes(statusKey)) {
+        return true;
+      }
+
+      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
+        return true;
+      }
+
+      if (estadoEmision === 'FACTURADA') {
+        return true;
+      }
+
+      return estado === 'emitido';
+    },
+    countsTowardCollectedTotal(venta) {
+      if (this.isAnuladaVenta(venta)) {
+        return false;
+      }
+
+      if (this.isQrPaymentVenta(venta)) {
+        return String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado';
+      }
+
+      return this.countsTowardCashTotal(venta);
+    },
+    countsTowardCollectedQrTotal(venta) {
+      return this.isQrFacturadoVenta(venta);
+    },
+    countsTowardPendingFacturaQrTotal(venta) {
+      return this.isQrPaymentVenta(venta)
+        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && !this.isAnuladaVenta(venta)
+        && !this.isQrFacturadoVenta(venta);
+    },
+    isServicioContratoVenta(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return false;
+      }
+
+      return detalle.some((item) => {
+        const labels = [
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.descripcion,
+          item?.detalle,
+          item?.nombre
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).trim().toLowerCase());
+
+        return labels.some((value) => (
+          value.includes('servicio contratos')
+          || value.includes('servicio contrato')
+          || value.includes('contratos')
+          || value.includes('contrato')
+        ));
+      });
+    },
+    isServiceVenta(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return false;
+      }
+
+      return detalle.every((item) => {
+        const servicioId = Number(item?.servicio_id || item?.servicioId || 0);
+        if (servicioId > 0) {
+          return true;
+        }
+
+        const hasTracking = Boolean(
+          String(
+            item?.codigoSeguimiento
+            || item?.tracking
+            || item?.guia
+            || item?.resumen_origen?.codigoSeguimiento
+            || ''
+          ).trim()
+        );
+        const nombreServicio = String(
+          item?.nombre_servicio
+          || item?.servicio
+          || item?.descripcion
+          || ''
+        ).trim();
+
+        return !hasTracking && nombreServicio.length > 0 && String(venta?.codigoSeguimiento || '').trim() === '';
+      });
+    },
+    contratoEmpresaLabel(venta) {
+      return String(
+        venta?.cliente?.razonSocial
+        || venta?.razon_social
+        || venta?.cliente?.nombre
+        || 'Sin empresa'
+      ).trim() || 'Sin empresa';
+    },
+    contratoDescripcionLabel(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      const descripciones = detalle
+        .map((item) => {
+          const exactCandidates = [
+            item?.resumen_origen?.descripcion_servicio,
+            item?.descripcion,
+            item?.titulo,
+            item?.nombre_servicio
+          ]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+
+          const preferred = exactCandidates.find((value) => {
+            const normalized = value.toLowerCase();
+            return normalized !== 'contratos'
+              && normalized !== 'contrato'
+              && normalized !== 'servicio contratos'
+              && normalized !== 'servicio contrato';
+          });
+
+          return preferred || exactCandidates[0] || '';
+        })
+        .filter(Boolean);
+
+      return descripciones.length ? descripciones.join(', ') : 'Servicio Contratos';
+    },
+    calculateBranchTotalsFromVentas(ventas = []) {
+      return ventas.reduce((acc, venta) => {
+        if (this.isServiceVenta(venta) || this.isServicioContratoVenta(venta)) {
+          return acc;
+        }
+
+        const total = Number(venta?.total || 0);
+        if (this.countsTowardCollectedTotal(venta)) {
+          acc.totalVendido += total;
+        }
+        if (this.countsTowardCollectedQrTotal(venta)) {
+          acc.totalQrFacturado += total;
+        }
+        if (this.countsTowardPendingFacturaQrTotal(venta)) {
+          acc.totalQrPagadoPendienteFactura += total;
+        }
+        if (this.countsTowardCashTotal(venta)) {
+          acc.totalEfectivoFacturado += total;
+        }
+
+        return acc;
+      }, {
+        totalVendido: 0,
+        totalQrFacturado: 0,
+        totalQrPagadoPendienteFactura: 0,
+        totalEfectivoFacturado: 0
+      });
+    },
+    async refreshBranchTotalsFromVentas() {
+      const sourceRows = Array.isArray(this.report?.sucursales) ? this.report.sucursales : [];
+      if (!sourceRows.length) {
+        this.branchTotalsByBranch = {};
+        return;
+      }
+
+      const adjustments = await Promise.all(sourceRows.map(async (branch) => {
+        try {
+          const ventas = await this.fetchBranchVentas(branch);
+          const totals = this.calculateBranchTotalsFromVentas(ventas);
+          return {
+            key: this.branchKey(branch?.codigoSucursal, branch?.puntoVenta),
+            totals
+          };
+        } catch (error) {
+          return null;
+        }
+      }));
+
+      this.branchTotalsByBranch = adjustments
+        .filter(Boolean)
+        .reduce((acc, item) => {
+          acc[item.key] = item.totals;
+          return acc;
+        }, {});
     },
     cachedUserCount(codigoSucursal, puntoVenta) {
       const key = this.branchKey(codigoSucursal, puntoVenta);
@@ -742,9 +2446,10 @@ export default {
         .sort((a, b) => b.ventas.length - a.ventas.length);
     },
     normalizeBranch(item, index) {
-      const totalQrFacturado = Number(item?.totalQrFacturado || 0);
-      const totalEfectivoFacturado = Number(item?.totalEfectivoFacturado || 0);
-      const totalQrPagadoPendienteFactura = Number(item?.totalQrPagadoPendienteFactura || 0);
+      const branchTotals = this.branchTotalsByBranch[this.branchKey(item?.codigoSucursal, item?.puntoVenta)] || null;
+      const totalQrFacturado = Number(branchTotals?.totalQrFacturado ?? (item?.totalQrFacturado || 0));
+      const totalEfectivoFacturado = Number(branchTotals?.totalEfectivoFacturado ?? (item?.totalEfectivoFacturado || 0));
+      const totalQrPagadoPendienteFactura = Number(branchTotals?.totalQrPagadoPendienteFactura ?? (item?.totalQrPagadoPendienteFactura || 0));
       const cantidadVentas = Number(item?.cantidadVentas || 0);
       const pendientes = Number(item?.pendientes || 0);
       const observadas = Number(item?.observadas || 0);
@@ -753,7 +2458,7 @@ export default {
       const qrPendiente = Number(item?.qrPendiente || 0);
       const ventasFacturadasNetas = Math.max(0, cantidadVentas - Number(item?.oficiales || 0));
       const ventasOperativas = ventasFacturadasNetas + qrPagadoPendienteFactura + qrPendiente;
-      const totalCobrado = totalQrFacturado + totalEfectivoFacturado + totalQrPagadoPendienteFactura;
+      const totalCobrado = Number(branchTotals?.totalVendido ?? (totalQrFacturado + totalEfectivoFacturado + totalQrPagadoPendienteFactura));
       const incidentSummary = this.resolveIncidentSummary({
         observadas,
         pendientes,
@@ -766,6 +2471,12 @@ export default {
         cantidadVentas: ventasOperativas,
         hasPendingIncidences: incidentSummary.hasPendingIncidences,
         hasObservedIncidences: incidentSummary.hasObservedIncidences
+      });
+      const conciliacion = this.conciliacionSummaryByBranch[this.branchKey(item?.codigoSucursal, item?.puntoVenta)] || this.emptyConciliacion({
+        ...item,
+        totalEfectivoFacturado,
+        totalQrFacturado,
+        totalVendido: totalCobrado
       });
 
       return {
@@ -800,7 +2511,13 @@ export default {
         hasPendingIncidences: incidentSummary.hasPendingIncidences,
         hasObservedIncidences: incidentSummary.hasObservedIncidences,
         status,
-        kardexDisponible: item?.kardexDisponible !== false
+        kardexDisponible: item?.kardexDisponible !== false,
+        conciliacion: {
+          ...conciliacion,
+          totalEfectivoSistema: Number(conciliacion?.totalEfectivoSistema ?? totalEfectivoFacturado),
+          totalQrSistema: Number(conciliacion?.totalQrSistema ?? totalQrFacturado),
+          totalGeneralSistema: Number(conciliacion?.totalGeneralSistema ?? totalCobrado)
+        }
       };
     },
     resolveIncidentSummary({ observadas, pendientes, conCufOtroEstado, qrPagadoPendienteFactura, qrCancelado, qrPendiente }) {
@@ -906,7 +2623,11 @@ export default {
           resumen: response && response.resumen ? response.resumen : this.report.resumen,
           sucursales: response && response.sucursales ? response.sucursales : []
         };
-        this.ensureBranchUserCounts();
+        await Promise.all([
+          this.refreshBranchTotalsFromVentas(),
+          this.ensureBranchUserCounts(),
+          this.loadConciliacionesSummary()
+        ]);
       } catch (err) {
         console.error('[ventas/lista] loadReport:error', {
           filters: { ...this.filters },
@@ -951,14 +2672,17 @@ export default {
     },
     goToSucursal(item) {
       const codigoSucursal = String(item?.codigoSucursal ?? '').trim();
-      const today = this.defaultToday();
+      const fechaInicio = this.startDate || this.defaultToday();
+      const fechaFin = this.endDate || fechaInicio;
       console.log('[ventas/lista] goToSucursal', {
         item,
         query: {
           codigoSucursal,
           puntoVenta: item?.puntoVenta ?? '',
           nombre: item?.nombre || '',
-          departamento: item?.departamento || ''
+          departamento: item?.departamento || '',
+          fechaInicio,
+          fechaFin
         }
       });
       if (codigoSucursal === '' || item?.status?.key === 'sin_ventas') {
@@ -972,8 +2696,8 @@ export default {
           puntoVenta: item.puntoVenta ?? '',
           nombre: item.nombre || '',
           departamento: item.departamento || '',
-          fechaInicio: today,
-          fechaFin: today
+          fechaInicio,
+          fechaFin
         }
       });
     },
@@ -982,6 +2706,308 @@ export default {
     },
     closeIncidentsModal() {
       this.activeIncidentsModal = null;
+    },
+    closeConciliationModal() {
+      this.stopConciliationCameraStream();
+      this.activeConciliationModal = null;
+    },
+    async openConciliationModal(item) {
+      const selectedDate = this.endDate || this.startDate || this.defaultToday();
+      const branchKey = this.branchKey(item?.codigoSucursal, item?.puntoVenta);
+      this.activeConciliationModal = {
+        branchKey,
+        codigoSucursal: Number(item?.codigoSucursal ?? 0),
+        puntoVenta: Number(item?.puntoVenta ?? 0),
+        fecha: selectedDate,
+        selectedDate,
+        calendarAnchorMonth: this.startOfMonth(selectedDate),
+        title: item.displayName || item.departamento || item.nombre || 'Sucursal',
+        subtitle: `Sucursal ${String(item?.codigoSucursal ?? 0).padStart(3, '0')} · Punto ${item?.puntoVenta ?? 0}`,
+        conciliacion: item.conciliacion || this.emptyConciliacion(item),
+        comprobantes: [],
+        loading: true,
+        selectedFile: null,
+        selectedFileName: '',
+        qrScan: {
+          status: 'idle',
+          message: '',
+          rawText: '',
+          parsed: null
+        },
+        qrScanner: this.emptyConciliationQrScanner(),
+        form: {
+          montoDepositado: '',
+          banco: '',
+          referencia: '',
+          observacion: ''
+        }
+      };
+
+      this.loadConciliationCameraDevices();
+      await this.reloadActiveConciliationDetail();
+    },
+    async reloadActiveConciliationDetail() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      const modalKey = this.activeConciliationModal.branchKey;
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        loading: true
+      };
+
+      try {
+        const response = await this.$admin.$get(
+          `caja/conciliaciones/detalle?fecha=${encodeURIComponent(this.activeConciliationModal.selectedDate)}&codigoSucursal=${encodeURIComponent(this.activeConciliationModal.codigoSucursal)}&puntoVenta=${encodeURIComponent(this.activeConciliationModal.puntoVenta)}`
+        );
+
+        if (!this.activeConciliationModal || this.activeConciliationModal.branchKey !== modalKey) {
+          return;
+        }
+
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          conciliacion: {
+            ...(response?.conciliacion || this.emptyConciliacion(this.activeConciliationModal)),
+            receiptCount: Array.isArray(response?.comprobantes) ? response.comprobantes.length : 0
+          },
+          comprobantes: Array.isArray(response?.comprobantes) ? response.comprobantes : [],
+          loading: false
+        };
+        await this.loadConciliacionesSummary();
+      } catch (error) {
+        console.error('[ventas/lista] reloadActiveConciliationDetail:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+        if (this.activeConciliationModal) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            loading: false
+          };
+        }
+        this.$swal.fire({
+          icon: 'error',
+          title: 'No se pudo abrir la conciliacion',
+          text: error?.response?.data?.message || 'No fue posible consultar los comprobantes de la fecha seleccionada.'
+        });
+      }
+    },
+    async onConciliationFileChange(event) {
+      const file = event?.target?.files?.[0] || null;
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      let nextModal = {
+        ...this.activeConciliationModal,
+        selectedFile: file,
+        selectedFileName: file?.name || '',
+        qrScan: {
+          status: 'idle',
+          message: '',
+          rawText: '',
+          parsed: null
+        }
+      };
+      this.activeConciliationModal = nextModal;
+
+      if (!file) {
+        return;
+      }
+
+      const mimeType = String(file.type || '').toLowerCase();
+      const isImage = mimeType.startsWith('image/');
+
+      if (!isImage) {
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScan: {
+            status: 'unsupported',
+            message: 'El archivo fue cargado correctamente. La lectura automatica del QR solo funciona con imagenes.',
+            rawText: '',
+            parsed: null
+          }
+        };
+        return;
+      }
+
+      try {
+        const previewUrl = await this.readFileAsDataUrl(file);
+        if (this.activeConciliationModal?.qrScanner) {
+          this.stopConciliationCameraStream();
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              mode: 'image',
+              previewUrl,
+              previewFileName: file?.name || '',
+              statusMessage: 'Imagen cargada. Puede procesar la imagen completa o ajustar el recorte sobre el QR.'
+            }
+          };
+        }
+      } catch (error) {
+        // preview is optional
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScan: {
+          status: 'loading',
+          message: 'Leyendo el QR del comprobante para completar los datos...',
+          rawText: '',
+          parsed: null
+        }
+      };
+
+      try {
+        const rawText = await this.decodeQrFromImageFile(file);
+        const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado. Los datos fueron cargados y puede confirmarlos antes de guardar.');
+        if (this.activeConciliationModal?.qrScanner) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              statusMessage: ok
+                ? 'Lectura automatica completada. Si desea, puede ajustar el recorte para mejorar la precision.'
+                : 'No se detecto el QR completo. Ajuste el recorte sobre la zona del QR e intente de nuevo.'
+            }
+          };
+        }
+      } catch (error) {
+        console.error('[ventas/lista] onConciliationFileChange:qr:error', {
+          message: error?.message || null,
+          fileName: file?.name || null,
+          fileType: file?.type || null
+        });
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScan: {
+            status: 'error',
+            message: 'No pudimos procesar la imagen del comprobante. Puede continuar con carga manual.',
+            rawText: '',
+            parsed: null
+          }
+        };
+      }
+    },
+    async submitConciliationReceipt() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      if (!this.activeConciliationModal.selectedFile) {
+        this.$swal.fire({
+          icon: 'warning',
+          title: 'Archivo requerido',
+          text: 'Seleccione un comprobante antes de guardar.'
+        });
+        return;
+      }
+
+      const activeBranch = this.branchRows.find((row) => this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey);
+      const formData = new FormData();
+      formData.append('fecha', this.activeConciliationModal.fecha);
+      formData.append('codigoSucursal', String(activeBranch?.codigoSucursal ?? this.activeConciliationModal.codigoSucursal ?? this.activeConciliationModal.conciliacion?.codigoSucursal ?? 0));
+      formData.append('puntoVenta', String(activeBranch?.puntoVenta ?? this.activeConciliationModal.puntoVenta ?? this.activeConciliationModal.conciliacion?.puntoVenta ?? 0));
+      formData.append('sucursalNombre', activeBranch?.displayName || activeBranch?.sucursalNombre || this.activeConciliationModal.title);
+      formData.append('totalEfectivoSistema', String(activeBranch?.totalEfectivoFacturado ?? this.activeConciliationModal.conciliacion?.totalEfectivoSistema ?? 0));
+      formData.append('totalQrSistema', String(activeBranch?.totalQrFacturado ?? this.activeConciliationModal.conciliacion?.totalQrSistema ?? 0));
+      formData.append('totalGeneralSistema', String(activeBranch?.totalVendido ?? this.activeConciliationModal.conciliacion?.totalGeneralSistema ?? 0));
+      formData.append('montoDepositado', String(this.activeConciliationModal.form.montoDepositado || 0));
+      formData.append('banco', this.activeConciliationModal.form.banco || '');
+      formData.append('referencia', this.activeConciliationModal.form.referencia || '');
+      formData.append('observacion', this.activeConciliationModal.form.observacion || '');
+      formData.append('archivo', this.activeConciliationModal.selectedFile);
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$post('caja/conciliaciones/comprobantes', formData);
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          conciliacion: {
+            ...(response?.conciliacion || this.activeConciliationModal.conciliacion),
+            receiptCount: Array.isArray(response?.comprobantes) ? response.comprobantes.length : 0
+          },
+          comprobantes: Array.isArray(response?.comprobantes) ? response.comprobantes : [],
+          selectedFile: null,
+          selectedFileName: '',
+          form: {
+            montoDepositado: '',
+            banco: '',
+            referencia: '',
+            observacion: ''
+          },
+          qrScan: {
+            status: 'idle',
+            message: '',
+            rawText: '',
+            parsed: null
+          }
+        };
+        await this.loadConciliacionesSummary();
+      } catch (error) {
+        console.error('[ventas/lista] submitConciliationReceipt:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+        this.$swal.fire({
+          icon: 'error',
+          title: 'No se pudo guardar el comprobante',
+          text: error?.response?.data?.message || 'Revise el archivo y los datos del deposito.'
+        });
+      } finally {
+        this.load = false;
+      }
+    },
+    async deleteConciliationReceipt(receipt) {
+      if (!this.activeConciliationModal || !receipt?.id) {
+        return;
+      }
+
+      const confirm = await this.$swal.fire({
+        icon: 'warning',
+        title: 'Eliminar comprobante',
+        text: 'Esta accion quitara el archivo y recalculara la conciliacion del dia.',
+        showCancelButton: true,
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!confirm.isConfirmed) {
+        return;
+      }
+
+      this.load = true;
+      try {
+        const response = await this.$admin.$delete(`caja/conciliaciones/comprobantes/${receipt.id}`);
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          conciliacion: {
+            ...(response?.conciliacion || this.activeConciliationModal.conciliacion),
+            receiptCount: Array.isArray(response?.comprobantes) ? response.comprobantes.length : 0
+          },
+          comprobantes: Array.isArray(response?.comprobantes) ? response.comprobantes : []
+        };
+        await this.loadConciliacionesSummary();
+      } catch (error) {
+        console.error('[ventas/lista] deleteConciliationReceipt:error', {
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+        this.$swal.fire({
+          icon: 'error',
+          title: 'No se pudo eliminar',
+          text: error?.response?.data?.message || 'No fue posible eliminar el comprobante seleccionado.'
+        });
+      } finally {
+        this.load = false;
+      }
     },
     resolveBranchUsers(item) {
       const sources = [
@@ -1618,6 +3644,34 @@ export default {
           sin_ventas: 'Sin ventas'
         }[this.statusFilter] || 'Todos';
         const visibleBranches = this.filteredBranches;
+        const contractGroups = await Promise.all(visibleBranches.map(async (branch) => {
+          try {
+            const ventas = await this.fetchBranchVentas(branch);
+            const rows = ventas
+              .filter((venta) => this.isServicioContratoVenta(venta))
+              .map((venta) => ([
+                this.usuarioNombreFromVenta(venta),
+                this.contratoEmpresaLabel(venta),
+                this.contratoDescripcionLabel(venta),
+                this.formatCurrency(venta.total || 0)
+              ]));
+
+            if (!rows.length) {
+              return null;
+            }
+
+            return {
+              branchLabel: `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`,
+              total: ventas
+                .filter((venta) => this.isServicioContratoVenta(venta))
+                .reduce((sum, venta) => sum + Number(venta.total || 0), 0),
+              rows
+            };
+          } catch (error) {
+            return null;
+          }
+        }));
+        const visibleContractGroups = contractGroups.filter(Boolean);
 
         if (!visibleBranches.length) {
           this.$swal.fire({
@@ -1840,6 +3894,107 @@ export default {
           },
           margin: { left: reportMarginX + reportWidth - 58, right: reportMarginX }
         });
+
+        if (visibleContractGroups.length) {
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 4,
+            body: [['DETALLE DE CONTRATOS NO SUMADOS']],
+            theme: 'grid',
+            styles: {
+              fontSize: 8.4,
+              fontStyle: 'bold',
+              cellPadding: 2.4,
+              minCellHeight: 8,
+              fillColor: [245, 245, 245],
+              textColor: [20, 20, 20],
+              lineColor: [90, 90, 90]
+            },
+            tableWidth: reportWidth,
+            margin: { left: reportMarginX, right: reportMarginX }
+          });
+
+          let contractsY = doc.lastAutoTable.finalY;
+
+          visibleContractGroups.forEach((group) => {
+            autoTable(doc, {
+              startY: contractsY,
+              body: [[group.branchLabel]],
+              theme: 'grid',
+              styles: {
+                fontSize: 7.8,
+                fontStyle: 'bold',
+                cellPadding: 2,
+                minCellHeight: 7,
+                fillColor: [250, 250, 250],
+                textColor: [20, 20, 20],
+                lineColor: [90, 90, 90]
+              },
+              tableWidth: reportWidth,
+              margin: { left: reportMarginX, right: reportMarginX }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY,
+              head: [[
+                'Cajero',
+                'Empresa',
+                'Descripcion',
+                'Importe'
+              ]],
+              body: group.rows,
+              theme: 'grid',
+              headStyles: {
+                fillColor: [245, 245, 245],
+                textColor: [20, 20, 20],
+                fontSize: 7.3,
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle',
+                lineColor: [90, 90, 90],
+                minCellHeight: 10
+              },
+              styles: {
+                fontSize: 7,
+                cellPadding: 1.5,
+                minCellHeight: 8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              tableWidth: reportWidth,
+              columnStyles: {
+                0: { cellWidth: 32 },
+                1: { cellWidth: 48 },
+                2: { cellWidth: 104 },
+                3: { cellWidth: 20, halign: 'right' }
+              },
+              margin: { left: reportMarginX, right: reportMarginX }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY,
+              body: [[
+                { content: `SUBTOTAL CONTRATOS ${String(group.branchLabel || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: this.formatCurrency(group.total), styles: { halign: 'right', fontStyle: 'bold' } }
+              ]],
+              theme: 'grid',
+              styles: {
+                fontSize: 7,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20]
+              },
+              columnStyles: {
+                0: { cellWidth: 184 },
+                1: { cellWidth: 20 }
+              },
+              margin: { left: reportMarginX, right: reportMarginX }
+            });
+
+            contractsY = doc.lastAutoTable.finalY + 2;
+          });
+        }
 
         this.drawPdfFooter(doc, generatedBy, generatedAt);
         doc.save(`control-cierre-${this.startDate || 'inicio'}-${this.endDate || 'fin'}.pdf`);
@@ -2607,6 +4762,507 @@ export default {
   padding: 0.9rem 0.4rem 0.4rem;
 }
 
+.calendar-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e4ecf8;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #fcfdff 0%, #f7faff 100%);
+}
+
+.calendar-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.calendar-card-head h3 {
+  margin: 0;
+  color: #223658;
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.calendar-card-copy {
+  margin: 0.3rem 0 0;
+  color: #6f7c92;
+  font-size: 0.8rem;
+  max-width: 620px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.calendar-nav-btn {
+  height: 38px;
+  min-width: 38px;
+  padding: 0 0.9rem;
+  border-radius: 12px;
+  border: 1px solid #d6e0f0;
+  background: #fff;
+  color: #29477f;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.calendar-weekdays {
+  margin-bottom: 0.45rem;
+}
+
+.calendar-weekdays span {
+  text-align: center;
+  color: #7a8599;
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.calendar-day {
+  min-height: 74px;
+  padding: 0.65rem 0.5rem;
+  border-radius: 16px;
+  border: 1px solid #dfe7f2;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  color: #223658;
+}
+
+.calendar-day-muted {
+  opacity: 0.45;
+}
+
+.calendar-day-today {
+  border-color: #f3c15b;
+  box-shadow: inset 0 0 0 1px rgba(243, 193, 91, 0.35);
+}
+
+.calendar-day-selected {
+  border-color: #2a63d7;
+  background: linear-gradient(180deg, #edf4ff 0%, #f7faff 100%);
+  box-shadow: 0 12px 28px rgba(42, 99, 215, 0.15);
+}
+
+.calendar-day-has-upload {
+  border-color: #42a45b;
+}
+
+.calendar-day-complete {
+  border-color: #2f9e44;
+  background: linear-gradient(180deg, #f0fbf3 0%, #ffffff 100%);
+  box-shadow: 0 12px 28px rgba(47, 158, 68, 0.12);
+}
+
+.calendar-day-number {
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.calendar-day-flags {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.calendar-day-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: #ecf7ef;
+  color: #2c8f46;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.calendar-day-badge-success {
+  background: #2f9e44;
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(47, 158, 68, 0.22);
+}
+
+.calendar-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.95rem;
+}
+
+.calendar-selection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #d9e4f6;
+  background: #f7faff;
+  color: #36517e;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.calendar-selection-pill-warning {
+  border-color: #f5d58e;
+  background: #fff8ea;
+  color: #b07403;
+}
+
+.calendar-selection-pill-success {
+  border-color: #cbe9d3;
+  background: #ecf7ef;
+  color: #2a8c46;
+}
+
+.calendar-selection-pill-danger {
+  border-color: #f1b0b0;
+  background: #ffeded;
+  color: #df3a3a;
+}
+
+.calendar-selection-pill-neutral {
+  border-color: #d9e4f6;
+  background: #f7faff;
+  color: #36517e;
+}
+
+.metric-tag-success {
+  background: #ecf7ef;
+  border-color: #cbe9d3;
+  color: #2a8c46;
+}
+
+.conciliation-modal-card {
+  width: min(860px, 100%);
+}
+
+.conciliation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0.95rem 0 1rem;
+}
+
+.conciliation-summary-card {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #e7edf6;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fcfdff 0%, #f7faff 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.conciliation-summary-card span {
+  color: #7c8aa4;
+  font-size: 0.69rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.conciliation-summary-card strong {
+  color: #223658;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.conciliation-form-card {
+  padding: 0.95rem;
+  border: 1px solid #e7edf6;
+  border-radius: 18px;
+  background: #fbfcff;
+}
+
+.conciliation-detail-card {
+  margin-bottom: 1rem;
+}
+
+.conciliation-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.conciliation-detail-head h4 {
+  margin: 0;
+  color: #223658;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.conciliation-detail-head-form {
+  margin-bottom: 0.9rem;
+}
+
+.conciliation-cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.conciliation-qr-panel {
+  margin-top: 0.95rem;
+  padding: 0.95rem 1rem;
+  border: 1px dashed #d6e2f4;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
+}
+
+.conciliation-qr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.conciliation-qr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+
+.conciliation-qr-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
+  border: 1px solid #e1e9f6;
+  background: #f7faff;
+}
+
+.conciliation-qr-chip span {
+  color: #6d7f9d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.conciliation-qr-chip strong {
+  color: #173163;
+  font-size: 0.92rem;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.sr-only-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.conciliation-scanner-card {
+  margin-bottom: 0.95rem;
+  padding: 0.95rem;
+  border: 1px solid #e4ebf7;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+}
+
+.conciliation-scanner-head {
+  margin-bottom: 0.8rem;
+}
+
+.conciliation-scanner-head h4 {
+  margin: 0;
+  color: #223658;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.conciliation-scanner-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+.conciliation-scanner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.conciliation-scanner-stage {
+  margin-top: 0.9rem;
+}
+
+.conciliation-scanner-preview {
+  position: relative;
+  min-height: 320px;
+  border: 1px solid #dbe6f5;
+  border-radius: 16px;
+  background: #f8fbff;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.conciliation-scanner-media {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  background: #fff;
+}
+
+.conciliation-scanner-crop {
+  position: absolute;
+  border: 2px solid #f3be2f;
+  background: rgba(255, 214, 79, 0.14);
+  box-shadow: 0 0 0 9999px rgba(9, 20, 45, 0.18);
+  pointer-events: none;
+}
+
+.conciliation-scanner-empty {
+  min-height: 320px;
+  border: 1px dashed #d7e2f4;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: #fcfdff;
+  color: #5d7190;
+  text-align: center;
+}
+
+.conciliation-scanner-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+}
+
+.conciliation-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.toolbar-field-file input[type="file"] {
+  padding-top: 0.7rem;
+}
+
+.toolbar-field-wide {
+  grid-column: span 4;
+}
+
+.conciliation-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+
+.conciliation-receipts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  overflow-y: auto;
+  max-height: min(42vh, 360px);
+  padding-right: 0.15rem;
+}
+
+.conciliation-receipt-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.9rem;
+  border: 1px solid #e7edf6;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.conciliation-receipt-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.conciliation-receipt-main strong {
+  color: #223658;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.conciliation-receipt-main small {
+  color: #6f7c92;
+  font-size: 0.74rem;
+  line-height: 1.38;
+}
+
+.conciliation-receipt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 136px;
+}
+
+.action-secondary-btn,
+.action-danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 34px;
+  padding: 0.55rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.action-secondary-btn {
+  background: #f5f9ff;
+  border-color: #cadbfd;
+  color: #2a63d7;
+}
+
+.action-danger-btn {
+  background: #ffeded;
+  border-color: #f1b0b0;
+  color: #df3a3a;
+}
+
 @media (max-width: 1400px) {
   .summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2617,6 +5273,15 @@ export default {
   .toolbar-grid,
   .progress-panel {
     grid-template-columns: 1fr;
+  }
+
+  .conciliation-summary-grid,
+  .conciliation-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar-field-wide {
+    grid-column: span 2;
   }
 }
 
@@ -2650,6 +5315,23 @@ export default {
     margin-left: 0;
     width: 100%;
   }
+
+  .calendar-card-head,
+  .conciliation-receipt-card {
+    flex-direction: column;
+  }
+
+  .conciliation-scanner-toolbar,
+  .conciliation-scanner-footer {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .conciliation-receipt-actions {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 @media (max-width: 640px) {
@@ -2659,6 +5341,18 @@ export default {
 
   .hero-copy h1 {
     font-size: 1.65rem;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid,
+  .conciliation-summary-grid,
+  .conciliation-form-grid,
+  .conciliation-qr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-field-wide {
+    grid-column: span 1;
   }
 }
 </style>

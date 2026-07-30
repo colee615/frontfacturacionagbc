@@ -113,10 +113,10 @@
                 <button
                   type="button"
                   class="branch-export-btn"
-                  @click="downloadKardexPdf"
+                  @click="downloadKardexPdfForUser('all')"
                 >
                   <i class="fas fa-file-pdf"></i>
-                  <span>{{ activeUserId === 'all' ? 'Exportar PDF sucursal' : 'Exportar PDF cajero' }}</span>
+                  <span>{{ activeTab === 'todas' ? 'Exportar PDF general' : 'Exportar PDF sucursal' }}</span>
                 </button>
               </div>
 
@@ -415,12 +415,15 @@
               </label>
 
               <div ref="selectorList" class="selector-list">
-                <button
-                  type="button"
+                <div
                   class="selector-item"
                   :class="{ active: activeUserId === 'all' }"
                   data-user-id="all"
+                  role="button"
+                  tabindex="0"
                   @click="selectUser('all')"
+                  @keydown.enter.prevent="selectUser('all')"
+                  @keydown.space.prevent="selectUser('all')"
                 >
                   <span class="selector-content">
                     <span class="selector-name">Todos los usuarios</span>
@@ -429,18 +432,30 @@
                       <small><strong>Total</strong> {{ formatCurrency(branchGlobalOverview.totalGeneral) }}</small>
                       <small><strong>QR</strong> {{ formatCurrency(branchGlobalOverview.totalQr) }}</small>
                       <small><strong>Ef</strong> {{ formatCurrency(branchGlobalOverview.totalEf) }}</small>
+                      <small><strong>Contratos</strong> {{ formatCurrency(branchGlobalOverview.totalContratos) }}</small>
                     </span>
                   </span>
-                </button>
+                  <button
+                    type="button"
+                    class="selector-card-export-btn"
+                    title="Exportar PDF de todos los usuarios"
+                    @click.stop="downloadKardexPdfForUser('all')"
+                  >
+                    <i class="fas fa-file-pdf"></i>
+                  </button>
+                </div>
 
-                <button
+                <div
                   v-for="user in filteredUserSummaries"
                   :key="user.id"
-                  type="button"
                   class="selector-item"
                   :class="{ active: activeUserId === user.id }"
                   :data-user-id="String(user.id)"
+                  role="button"
+                  tabindex="0"
                   @click="selectUser(user.id)"
+                  @keydown.enter.prevent="selectUser(user.id)"
+                  @keydown.space.prevent="selectUser(user.id)"
                 >
                   <span class="selector-content">
                     <span class="selector-name">{{ user.nombre }}</span>
@@ -449,9 +464,18 @@
                       <small><strong>Total</strong> {{ formatCurrency(user.total) }}</small>
                       <small><strong>QR</strong> {{ formatCurrency(user.totalQr) }}</small>
                       <small><strong>Ef</strong> {{ formatCurrency(user.totalCaja) }}</small>
+                      <small><strong>Contratos</strong> {{ formatCurrency(user.totalContratos) }}</small>
                     </span>
                   </span>
-                </button>
+                  <button
+                    type="button"
+                    class="selector-card-export-btn"
+                    :title="`Exportar PDF de ${user.nombre}`"
+                    @click.stop="downloadKardexPdfForUser(user.id)"
+                  >
+                    <i class="fas fa-file-pdf"></i>
+                  </button>
+                </div>
               </div>
             </aside>
           </section>
@@ -643,6 +667,17 @@ export default {
 
       return `${base} · ${this.scopeVentas.length} venta(s) visibles${this.activeUserId === 'all' ? ' en la sucursal' : ` para ${this.activeUserName}`}`;
     },
+    exportButtonLabel() {
+      if (this.activeTab === 'todas' && this.activeUserId === 'all') {
+        return 'Exportar PDF general';
+      }
+
+      if (this.activeUserId === 'all') {
+        return 'Exportar PDF sucursal';
+      }
+
+      return 'Exportar PDF cajero';
+    },
     visibleVentas() {
       if (this.activeTab === 'todas') {
         return this.ventas;
@@ -674,10 +709,12 @@ export default {
     userSummaries() {
       const map = new Map();
 
-      this.visibleVentas.forEach((venta) => {
-        const id = this.usuarioId(venta);
-        const nombre = this.usuarioNombre(venta);
-        const sectionKey = this.resolveSectionKey(venta);
+        this.visibleVentas.forEach((venta) => {
+          const id = this.usuarioId(venta);
+          const nombre = this.usuarioNombre(venta);
+          const sectionKey = this.resolveSectionKey(venta);
+          const total = Number(venta.total || 0);
+          const isContrato = this.isServicioContratoVenta(venta);
 
         if (!map.has(id)) {
           map.set(id, {
@@ -689,34 +726,46 @@ export default {
             totalCobrado: 0,
             totalCaja: 0,
             totalQr: 0,
+            countContratos: 0,
+            totalContratos: 0,
             deliveries: this.buildDeliveryAccumulator()
           });
         }
 
         const current = map.get(id);
-        current.ventas += 1;
+        if (isContrato) {
+          current.countContratos += 1;
+          current.totalContratos += total;
+        } else {
+          current.ventas += 1;
+        }
         if (this.countsTowardCollectedTotal(venta)) {
           current.countCobrado += 1;
-          current.total += Number(venta.total || 0);
-          current.totalCobrado += Number(venta.total || 0);
+          current.total += total;
+          current.totalCobrado += total;
         }
         if (this.countsTowardCashTotal(venta)) {
-          current.totalCaja += Number(venta.total || 0);
+          current.totalCaja += total;
         }
         if (this.countsTowardCollectedQrTotal(venta)) {
-          current.totalQr += Number(venta.total || 0);
+          current.totalQr += total;
         }
         current.deliveries[sectionKey].count += 1;
-        current.deliveries[sectionKey].total += Number(venta.total || 0);
+        current.deliveries[sectionKey].total += total;
       });
 
-      return Array.from(map.values()).sort((a, b) => b.ventas - a.ventas);
+      return Array.from(map.values()).sort((a, b) => (b.ventas + b.countContratos) - (a.ventas + a.countContratos));
     },
     filteredUserSummaries() {
       const term = (this.userSearch || '').toString().toLowerCase();
       return this.userSummaries.filter((user) => {
         const nombre = (user.nombre || '').toString().toLowerCase();
-        return nombre.includes(term);
+        const hasOperationalData = Number(user.countCobrado || 0) > 0
+          || Number(user.total || 0) > 0
+          || Number(user.totalCaja || 0) > 0
+          || Number(user.totalQr || 0) > 0;
+
+        return nombre.includes(term) && hasOperationalData;
       });
     },
     branchOverview() {
@@ -763,6 +812,12 @@ export default {
     branchGlobalOverview() {
       return this.visibleVentas.reduce((acc, venta) => {
         const total = Number(venta.total || 0);
+        const isContrato = this.isServicioContratoVenta(venta);
+
+        if (isContrato) {
+          acc.countContratos += 1;
+          acc.totalContratos += total;
+        }
 
         if (this.countsTowardCollectedTotal(venta)) {
           acc.countCobrado += 1;
@@ -782,7 +837,9 @@ export default {
         countCobrado: 0,
         totalGeneral: 0,
         totalQr: 0,
-        totalEf: 0
+        totalEf: 0,
+        countContratos: 0,
+        totalContratos: 0
       });
     },
     branchDeliverySummary() {
@@ -1141,8 +1198,73 @@ export default {
         estadoSufe
       ].some((value) => ['ANULADA', 'ANULADO', 'ANULACION_SOLICITADA', 'DESCARTADA'].includes(value));
     },
+    isServicioContratoVenta(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return false;
+      }
+
+      return detalle.some((item) => {
+        const labels = [
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.descripcion,
+          item?.detalle,
+          item?.nombre
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).trim().toLowerCase());
+
+        return labels.some((value) => (
+          value.includes('servicio contratos')
+          || value.includes('servicio contrato')
+          || value.includes('contratos')
+          || value.includes('contrato')
+        ));
+      });
+    },
+    contratoEmpresaLabel(venta) {
+      return String(
+        venta?.cliente?.razonSocial
+        || venta?.razon_social
+        || venta?.cliente?.nombre
+        || 'Sin empresa'
+      ).trim() || 'Sin empresa';
+    },
+    contratoDescripcionLabel(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      const descripciones = detalle
+        .map((item) => {
+          const exactCandidates = [
+            item?.resumen_origen?.descripcion_servicio,
+            item?.descripcion,
+            item?.titulo,
+            item?.nombre_servicio
+          ]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean);
+
+          const preferred = exactCandidates.find((value) => {
+            const normalized = value.toLowerCase();
+            return normalized !== 'contratos'
+              && normalized !== 'contrato'
+              && normalized !== 'servicio contratos'
+              && normalized !== 'servicio contrato';
+          });
+
+          return preferred || exactCandidates[0] || '';
+        })
+        .filter(Boolean);
+
+      return descripciones.length ? descripciones.join(', ') : 'Servicio Contratos';
+    },
     countsTowardCashTotal(venta) {
       if (this.isAnuladaVenta(venta)) {
+        return false;
+      }
+
+      if (this.isServicioContratoVenta(venta)) {
         return false;
       }
 
@@ -1176,6 +1298,10 @@ export default {
     },
     countsTowardCollectedTotal(venta) {
       if (this.isAnuladaVenta(venta)) {
+        return false;
+      }
+
+      if (this.isServicioContratoVenta(venta)) {
         return false;
       }
 
@@ -1675,6 +1801,18 @@ export default {
       }
       return `data:image/png;base64,${image}`;
     },
+    facturaVentaAuthConfig() {
+      const token = this.$store?.state?.auth?.token
+        || (process.client ? (sessionStorage.getItem('token') || localStorage.getItem('token')) : null);
+
+      return token
+        ? {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+        : {};
+    },
     async verQrVenta(venta) {
       const originUserId = this.usuarioId(venta);
       const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
@@ -1687,10 +1825,14 @@ export default {
 
       this.load = true;
       try {
-        const response = await this.$axios.$post('/api/factura-venta/cart/ver-qr', {
-          origen_usuario_id: originUserId,
-          cart_id: cartId
-        });
+        const response = await this.$axios.$post(
+          '/api/factura-venta/cart/ver-qr',
+          {
+            origen_usuario_id: originUserId,
+            cart_id: cartId
+          },
+          this.facturaVentaAuthConfig()
+        );
         const qrPayload = this.extractQrPayloadFromConsultResponse(response);
 
         await this.loadVentas();
@@ -1754,7 +1896,11 @@ export default {
           cart_id: cartId,
           auto_emit_invoice: autoEmitInvoice ? 1 : 0
         };
-        const response = await this.$axios.$post('/api/factura-venta/cart/consultar', payload);
+        const response = await this.$axios.$post(
+          '/api/factura-venta/cart/consultar',
+          payload,
+          this.facturaVentaAuthConfig()
+        );
         const qrPayload = this.extractQrPayloadFromConsultResponse(response);
 
         await this.loadVentas();
@@ -1900,14 +2046,6 @@ export default {
               <option value="3" selected>3 - Datos de emision incorrectos</option>
               <option value="4">4 - Factura o nota devuelta</option>
             </select>
-            <label class="protocol-annul-label" for="annul-respaldo">Respaldo</label>
-            <input
-              id="annul-respaldo"
-              class="swal2-file protocol-annul-file"
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf,.webp,.doc,.docx"
-            >
-            <p class="protocol-annul-help">Adjunta una foto o documento de respaldo para la anulación.</p>
           </div>
         `,
         focusConfirm: false,
@@ -1917,17 +2055,11 @@ export default {
         preConfirm: () => {
           const motivo = document.getElementById('annul-motivo')?.value?.trim();
           const tipoAnulacion = Number(document.getElementById('annul-tipo')?.value || 0);
-          const respaldoInput = document.getElementById('annul-respaldo');
-          const respaldo = respaldoInput?.files?.[0] || null;
           if (!motivo) {
             this.$swal.showValidationMessage('El motivo es obligatorio.');
             return false;
           }
-          if (!respaldo) {
-            this.$swal.showValidationMessage('Debes adjuntar un respaldo para continuar.');
-            return false;
-          }
-          return { motivo, tipoAnulacion, respaldo };
+          return { motivo, tipoAnulacion };
         }
       });
 
@@ -2008,28 +2140,17 @@ export default {
 
       this.load = true;
       try {
-        const formData = new FormData();
-        formData.append('motivo', payload.motivo);
-        formData.append('tipoAnulacion', String(payload.tipoAnulacion));
-        if (payload.respaldo) {
-          formData.append('respaldo', payload.respaldo);
-        }
         console.log('[ventas/sucursal] anularVenta:request', {
           url: `ventas/anular/${venta.status.cuf}`,
           motivo: payload.motivo,
-          tipoAnulacion: payload.tipoAnulacion,
-          respaldo: payload.respaldo ? {
-            name: payload.respaldo.name,
-            size: payload.respaldo.size,
-            type: payload.respaldo.type
-          } : null
+          tipoAnulacion: payload.tipoAnulacion
         });
         const response = await this.$admin.$request({
           method: 'patch',
           url: `ventas/anular/${venta.status.cuf}`,
-          data: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data'
+          data: {
+            motivo: payload.motivo,
+            tipoAnulacion: payload.tipoAnulacion
           }
         });
         console.log('[ventas/sucursal] anularVenta:success', {
@@ -2388,6 +2509,14 @@ export default {
         const recaudacionLabel = this.activeTab === 'fechas'
           ? (this.filters.fechaFin || this.filters.fechaInicio || this.todayIso())
           : this.todayIso();
+        const contractRows = this.visibleVentas
+          .filter((venta) => this.isServicioContratoVenta(venta))
+          .map((venta) => ([
+            this.usuarioNombre(venta),
+            this.contratoEmpresaLabel(venta),
+            this.contratoDescripcionLabel(venta),
+            this.formatCurrency(venta.total || 0)
+          ]));
         const rows = [
           [
             'Todos los usuarios',
@@ -2407,7 +2536,6 @@ export default {
         const rangeLabel = this.activeTab === 'fechas'
           ? `${this.filters.fechaInicio || '-'} al ${this.filters.fechaFin || '-'}`
           : 'Todas las ventas';
-
         await this.drawPdfHeader(doc);
 
         autoTable(doc, {
@@ -2477,8 +2605,8 @@ export default {
           ], [
             'Total efectivo',
             this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
-            '',
-            ''
+            'Total contratos',
+            this.formatCurrency(this.branchGlobalOverview.totalContratos || 0)
           ]],
           theme: 'grid',
           tableWidth: 180,
@@ -2543,6 +2671,54 @@ export default {
           margin: { left: 15, right: 15 }
         });
 
+        if (contractRows.length) {
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 4,
+            body: [['DETALLE DE CONTRATOS']],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 8.1,
+              fontStyle: 'bold',
+              cellPadding: 2.2,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              fillColor: [250, 250, 250]
+            },
+            margin: { left: 15, right: 15 }
+          });
+
+          autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 2,
+            head: [['Cajero', 'Empresa', 'Descripcion', 'Importe']],
+            body: contractRows,
+            theme: 'grid',
+            tableWidth: 180,
+            headStyles: {
+              fillColor: [241, 245, 249],
+              textColor: [20, 20, 20],
+              fontStyle: 'bold',
+              halign: 'center',
+              lineColor: [90, 90, 90]
+            },
+            styles: {
+              fontSize: 7.8,
+              cellPadding: 2,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              overflow: 'linebreak',
+              valign: 'top'
+            },
+            columnStyles: {
+              0: { cellWidth: 38 },
+              1: { cellWidth: 46 },
+              2: { cellWidth: 68 },
+              3: { cellWidth: 28, halign: 'right' }
+            },
+            margin: { left: 15, right: 15 }
+          });
+        }
+
         this.drawPdfFooter(doc, generatedBy, generatedAt);
         const blob = doc.output('blob');
         const url = window.URL.createObjectURL(blob);
@@ -2570,38 +2746,7 @@ export default {
 
       try {
         const isAllVentasPdf = this.activeTab === 'todas' && userId === 'all';
-        const withinSelectedRange = (venta) => {
-          if (!isAllVentasPdf) {
-            return true;
-          }
-
-          const rawDate = venta?.fecha || venta?.created_at || null;
-          if (!rawDate) {
-            return false;
-          }
-
-          const ventaDate = new Date(rawDate);
-          if (Number.isNaN(ventaDate.getTime())) {
-            return false;
-          }
-
-          const ventaIso = [
-            ventaDate.getFullYear(),
-            String(ventaDate.getMonth() + 1).padStart(2, '0'),
-            String(ventaDate.getDate()).padStart(2, '0')
-          ].join('-');
-
-          if (this.filters.fechaInicio && ventaIso < this.filters.fechaInicio) {
-            return false;
-          }
-
-          if (this.filters.fechaFin && ventaIso > this.filters.fechaFin) {
-            return false;
-          }
-
-          return true;
-        };
-        const exportVentas = this.filteredVentas.filter((venta) => withinSelectedRange(venta));
+        const exportVentas = this.filteredVentas;
 
         if (!exportVentas.length) {
           throw new Error('No hay ventas visibles para exportar.');
@@ -2620,12 +2765,12 @@ export default {
           : this.todayIso();
         const title = isAllVentasPdf
           ? 'LISTADO GENERAL DE VENTAS'
-          : (userId === 'all' ? 'KARDEX DE SUCURSAL' : 'KARDEX DE CAJERO');
+          : (userId === 'all' ? 'KARDEX DE SUCURSAL' : 'RESUMEN KARDEX DE CAJERO');
         const subtitle = isAllVentasPdf
           ? 'Ventas visibles ordenadas por numero de factura'
           : (userId === 'all'
             ? 'Resumen detallado por cajero y ventas del rango seleccionado'
-            : `Resumen detallado de ventas para ${this.activeUserName}`);
+            : `Resumen detallado de ventas de ${this.activeUserName}`);
         const totalEmitido = exportVentas.reduce((sum, venta) => (
           this.countsTowardCollectedTotal(venta) ? sum + Number(venta.total || 0) : sum
         ), 0);
@@ -2636,6 +2781,8 @@ export default {
           this.countsTowardCollectedQrTotal(venta) ? sum + Number(venta.total || 0) : sum
         ), 0);
         const totalVentas = exportVentas.filter((venta) => this.countsTowardCollectedTotal(venta)).length;
+        const contractExportVentas = exportVentas.filter((venta) => this.isServicioContratoVenta(venta));
+        const operationalExportVentas = exportVentas.filter((venta) => !this.isServicioContratoVenta(venta));
         const summaryLabel = userId === 'all' ? 'KARDEX AGRUPADO POR CAJERO' : 'RESUMEN DEL CAJERO';
         const buildDetailRows = (ventas, rowOffset = 0) => ventas.map((venta, index) => {
           const detailItems = Array.isArray(venta?.detalle) ? venta.detalle : [];
@@ -2666,6 +2813,23 @@ export default {
             this.formatCurrency(venta.total || 0)
           ];
         });
+        const buildContractDetailRows = (ventas, rowOffset = 0) => ventas.map((venta, index) => ([
+          String(rowOffset + index + 1),
+          this.formatDate(venta.fecha),
+          `${this.contratoEmpresaLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
+          String(this.numeroFacturaValue(venta) || '-'),
+          this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
+          this.formatCurrency(venta.total || 0)
+        ]));
+        const buildGeneralContractDetailRows = (ventas, rowOffset = 0) => ventas.map((venta, index) => ([
+          String(rowOffset + index + 1),
+          this.formatDate(venta.fecha),
+          this.usuarioNombre(venta),
+          `${this.contratoEmpresaLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
+          String(this.numeroFacturaValue(venta) || '-'),
+          this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
+          this.formatCurrency(venta.total || 0)
+        ]));
         const groupedVentas = [];
         const groupedMap = new Map();
 
@@ -2685,6 +2849,14 @@ export default {
 
           groupedMap.get(currentUserId).ventas.push(venta);
         });
+        const hasOperationalVentas = (ventas = []) => ventas.some((venta) => !this.isServicioContratoVenta(venta) && this.countsTowardCollectedTotal(venta));
+        const groupedOperationalVentas = groupedVentas.filter((group) => hasOperationalVentas(group.ventas));
+        const groupedContractVentas = groupedVentas
+          .map((group) => ({
+            ...group,
+            ventas: group.ventas.filter((venta) => this.isServicioContratoVenta(venta))
+          }))
+          .filter((group) => group.ventas.length);
 
         await this.drawPdfHeader(doc);
 
@@ -2730,7 +2902,7 @@ export default {
         });
 
         if (isAllVentasPdf) {
-          const visibleVentas = exportVentas
+          const visibleVentas = operationalExportVentas
             .slice()
             .sort((a, b) => this.compareVentasByFactura(a, b));
 
@@ -2838,6 +3010,63 @@ export default {
             }
           });
 
+          if (contractExportVentas.length) {
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY + 4,
+              body: [['DETALLE DE CONTRATOS']],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 8.1,
+                fontStyle: 'bold',
+                cellPadding: 2.2,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [250, 250, 250]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY + 2,
+              head: [['Nro.', 'Fecha', 'Cajero', 'Detalle', 'Factura', 'Estado', 'Importe']],
+              body: buildGeneralContractDetailRows(contractExportVentas),
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [241, 245, 249],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.1,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 58 },
+                4: { cellWidth: 14, halign: 'center' },
+                5: { cellWidth: 24, halign: 'center' },
+                6: { cellWidth: 24, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+          }
+
           this.drawPdfFooter(doc, generatedBy, generatedAt);
 
           const blob = doc.output('blob');
@@ -2872,7 +3101,7 @@ export default {
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
           head: [['Cajero', 'Ventas', 'Total general', 'Total efectivo', 'Total QR']],
-          body: groupedVentas.map((group) => {
+          body: groupedOperationalVentas.map((group) => {
             const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
             const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
             const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
@@ -2919,10 +3148,10 @@ export default {
 
         let currentY = doc.lastAutoTable.finalY + 4;
 
-        groupedVentas.forEach((group, groupIndex) => {
+        groupedOperationalVentas.forEach((group, groupIndex) => {
           const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
           const ventasAnuladas = group.ventas.filter((venta) => this.isAnuladaVenta(venta));
-          const ventasEfectivo = group.ventas.filter((venta) => !this.isQrPaymentVenta(venta));
+          const ventasEfectivo = group.ventas.filter((venta) => !this.isQrPaymentVenta(venta) && !this.isServicioContratoVenta(venta));
           const ventasQr = group.ventas.filter((venta) => this.isQrPaymentVenta(venta));
           const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
           const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
@@ -3132,6 +3361,112 @@ export default {
             this.drawPdfHeader(doc);
           }
         });
+        currentY = doc.lastAutoTable.finalY + 4;
+
+        if (groupedContractVentas.length) {
+          autoTable(doc, {
+            startY: currentY,
+            body: [['DETALLE DE CONTRATOS']],
+            theme: 'grid',
+            tableWidth: 180,
+            styles: {
+              fontSize: 8.1,
+              fontStyle: 'bold',
+              cellPadding: 2.2,
+              lineColor: [90, 90, 90],
+              textColor: [20, 20, 20],
+              fillColor: [250, 250, 250]
+            },
+            margin: { left: 15, right: 15 },
+            didDrawPage: () => {
+              this.drawPdfHeader(doc);
+            }
+          });
+          let contractsY = doc.lastAutoTable.finalY + 2;
+
+          groupedContractVentas.forEach((group, groupIndex) => {
+            const contractTotal = group.ventas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+
+            autoTable(doc, {
+              startY: contractsY,
+              body: [[`${userId === 'all' ? `CAJERO ${groupIndex + 1}` : 'CAJERO'}: ${group.nombre}`]],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 8,
+                fontStyle: 'bold',
+                cellPadding: 2.1,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [250, 250, 250]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY + 2,
+              head: [['Nro.', 'Fecha', 'Detalle', 'Factura', 'Estado', 'Importe']],
+              body: buildContractDetailRows(group.ventas),
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [248, 250, 252],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.1,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 86 },
+                3: { cellWidth: 14, halign: 'center' },
+                4: { cellWidth: 24, halign: 'center' },
+                5: { cellWidth: 24, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY,
+              body: [[
+                { content: `SUBTOTAL CONTRATOS ${String(group.nombre || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: this.formatCurrency(contractTotal), styles: { halign: 'right', fontStyle: 'bold' } }
+              ]],
+              theme: 'grid',
+              styles: {
+                fontSize: 7,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20]
+              },
+              columnStyles: {
+                0: { cellWidth: 156 },
+                1: { cellWidth: 24 }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+
+            contractsY = doc.lastAutoTable.finalY + 2;
+          });
+        }
 
         this.drawPdfFooter(doc, generatedBy, generatedAt);
 
@@ -3565,10 +3900,14 @@ export default {
 }
 
 .selector-item {
-  display: block;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
   width: 100%;
   text-align: left;
-  padding: 0.72rem 0.82rem;
+  padding: 0.72rem 3.4rem 0.82rem 0.82rem;
   border-radius: 14px;
   border: 1px solid #e6ebf3;
   background: #fff;
@@ -3590,6 +3929,31 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.selector-card-export-btn {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.75rem;
+  border: 1px solid #f0c36a;
+  background: linear-gradient(180deg, #fff7e5 0%, #fff1cc 100%);
+  color: #9a6200;
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.selector-card-export-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(154, 98, 0, 0.12);
 }
 
 .selector-name {
