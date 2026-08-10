@@ -171,6 +171,10 @@ export default {
          return this.model?.status?.label || 'Sin estado';
       },
       statusClass() {
+         if (this.model?.status?.ui_class) {
+            return this.model.status.ui_class;
+         }
+
          const key = this.model?.status?.key || '';
          const classes = {
             PROCESADO: 'procesado',
@@ -187,6 +191,10 @@ export default {
          return classes[key] || 'desconocido';
       },
       statusHelp() {
+         if (this.model?.status?.help) {
+            return this.model.status.help;
+         }
+
          const key = this.model?.status?.key || '';
          const messages = {
             PROCESADO: 'La factura ya fue confirmada y está lista para su uso.',

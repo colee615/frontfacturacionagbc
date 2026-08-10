@@ -15,7 +15,6 @@
                 <h1>Kardex de sucursal · {{ branchLabel }}</h1>
                 <p>{{ branchHeroSubtitle }}</p>
               </div>
-
               <div class="branch-hero-meta">
                 <div class="branch-context-chip">
                   <i class="fas fa-store"></i>
@@ -62,7 +61,7 @@
               <div class="stat-copy">
                 <span>Efectivo / caja</span>
                 <strong>{{ formatCurrency(branchOverview.totalCaja) }}</strong>
-                <small>No incluye QR</small>
+                <small>No incluye QR ni ECA</small>
               </div>
             </div>
 
@@ -78,18 +77,18 @@
             <div class="stat-card stat-card-yellow">
               <div class="stat-icon"><i class="fas fa-clock"></i></div>
               <div class="stat-copy">
-                <span>QR por revisar</span>
-                <strong>{{ formatCurrency(branchOverview.totalQrPendiente) }}</strong>
-                <small>{{ branchOverview.qrPendientes }} pendiente(s) / pago(s)</small>
+                <span>ECA / depositos</span>
+                <strong>{{ formatCurrency(branchOverview.totalEca) }}</strong>
+                <small>{{ branchOverview.ecaConfirmados }} venta(s) ECA por depositar</small>
               </div>
             </div>
 
             <div class="stat-card stat-card-red">
               <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
               <div class="stat-copy">
-                <span>Incidencias</span>
-                <strong>{{ branchOverview.incidencias }}</strong>
-                <small>{{ branchHealth.message }}</small>
+                <span>QR por revisar</span>
+                <strong>{{ formatCurrency(branchOverview.totalQrPendiente) }}</strong>
+                <small>{{ branchOverview.qrPendientes }} pendiente(s) / pago(s)</small>
               </div>
             </div>
           </section>
@@ -163,8 +162,8 @@
                       <td>{{ formatCurrency(user.totalCaja) }}</td>
                       <td>{{ user.deliveries.factura_electronica.count }}</td>
                       <td>{{ formatCurrency(user.deliveries.factura_electronica.total) }}</td>
-                      <td>{{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count + user.deliveries.qr_cancelado.count }}</td>
-                      <td>{{ formatCurrency(user.deliveries.qr_facturado.total + user.deliveries.qr_pagado_pendiente_factura.total + user.deliveries.qr_pendiente.total + user.deliveries.qr_cancelado.total) }}</td>
+                      <td>{{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count }}</td>
+                      <td>{{ formatCurrency(user.deliveries.qr_facturado.total + user.deliveries.qr_pagado_pendiente_factura.total + user.deliveries.qr_pendiente.total) }}</td>
                     </tr>
                     <tr v-if="!filteredUserSummaries.length">
                       <td colspan="8" class="empty-state-cell">No hay cajeros visibles para el rango seleccionado.</td>
@@ -266,21 +265,16 @@
                         <td>
                           <div class="cell-stack">
                             <strong>
-                              <span class="status-pill" :class="statusPillClass(venta)">
-                                {{ emissionStateLabel(venta) }}
+                              <span class="status-pill" :class="ventaStatusMeta(venta).pillClass">
+                                {{ ventaStatusMeta(venta).label }}
                               </span>
                             </strong>
-                            <small v-if="hasAnulacionAudit(venta)" class="audit-inline-copy">
-                              Anulada por {{ venta.anulacion?.anuladaPorNombre || venta.anulacion?.anuladaPorEmail || 'usuario no identificado' }}
-                            </small>
-                            <small v-if="hasAnulacionAudit(venta)" class="audit-inline-copy">
-                              {{ formatDateTime(venta.anulacion?.anuladaAt) }}
-                            </small>
-                            <small v-if="hasQrCancelacionAudit(venta)" class="audit-inline-copy">
-                              QR cancelado por {{ venta.qrCancelacion?.canceladaPorNombre || venta.qrCancelacion?.canceladaPorEmail || 'usuario no identificado' }}
-                            </small>
-                            <small v-if="hasQrCancelacionAudit(venta)" class="audit-inline-copy">
-                              {{ formatDateTime(venta.qrCancelacion?.canceladaAt) }}
+                            <small
+                              v-for="(detailLine, detailIndex) in ventaStatusMeta(venta).detailLines"
+                              :key="`${venta.id}-status-${detailIndex}`"
+                              class="audit-inline-copy"
+                            >
+                              {{ detailLine }}
                             </small>
                           </div>
                         </td>
@@ -295,7 +289,7 @@
                         <td>
                           <div class="table-actions">
                             <button
-                              v-if="canViewQr(venta)"
+                              v-if="ventaActionKeys(venta).includes('view_qr')"
                               class="action-secondary-btn"
                               type="button"
                               @click="verQrVenta(venta)"
@@ -304,7 +298,7 @@
                               <span>Ver QR</span>
                             </button>
                             <button
-                              v-else-if="canConsultarEstadoVenta(venta)"
+                              v-else-if="ventaActionKeys(venta).includes('consult')"
                               class="action-secondary-btn"
                               type="button"
                               @click="consultarQrVenta(venta, false)"
@@ -313,7 +307,7 @@
                               <span>Consultar</span>
                             </button>
                             <button
-                              v-else-if="canFacturarQrVenta(venta)"
+                              v-else-if="ventaActionKeys(venta).includes('invoice_qr')"
                               class="action-secondary-btn"
                               type="button"
                               @click="consultarQrVenta(venta, true)"
@@ -322,7 +316,7 @@
                               <span>Facturar venta</span>
                             </button>
                             <button
-                              v-if="canCancelarQrVenta(venta)"
+                              v-if="ventaActionKeys(venta).includes('cancel_qr')"
                               class="action-danger-btn"
                               type="button"
                               @click="cancelarPagoQrVenta(venta)"
@@ -331,7 +325,7 @@
                               <span>{{ qrCancelActionLabel(venta) }}</span>
                             </button>
                             <button
-                              v-if="canAnularVenta(venta)"
+                              v-if="ventaActionKeys(venta).includes('anular')"
                               class="action-danger-btn"
                               type="button"
                               @click="anularVenta(venta)"
@@ -354,7 +348,7 @@
                               <span>PDF</span>
                             </a>
                             <button
-                              v-else-if="!isCartVenta(venta)"
+                              v-else-if="ventaActionKeys(venta).includes('open_invoice')"
                               class="action-secondary-btn"
                               type="button"
                               @click="$router.push(`/cajero/ventas/invoice/${venta.id}`)"
@@ -425,14 +419,15 @@
                   @keydown.enter.prevent="selectUser('all')"
                   @keydown.space.prevent="selectUser('all')"
                 >
-                  <span class="selector-content">
+                    <span class="selector-content">
                     <span class="selector-name">Todos los usuarios</span>
                     <span class="selector-metrics">
-                      <small><strong>Ventas</strong> {{ branchGlobalOverview.countCobrado }}</small>
-                      <small><strong>Total</strong> {{ formatCurrency(branchGlobalOverview.totalGeneral) }}</small>
-                      <small><strong>QR</strong> {{ formatCurrency(branchGlobalOverview.totalQr) }}</small>
-                      <small><strong>Ef</strong> {{ formatCurrency(branchGlobalOverview.totalEf) }}</small>
-                      <small><strong>Contratos</strong> {{ formatCurrency(branchGlobalOverview.totalContratos) }}</small>
+                      <small><strong>Ventas</strong> {{ branchGlobalOverview.countResumen }}</small>
+                      <small><strong>Total</strong> {{ formatCurrency(branchGlobalOverview.totalResumen) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-info">QR {{ formatCurrency(branchGlobalOverview.totalQr) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-neutral">Ef {{ formatCurrency(branchGlobalOverview.totalEf) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-warning">ECA {{ formatCurrency(branchGlobalOverview.totalEca) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-contract">Cont {{ formatCurrency(branchGlobalOverview.totalContratos) }}</small>
                     </span>
                   </span>
                   <button
@@ -460,11 +455,12 @@
                   <span class="selector-content">
                     <span class="selector-name">{{ user.nombre }}</span>
                     <span class="selector-metrics">
-                      <small><strong>Ventas</strong> {{ user.countCobrado }}</small>
-                      <small><strong>Total</strong> {{ formatCurrency(user.total) }}</small>
-                      <small><strong>QR</strong> {{ formatCurrency(user.totalQr) }}</small>
-                      <small><strong>Ef</strong> {{ formatCurrency(user.totalCaja) }}</small>
-                      <small><strong>Contratos</strong> {{ formatCurrency(user.totalContratos) }}</small>
+                      <small><strong>Ventas</strong> {{ user.countResumen }}</small>
+                      <small><strong>Total</strong> {{ formatCurrency(user.totalResumen) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-info">QR {{ formatCurrency(user.totalQr) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-neutral">Ef {{ formatCurrency(user.totalCaja) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-warning">ECA {{ formatCurrency(user.totalEca) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-contract">Cont {{ formatCurrency(user.totalContratos) }}</small>
                     </span>
                   </span>
                   <button
@@ -722,10 +718,14 @@ export default {
             nombre,
             ventas: 0,
             countCobrado: 0,
+            countEca: 0,
+            countResumen: 0,
             total: 0,
             totalCobrado: 0,
+            totalResumen: 0,
             totalCaja: 0,
             totalQr: 0,
+            totalEca: 0,
             countContratos: 0,
             totalContratos: 0,
             deliveries: this.buildDeliveryAccumulator()
@@ -750,8 +750,14 @@ export default {
         if (this.countsTowardCollectedQrTotal(venta)) {
           current.totalQr += total;
         }
+        if (this.countsTowardEcaTotal(venta)) {
+          current.countEca += 1;
+          current.totalEca += total;
+        }
         current.deliveries[sectionKey].count += 1;
         current.deliveries[sectionKey].total += total;
+        current.countResumen = Number(current.countCobrado || 0) + Number(current.countEca || 0) + Number(current.countContratos || 0);
+        current.totalResumen = Number(current.total || 0) + Number(current.totalEca || 0) + Number(current.totalContratos || 0);
       });
 
       return Array.from(map.values()).sort((a, b) => (b.ventas + b.countContratos) - (a.ventas + a.countContratos));
@@ -761,9 +767,15 @@ export default {
       return this.userSummaries.filter((user) => {
         const nombre = (user.nombre || '').toString().toLowerCase();
         const hasOperationalData = Number(user.countCobrado || 0) > 0
+          || Number(user.countEca || 0) > 0
+          || Number(user.countResumen || 0) > 0
           || Number(user.total || 0) > 0
+          || Number(user.totalResumen || 0) > 0
           || Number(user.totalCaja || 0) > 0
-          || Number(user.totalQr || 0) > 0;
+          || Number(user.totalQr || 0) > 0
+          || Number(user.totalEca || 0) > 0
+          || Number(user.countContratos || 0) > 0
+          || Number(user.totalContratos || 0) > 0;
 
         return nombre.includes(term) && hasOperationalData;
       });
@@ -781,6 +793,11 @@ export default {
 
         if (this.countsTowardCashTotal(venta)) {
           acc.totalCaja += total;
+        }
+
+        if (this.countsTowardEcaTotal(venta)) {
+          acc.totalEca += total;
+          acc.ecaConfirmados += 1;
         }
 
         if (sectionKey === 'qr_facturado' && this.countsTowardCollectedQrTotal(venta)) {
@@ -802,8 +819,10 @@ export default {
         totalGeneral: 0,
         countCobrado: 0,
         totalCaja: 0,
+        totalEca: 0,
         totalQrConfirmado: 0,
         qrConfirmados: 0,
+        ecaConfirmados: 0,
         totalQrPendiente: 0,
         qrPendientes: 0,
         incidencias: 0
@@ -832,12 +851,24 @@ export default {
           acc.totalEf += total;
         }
 
+        if (this.countsTowardEcaTotal(venta)) {
+          acc.countEca += 1;
+          acc.totalEca += total;
+        }
+
+        acc.countResumen = Number(acc.countCobrado || 0) + Number(acc.countEca || 0) + Number(acc.countContratos || 0);
+        acc.totalResumen = Number(acc.totalGeneral || 0) + Number(acc.totalEca || 0) + Number(acc.totalContratos || 0);
+
         return acc;
       }, {
         countCobrado: 0,
+        countEca: 0,
+        countResumen: 0,
         totalGeneral: 0,
+        totalResumen: 0,
         totalQr: 0,
         totalEf: 0,
+        totalEca: 0,
         countContratos: 0,
         totalContratos: 0
       });
@@ -1134,6 +1165,7 @@ export default {
     buildDeliveryAccumulator() {
       return {
         factura_electronica: { key: 'factura_electronica', label: 'Factura electrónica', count: 0, total: 0 },
+        eca: { key: 'eca', label: 'ECA', count: 0, total: 0 },
         qr_facturado: { key: 'qr_facturado', label: 'QR facturado', count: 0, total: 0 },
         qr_pagado_pendiente_factura: { key: 'qr_pagado_pendiente_factura', label: 'QR pagado pendiente de factura', count: 0, total: 0 },
         qr_pendiente: { key: 'qr_pendiente', label: 'QR pendiente', count: 0, total: 0 },
@@ -1219,10 +1251,37 @@ export default {
         return labels.some((value) => (
           value.includes('servicio contratos')
           || value.includes('servicio contrato')
-          || value.includes('contratos')
-          || value.includes('contrato')
+          || value === 'contratos'
+          || value === 'contrato'
         ));
       });
+    },
+    isEcaServiceVenta(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return false;
+      }
+
+      return detalle.some((item) => {
+        const labels = [
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.descripcion,
+          item?.detalle,
+          item?.nombre
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).trim().toLowerCase());
+
+        return labels.some((value) => (
+          value.includes('servicio eca')
+          || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)
+        ));
+      });
+    },
+    isExcludedServiceVenta(venta) {
+      return this.isServicioContratoVenta(venta);
     },
     contratoEmpresaLabel(venta) {
       return String(
@@ -1257,14 +1316,68 @@ export default {
         })
         .filter(Boolean);
 
-      return descripciones.length ? descripciones.join(', ') : 'Servicio Contratos';
+      return descripciones.length ? descripciones.join(', ') : 'Servicio no sumado';
+    },
+    excludedServiceTypeLabel(venta) {
+      if (this.isEcaServiceVenta(venta)) {
+        return 'ECA';
+      }
+
+      if (this.isServicioContratoVenta(venta)) {
+        return 'Contrato';
+      }
+
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      const labels = detalle
+        .flatMap((item) => [
+          item?.resumen_origen?.descripcion_servicio,
+          item?.descripcion,
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.detalle,
+          item?.nombre
+        ])
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase());
+
+      return labels.some((value) => value.includes('servicio eca') || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)) ? 'ECA' : 'Contrato';
+    },
+    countsTowardEcaTotal(venta) {
+      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || !this.isEcaServiceVenta(venta)) {
+        return false;
+      }
+
+      const estado = String(venta?.estado || '').trim().toLowerCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
+
+      if (estadoPago === 'pagado') {
+        return true;
+      }
+
+      if (['FACTURADA', 'EMITIDO', 'PROCESADO'].includes(statusKey)) {
+        return true;
+      }
+
+      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
+        return true;
+      }
+
+      if (estadoEmision === 'FACTURADA') {
+        return true;
+      }
+
+      return estado === 'emitido';
     },
     countsTowardCashTotal(venta) {
       if (this.isAnuladaVenta(venta)) {
         return false;
       }
 
-      if (this.isServicioContratoVenta(venta)) {
+      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
         return false;
       }
 
@@ -1301,7 +1414,7 @@ export default {
         return false;
       }
 
-      if (this.isServicioContratoVenta(venta)) {
+      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
         return false;
       }
 
@@ -1354,6 +1467,10 @@ export default {
 
       if (canalEmisionRaw === 'oficial') {
         return { key: 'oficial', label: 'Registro oficial' };
+      }
+
+      if (this.isEcaServiceVenta(venta)) {
+        return { key: 'eca', label: 'ECA' };
       }
 
       if (metodoPagoRaw === 'qr' || canalEmisionRaw === 'qr') {
@@ -1525,6 +1642,20 @@ export default {
       return numeric ? Number(numeric) : null;
     },
     compareVentasByFactura(a, b) {
+      const dateA = new Date(a?.fecha || a?.created_at || 0).getTime();
+      const dateB = new Date(b?.fecha || b?.created_at || 0).getTime();
+
+      if (this.activeTab === 'todas' && dateA !== dateB) {
+        return dateB - dateA;
+      }
+
+      const priorityA = this.ventaListPriority(a);
+      const priorityB = this.ventaListPriority(b);
+
+      if (this.activeTab !== 'todas' && priorityA !== priorityB) {
+        return priorityB - priorityA;
+      }
+
       const facturaA = this.numeroFacturaSortable(a);
       const facturaB = this.numeroFacturaSortable(b);
 
@@ -1540,10 +1671,26 @@ export default {
         return 1;
       }
 
-      const dateA = new Date(a?.fecha || a?.created_at || 0).getTime();
-      const dateB = new Date(b?.fecha || b?.created_at || 0).getTime();
-
       return dateB - dateA;
+    },
+    ventaListPriority(venta) {
+      if (this.canCancelarQrVenta(venta)) {
+        return 4;
+      }
+
+      if (this.resolveSectionKey(venta) === 'qr_pagado_pendiente_factura') {
+        return 3;
+      }
+
+      if (this.canMarkQrIncidentReviewed(venta)) {
+        return 2;
+      }
+
+      if (this.isReviewableCartIncident(venta)) {
+        return 1;
+      }
+
+      return 0;
     },
     selectUser(userId) {
       this.activeUserId = userId;
@@ -1574,7 +1721,166 @@ export default {
       return this.resolveDeliveryType(venta).label;
     },
     paymentOriginLabel(venta) {
+      if (this.isServicioContratoVenta(venta)) {
+        return 'Contrato';
+      }
+
+      if (this.isEcaServiceVenta(venta)) {
+        return 'ECA';
+      }
+
       return this.isQrPaymentVenta(venta) ? 'QR' : 'Efectivo';
+    },
+    paymentChannelKey(venta) {
+      if (this.isServicioContratoVenta(venta)) {
+        return 'contrato';
+      }
+
+      if (this.isEcaServiceVenta(venta)) {
+        return 'eca';
+      }
+
+      return this.isQrPaymentVenta(venta) ? 'qr' : 'efectivo';
+    },
+    ventaStatusMeta(venta) {
+      const hasFactura = this.hasFacturaEmitidaEvidence(venta);
+      const qrStatus = String(venta?.estado_pago || '').trim().toLowerCase();
+
+      if (this.isAnuladaVenta(venta)) {
+        const detailLines = [];
+        if (this.hasAnulacionAudit(venta)) {
+          detailLines.push(`Anulada por ${venta.anulacion?.anuladaPorNombre || venta.anulacion?.anuladaPorEmail || 'usuario no identificado'}`);
+          if (venta.anulacion?.anuladaAt) {
+            detailLines.push(this.formatDateTime(venta.anulacion?.anuladaAt));
+          }
+        } else if (this.isQrPaymentVenta(venta) && this.hasQrCancelacionAudit(venta)) {
+          detailLines.push(`QR cancelado por ${venta.qrCancelacion?.canceladaPorNombre || venta.qrCancelacion?.canceladaPorEmail || 'usuario no identificado'}`);
+          if (venta.qrCancelacion?.canceladaAt) {
+            detailLines.push(this.formatDateTime(venta.qrCancelacion?.canceladaAt));
+          }
+        }
+
+        return {
+          key: 'ANULADA',
+          label: 'ANULADA',
+          pillClass: 'status-pill-dark',
+          detailLines
+        };
+      }
+
+      if (this.isServicioContratoVenta(venta) && hasFactura) {
+        return {
+          key: 'CONTRATO_NO_SUMADO',
+          label: 'CONTRATO NO SUMADO',
+          pillClass: 'status-pill-contract',
+          detailLines: ['Facturada, fuera del cierre fisico']
+        };
+      }
+
+      if (this.isEcaServiceVenta(venta) && hasFactura) {
+        return {
+          key: 'ECA_NO_SUMADO',
+          label: 'ECA NO SUMADO',
+          pillClass: 'status-pill-contract',
+          detailLines: ['Facturada, pendiente de deposito']
+        };
+      }
+
+      if (this.isQrPaymentVenta(venta)) {
+        if (qrStatus === 'cancelado' || qrStatus === 'fallido') {
+          const detailLines = [];
+          if (this.hasQrCancelacionAudit(venta)) {
+            detailLines.push(`QR cancelado por ${venta.qrCancelacion?.canceladaPorNombre || venta.qrCancelacion?.canceladaPorEmail || 'usuario no identificado'}`);
+            if (venta.qrCancelacion?.canceladaAt) {
+              detailLines.push(this.formatDateTime(venta.qrCancelacion?.canceladaAt));
+            }
+          }
+
+          return {
+            key: 'QR_ANULADO',
+            label: 'QR ANULADO',
+            pillClass: 'status-pill-dark',
+            detailLines
+          };
+        }
+
+        if (this.isQrFacturadoVenta(venta)) {
+          return {
+            key: 'FACTURADA',
+            label: 'FACTURADA',
+            pillClass: 'status-pill-success',
+            detailLines: ['QR cobrado y facturado']
+          };
+        }
+
+        if (qrStatus === 'pagado') {
+          return {
+            key: 'QR_PAGADO_SIN_FACTURA',
+            label: 'QR PAGADO',
+            pillClass: 'status-pill-warning',
+            detailLines: ['Pendiente de facturacion']
+          };
+        }
+
+        return {
+          key: 'QR_PENDIENTE',
+          label: 'QR PENDIENTE',
+          pillClass: 'status-pill-warning',
+          detailLines: ['Pendiente de pago']
+        };
+      }
+
+      if (this.isRejectedVenta(venta)) {
+        return {
+          key: 'RECHAZADA',
+          label: 'RECHAZADA',
+          pillClass: 'status-pill-danger',
+          detailLines: []
+        };
+      }
+
+      if (hasFactura) {
+        return {
+          key: 'FACTURADA',
+          label: 'FACTURADA',
+          pillClass: 'status-pill-success',
+          detailLines: []
+        };
+      }
+
+      return {
+        key: 'PENDIENTE',
+        label: this.emissionStateLabel(venta),
+        pillClass: this.statusPillClass(venta) || 'status-pill-neutral',
+        detailLines: []
+      };
+    },
+    ventaActionKeys(venta) {
+      const actions = ['detail'];
+
+      if (this.canViewQr(venta)) {
+        actions.push('view_qr');
+      } else if (this.canConsultarEstadoVenta(venta)) {
+        actions.push('consult');
+      } else if (this.canFacturarQrVenta(venta)) {
+        actions.push('invoice_qr');
+      }
+
+      if (this.canCancelarQrVenta(venta)) {
+        actions.push('cancel_qr');
+      }
+
+      if (this.canAnularVenta(venta)) {
+        actions.push('anular');
+      }
+
+      if (this.pdfOriginalUrl(venta)) {
+        actions.push('pdf');
+      } else if (!this.isCartVenta(venta)) {
+        actions.push('open_invoice');
+      }
+
+      return actions;
     },
     emissionStateLabel(venta) {
       if (this.isCartVenta(venta)) {
@@ -1610,7 +1916,11 @@ export default {
       return '';
     },
     channelPillClass(venta) {
-      return this.isQrPaymentVenta(venta) ? 'status-pill-warning' : 'status-pill-neutral';
+      const channel = this.paymentChannelKey(venta);
+      if (channel === 'qr') return 'status-pill-warning';
+      if (channel === 'contrato') return 'status-pill-contract';
+      if (channel === 'eca') return 'status-pill-contract';
+      return 'status-pill-neutral';
     },
     pdfOriginalUrl(venta) {
       const response = venta?.respuesta_emision || {};
@@ -1633,10 +1943,18 @@ export default {
       return Boolean(venta?.status?.cuf) && (Boolean(venta?.status?.can_annul) || this.isRejectedVenta(venta));
     },
     canCancelarQrVenta(venta) {
+      const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const estadoEmision = this.normalizedEstadoEmision(venta);
+
       return this.isCartVenta(venta)
         && this.isQrPaymentVenta(venta)
-        && String(venta?.status?.key || '').trim().toUpperCase() === 'QR_PENDIENTE'
-        && String(venta?.estado_pago || 'pendiente').trim().toLowerCase() === 'pendiente';
+        && ['pendiente', 'pending', 'holding'].includes(estadoPago)
+        && (
+          this.resolveSectionKey(venta) === 'qr_pendiente'
+          || statusKey === 'QR_PENDIENTE'
+          || estadoEmision === 'PENDIENTE'
+        );
     },
     qrCancelActionLabel(venta) {
       return 'Cancelar pago';
@@ -1661,9 +1979,12 @@ export default {
         && !this.isReviewedQrIncident(venta);
     },
     canViewQr(venta) {
+      const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
+
       return this.isCartVenta(venta)
         && this.isQrPaymentVenta(venta)
-        && ['pendiente', 'cancelado', 'fallido'].includes(String(venta?.estado_pago || 'pendiente').trim().toLowerCase());
+        && ['pendiente', 'pending', 'holding'].includes(estadoPago)
+        && this.resolveSectionKey(venta) === 'qr_pendiente';
     },
     needsFacturaRefresh(venta) {
       return this.isCartVenta(venta)
@@ -1671,7 +1992,10 @@ export default {
         && !this.pdfOriginalUrl(venta);
     },
     canConsultarEstadoVenta(venta) {
+      const sectionKey = this.resolveSectionKey(venta);
+
       return this.isCartVenta(venta)
+        && sectionKey !== 'qr_cancelado'
         && (Boolean(venta?.status?.can_consult) || this.needsFacturaRefresh(venta))
         && !this.canViewQr(venta);
     },
@@ -2514,7 +2838,7 @@ export default {
           .map((venta) => ([
             this.usuarioNombre(venta),
             this.contratoEmpresaLabel(venta),
-            this.contratoDescripcionLabel(venta),
+            `${this.excludedServiceTypeLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
             this.formatCurrency(venta.total || 0)
           ]));
         const rows = [
@@ -2523,14 +2847,16 @@ export default {
             String(this.branchGlobalOverview.countCobrado || 0),
             this.formatCurrency(this.branchGlobalOverview.totalGeneral || 0),
             this.formatCurrency(this.branchGlobalOverview.totalQr || 0),
-            this.formatCurrency(this.branchGlobalOverview.totalEf || 0)
+            this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalEca || 0)
           ],
           ...this.filteredUserSummaries.map((user) => ([
             user.nombre || 'Sin usuario',
             String(user.countCobrado || 0),
             this.formatCurrency(user.total || 0),
             this.formatCurrency(user.totalQr || 0),
-            this.formatCurrency(user.totalCaja || 0)
+            this.formatCurrency(user.totalCaja || 0),
+            this.formatCurrency(user.totalEca || 0)
           ]))
         ];
         const rangeLabel = this.activeTab === 'fechas'
@@ -2605,8 +2931,13 @@ export default {
           ], [
             'Total efectivo',
             this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
-            'Total contratos',
-            this.formatCurrency(this.branchGlobalOverview.totalContratos || 0)
+            'Total ECA',
+            this.formatCurrency(this.branchGlobalOverview.totalEca || 0)
+          ], [
+            'Contratos no sumados',
+            this.formatCurrency(this.branchGlobalOverview.totalContratos || 0),
+            'QR pendientes',
+            this.formatCurrency(this.branchOverview.totalQrPendiente || 0)
           ]],
           theme: 'grid',
           tableWidth: 180,
@@ -2644,7 +2975,7 @@ export default {
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
-          head: [['Usuario', 'Ventas', 'Total', 'QR', 'Ef']],
+          head: [['Usuario', 'Ventas', 'Total', 'QR', 'Ef', 'ECA']],
           body: rows,
           theme: 'grid',
           tableWidth: 180,
@@ -2662,11 +2993,12 @@ export default {
             textColor: [20, 20, 20]
           },
           columnStyles: {
-            0: { cellWidth: 76 },
-            1: { cellWidth: 26, halign: 'center' },
-            2: { cellWidth: 26, halign: 'right' },
-            3: { cellWidth: 26, halign: 'right' },
-            4: { cellWidth: 26, halign: 'right' }
+            0: { cellWidth: 60 },
+            1: { cellWidth: 18, halign: 'center' },
+            2: { cellWidth: 24, halign: 'right' },
+            3: { cellWidth: 24, halign: 'right' },
+            4: { cellWidth: 24, halign: 'right' },
+            5: { cellWidth: 30, halign: 'right' }
           },
           margin: { left: 15, right: 15 }
         });
@@ -2674,7 +3006,7 @@ export default {
         if (contractRows.length) {
           autoTable(doc, {
             startY: doc.lastAutoTable.finalY + 4,
-            body: [['DETALLE DE CONTRATOS']],
+            body: [['DETALLE DE SERVICIOS NO SUMADOS']],
             theme: 'grid',
             tableWidth: 180,
             styles: {
@@ -2816,7 +3148,7 @@ export default {
         const buildContractDetailRows = (ventas, rowOffset = 0) => ventas.map((venta, index) => ([
           String(rowOffset + index + 1),
           this.formatDate(venta.fecha),
-          `${this.contratoEmpresaLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
+          `${this.contratoEmpresaLabel(venta)}\n${this.excludedServiceTypeLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
           String(this.numeroFacturaValue(venta) || '-'),
           this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
           this.formatCurrency(venta.total || 0)
@@ -2825,7 +3157,7 @@ export default {
           String(rowOffset + index + 1),
           this.formatDate(venta.fecha),
           this.usuarioNombre(venta),
-          `${this.contratoEmpresaLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
+          `${this.contratoEmpresaLabel(venta)}\n${this.excludedServiceTypeLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
           String(this.numeroFacturaValue(venta) || '-'),
           this.isAnuladaVenta(venta) ? 'ANULADA' : this.emissionStateLabel(venta),
           this.formatCurrency(venta.total || 0)
@@ -3011,9 +3343,16 @@ export default {
           });
 
           if (contractExportVentas.length) {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const nextContractsStartY = doc.lastAutoTable.finalY + 4;
+            if ((pageHeight - nextContractsStartY) < 42) {
+              doc.addPage();
+              this.drawPdfHeader(doc);
+            }
+
             autoTable(doc, {
               startY: doc.lastAutoTable.finalY + 4,
-              body: [['DETALLE DE CONTRATOS']],
+              body: [['DETALLE DE SERVICIOS NO SUMADOS']],
               theme: 'grid',
               tableWidth: 180,
               styles: {
@@ -3366,7 +3705,7 @@ export default {
         if (groupedContractVentas.length) {
           autoTable(doc, {
             startY: currentY,
-            body: [['DETALLE DE CONTRATOS']],
+            body: [['DETALLE DE SERVICIOS NO SUMADOS']],
             theme: 'grid',
             tableWidth: 180,
             styles: {
@@ -3444,7 +3783,7 @@ export default {
             autoTable(doc, {
               startY: doc.lastAutoTable.finalY,
               body: [[
-                { content: `SUBTOTAL CONTRATOS ${String(group.nombre || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: `SUBTOTAL SERVICIOS NO SUMADOS ${String(group.nombre || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
                 { content: this.formatCurrency(contractTotal), styles: { halign: 'right', fontStyle: 'bold' } }
               ]],
               theme: 'grid',
@@ -3582,6 +3921,10 @@ export default {
       );
     },
     hasQrCancelacionAudit(venta) {
+      if (!this.isQrPaymentVenta(venta)) {
+        return false;
+      }
+
       return Boolean(
         venta?.qrCancelacion?.canceladaAt
         || venta?.qrCancelacion?.motivo
@@ -3979,6 +4322,42 @@ export default {
   line-height: 1.25;
 }
 
+.selector-metric-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.selector-metric-chip-info {
+  background: #eaf2ff;
+  border-color: #cddfff;
+  color: #265fce;
+}
+
+.selector-metric-chip-neutral {
+  background: #f3f6fb;
+  border-color: #dfe7f3;
+  color: #60718d;
+}
+
+.selector-metric-chip-warning {
+  background: #fff6e4;
+  border-color: #f6ddb0;
+  color: #c98108;
+}
+
+.selector-metric-chip-contract {
+  background: #f4eefc;
+  border-color: #ddd0f3;
+  color: #7550b2;
+}
+
 .selector-item small strong {
   display: block;
   color: #1d3360;
@@ -4340,6 +4719,7 @@ export default {
   min-height: 28px;
   padding: 0.2rem 0.62rem;
   border-radius: 999px;
+  border: 1px solid transparent;
   background: #f2f5fa;
   font-weight: 700;
   color: #53627d;
@@ -4447,28 +4827,39 @@ export default {
 }
 
 .status-pill-success {
-  background: #e7f6ea;
-  color: #1f7a36;
+  background: #e8f7ec;
+  border-color: #cfead8;
+  color: #14803d;
 }
 
 .status-pill-warning {
-  background: #fff1cf;
-  color: #9a6700;
+  background: #fff6e4;
+  border-color: #f6ddb0;
+  color: #c98108;
+}
+
+.status-pill-contract {
+  background: #f4eefc;
+  border-color: #ddd0f3;
+  color: #7550b2;
 }
 
 .status-pill-danger {
-  background: #ffe3e3;
-  color: #b42318;
+  background: #ffeded;
+  border-color: #f6caca;
+  color: #d64040;
 }
 
 .status-pill-dark {
-  background: #e9edf5;
-  color: #374151;
+  background: #eef2f7;
+  border-color: #dfe7f3;
+  color: #52607a;
 }
 
 .status-pill-neutral {
-  background: #eef2f7;
-  color: #52607a;
+  background: #f3f6fb;
+  border-color: #dfe7f3;
+  color: #60718d;
 }
 
 .empty-state {
@@ -4638,5 +5029,3 @@ export default {
   }
 }
 </style>
-
-

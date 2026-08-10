@@ -157,10 +157,16 @@
                               <span class="metric-tag metric-tag-info">QR {{ formatCurrency(item.totalQrFacturado) }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ formatCurrency(item.totalEfectivoFacturado) }}</span>
                               <span
-                                v-if="item.totalQrPagadoPendienteFactura > 0"
+                                v-if="item.totalEcaFacturado > 0"
                                 class="metric-tag metric-tag-warning"
                               >
-                                QR s/f {{ formatCurrency(item.totalQrPagadoPendienteFactura) }}
+                                ECA {{ formatCurrency(item.totalEcaFacturado) }}
+                              </span>
+                              <span
+                                v-if="item.totalContratosNoSumados > 0"
+                                class="metric-tag metric-tag-contract"
+                              >
+                                Cont {{ formatCurrency(item.totalContratosNoSumados) }}
                               </span>
                             </div>
                           </div>
@@ -171,6 +177,8 @@
                             <div class="metric-tags">
                               <span class="metric-tag metric-tag-info">QR {{ item.qrFacturadas }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ item.electronicasFacturadas }}</span>
+                              <span v-if="item.ecaFacturadas > 0" class="metric-tag metric-tag-warning">ECA {{ item.ecaFacturadas }}</span>
+                              <span v-if="item.contratosNoSumados > 0" class="metric-tag metric-tag-contract">Cont {{ item.contratosNoSumados }}</span>
                             </div>
                           </div>
                         </td>
@@ -859,6 +867,8 @@ export default {
         acc.ventasNetas += item.ventasNetas;
         acc.totalQrFacturado += item.totalQrFacturado || 0;
         acc.totalEfectivoFacturado += item.totalEfectivoFacturado || 0;
+        acc.totalEcaFacturado += item.totalEcaFacturado || 0;
+        acc.totalContratosNoSumados += item.totalContratosNoSumados || 0;
         acc.totalQrPagadoPendienteFactura += item.totalQrPagadoPendienteFactura || 0;
 
         if (item.status.key === 'cerrada') acc.conformes += 1;
@@ -877,6 +887,8 @@ export default {
         ventasNetas: 0,
         totalQrFacturado: 0,
         totalEfectivoFacturado: 0,
+        totalEcaFacturado: 0,
+        totalContratosNoSumados: 0,
         totalQrPagadoPendienteFactura: 0
       });
     },
@@ -1987,7 +1999,9 @@ export default {
         totalQrPagadoPendienteFactura: 0,
         totalQrCancelado: 0,
         totalQrPendiente: 0,
-        totalCartRechazadoDescartado: 0
+        totalCartRechazadoDescartado: 0,
+        totalContratosNoSumados: 0,
+        contratosNoSumados: 0
       };
     },
     isAnuladaVenta(venta) {
@@ -2054,7 +2068,7 @@ export default {
         && this.hasFacturaEmitidaEvidence(venta);
     },
     countsTowardCashTotal(venta) {
-      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta)) {
+      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
         return false;
       }
 
@@ -2087,8 +2101,12 @@ export default {
         return false;
       }
 
+      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
+        return false;
+      }
+
       if (this.isQrPaymentVenta(venta)) {
-        return String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado';
+        return this.isQrFacturadoVenta(venta);
       }
 
       return this.countsTowardCashTotal(venta);
@@ -2102,7 +2120,37 @@ export default {
         && !this.isAnuladaVenta(venta)
         && !this.isQrFacturadoVenta(venta);
     },
+    isContratoChannelVenta(venta) {
+      const canalOperativo = String(
+        venta?.canal_operativo
+        || venta?.canalOperativo
+        || ''
+      ).trim().toLowerCase();
+      const esCuentaPorCobrar = Boolean(
+        venta?.es_cuenta_por_cobrar
+        || venta?.esCuentaPorCobrar
+      );
+      const empresaNombre = String(
+        venta?.empresa_nombre
+        || venta?.empresaNombre
+        || ''
+      ).trim();
+      const empresaSigla = String(
+        venta?.empresa_sigla
+        || venta?.empresaSigla
+        || ''
+      ).trim();
+
+      return canalOperativo === 'contrato'
+        || esCuentaPorCobrar
+        || empresaNombre.length > 0
+        || empresaSigla.length > 0;
+    },
     isServicioContratoVenta(venta) {
+      if (this.isContratoChannelVenta(venta)) {
+        return true;
+      }
+
       const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
       if (!detalle.length) {
         return false;
@@ -2123,10 +2171,37 @@ export default {
         return labels.some((value) => (
           value.includes('servicio contratos')
           || value.includes('servicio contrato')
-          || value.includes('contratos')
-          || value.includes('contrato')
+          || value === 'contratos'
+          || value === 'contrato'
         ));
       });
+    },
+    isEcaServiceVenta(venta) {
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      if (!detalle.length) {
+        return false;
+      }
+
+      return detalle.some((item) => {
+        const labels = [
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.descripcion,
+          item?.detalle,
+          item?.nombre
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).trim().toLowerCase());
+
+        return labels.some((value) => (
+          value.includes('servicio eca')
+          || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)
+        ));
+      });
+    },
+    isExcludedServiceVenta(venta) {
+      return this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta);
     },
     isServiceVenta(venta) {
       const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
@@ -2192,11 +2267,75 @@ export default {
         })
         .filter(Boolean);
 
-      return descripciones.length ? descripciones.join(', ') : 'Servicio Contratos';
+      return descripciones.length ? descripciones.join(', ') : 'Servicio no sumado';
+    },
+    excludedServiceTypeLabel(venta) {
+      if (this.isEcaServiceVenta(venta)) {
+        return 'ECA';
+      }
+
+      if (this.isServicioContratoVenta(venta)) {
+        return 'Contrato';
+      }
+
+      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
+      const labels = detalle
+        .flatMap((item) => [
+          item?.resumen_origen?.descripcion_servicio,
+          item?.descripcion,
+          item?.titulo,
+          item?.nombre_servicio,
+          item?.servicio,
+          item?.detalle,
+          item?.nombre
+        ])
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase());
+
+      return labels.some((value) => value.includes('servicio eca') || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)) ? 'ECA' : 'Contrato';
+    },
+    countsTowardEcaTotal(venta) {
+      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || !this.isEcaServiceVenta(venta)) {
+        return false;
+      }
+
+      const estado = String(venta?.estado || '').trim().toLowerCase();
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
+      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
+      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
+
+      if (estadoPago === 'pagado') {
+        return true;
+      }
+
+      if (['FACTURADA', 'EMITIDO', 'PROCESADO'].includes(statusKey)) {
+        return true;
+      }
+
+      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
+        return true;
+      }
+
+      if (estadoEmision === 'FACTURADA') {
+        return true;
+      }
+
+      return estado === 'emitido';
     },
     calculateBranchTotalsFromVentas(ventas = []) {
       return ventas.reduce((acc, venta) => {
-        if (this.isServiceVenta(venta) || this.isServicioContratoVenta(venta)) {
+        if (this.isServicioContratoVenta(venta)) {
+          const total = Number(venta?.total || 0);
+          acc.totalContratosNoSumados += total;
+          acc.contratosNoSumados += 1;
+          return acc;
+        }
+
+        if (this.isEcaServiceVenta(venta)) {
+          const total = Number(venta?.total || 0);
+          acc.totalEcaFacturado += total;
+          acc.ecaFacturadas += 1;
           return acc;
         }
 
@@ -2206,12 +2345,16 @@ export default {
         }
         if (this.countsTowardCollectedQrTotal(venta)) {
           acc.totalQrFacturado += total;
+          acc.qrFacturadas += 1;
+          acc.facturadas += 1;
         }
         if (this.countsTowardPendingFacturaQrTotal(venta)) {
           acc.totalQrPagadoPendienteFactura += total;
         }
         if (this.countsTowardCashTotal(venta)) {
           acc.totalEfectivoFacturado += total;
+          acc.electronicasFacturadas += 1;
+          acc.facturadas += 1;
         }
 
         return acc;
@@ -2219,7 +2362,14 @@ export default {
         totalVendido: 0,
         totalQrFacturado: 0,
         totalQrPagadoPendienteFactura: 0,
-        totalEfectivoFacturado: 0
+        totalEfectivoFacturado: 0,
+        totalEcaFacturado: 0,
+        totalContratosNoSumados: 0,
+        facturadas: 0,
+        qrFacturadas: 0,
+        ecaFacturadas: 0,
+        electronicasFacturadas: 0,
+        contratosNoSumados: 0
       });
     },
     async refreshBranchTotalsFromVentas() {
@@ -2449,16 +2599,23 @@ export default {
       const branchTotals = this.branchTotalsByBranch[this.branchKey(item?.codigoSucursal, item?.puntoVenta)] || null;
       const totalQrFacturado = Number(branchTotals?.totalQrFacturado ?? (item?.totalQrFacturado || 0));
       const totalEfectivoFacturado = Number(branchTotals?.totalEfectivoFacturado ?? (item?.totalEfectivoFacturado || 0));
+      const totalEcaFacturado = Number(branchTotals?.totalEcaFacturado ?? 0);
+      const totalContratosNoSumados = Number(branchTotals?.totalContratosNoSumados ?? 0);
       const totalQrPagadoPendienteFactura = Number(branchTotals?.totalQrPagadoPendienteFactura ?? (item?.totalQrPagadoPendienteFactura || 0));
-      const cantidadVentas = Number(item?.cantidadVentas || 0);
+      const facturadas = Number(branchTotals?.facturadas ?? (item?.facturadas || 0));
+      const qrFacturadas = Number(branchTotals?.qrFacturadas ?? (item?.qrFacturadas || 0));
+      const ecaFacturadas = Number(branchTotals?.ecaFacturadas ?? 0);
+      const electronicasFacturadas = Number(branchTotals?.electronicasFacturadas ?? (item?.electronicasFacturadas || 0));
+      const contratosNoSumados = Number(branchTotals?.contratosNoSumados ?? 0);
+      const cantidadVentas = Number(branchTotals?.facturadas ?? (item?.cantidadVentas || 0));
       const pendientes = Number(item?.pendientes || 0);
       const observadas = Number(item?.observadas || 0);
       const qrPagadoPendienteFactura = Number(item?.qrPagadoPendienteFactura || 0);
       const qrCancelado = Number(item?.qrCancelado || 0);
       const qrPendiente = Number(item?.qrPendiente || 0);
-      const ventasFacturadasNetas = Math.max(0, cantidadVentas - Number(item?.oficiales || 0));
-      const ventasOperativas = ventasFacturadasNetas + qrPagadoPendienteFactura + qrPendiente;
-      const totalCobrado = Number(branchTotals?.totalVendido ?? (totalQrFacturado + totalEfectivoFacturado + totalQrPagadoPendienteFactura));
+      const ventasFacturadasNetas = Math.max(0, facturadas);
+      const ventasOperativas = ventasFacturadasNetas;
+      const totalCobrado = Number(branchTotals?.totalVendido ?? (totalQrFacturado + totalEfectivoFacturado));
       const incidentSummary = this.resolveIncidentSummary({
         observadas,
         pendientes,
@@ -2492,10 +2649,14 @@ export default {
         totalFacturado: totalQrFacturado + totalEfectivoFacturado,
         totalQrFacturado,
         totalEfectivoFacturado,
+        totalEcaFacturado,
+        totalContratosNoSumados,
         totalQrPagadoPendienteFactura,
-        facturadas: Number(item?.facturadas || 0),
-        qrFacturadas: Number(item?.qrFacturadas || 0),
-        electronicasFacturadas: Number(item?.electronicasFacturadas || 0),
+        facturadas,
+        qrFacturadas,
+        ecaFacturadas,
+        electronicasFacturadas,
+        contratosNoSumados,
         cajerosUnicos: Number(item?.cajerosUnicos || this.cachedUserCount(item?.codigoSucursal, item?.puntoVenta)),
         oficiales: Number(item?.oficiales || 0),
         facturasAnuladas: Number(item?.facturasAnuladas || 0),
@@ -3648,11 +3809,11 @@ export default {
           try {
             const ventas = await this.fetchBranchVentas(branch);
             const rows = ventas
-              .filter((venta) => this.isServicioContratoVenta(venta))
+              .filter((venta) => this.isExcludedServiceVenta(venta))
               .map((venta) => ([
                 this.usuarioNombreFromVenta(venta),
                 this.contratoEmpresaLabel(venta),
-                this.contratoDescripcionLabel(venta),
+                `${this.excludedServiceTypeLabel(venta)}\n${this.contratoDescripcionLabel(venta)}`,
                 this.formatCurrency(venta.total || 0)
               ]));
 
@@ -3663,7 +3824,7 @@ export default {
             return {
               branchLabel: `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`,
               total: ventas
-                .filter((venta) => this.isServicioContratoVenta(venta))
+                .filter((venta) => this.isExcludedServiceVenta(venta))
                 .reduce((sum, venta) => sum + Number(venta.total || 0), 0),
               rows
             };
@@ -3898,7 +4059,7 @@ export default {
         if (visibleContractGroups.length) {
           autoTable(doc, {
             startY: doc.lastAutoTable.finalY + 4,
-            body: [['DETALLE DE CONTRATOS NO SUMADOS']],
+            body: [['DETALLE DE SERVICIOS NO SUMADOS']],
             theme: 'grid',
             styles: {
               fontSize: 8.4,
@@ -3914,8 +4075,16 @@ export default {
           });
 
           let contractsY = doc.lastAutoTable.finalY;
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const minContractsBlockHeight = 42;
 
           visibleContractGroups.forEach((group) => {
+            if ((pageHeight - contractsY) < minContractsBlockHeight) {
+              doc.addPage();
+              this.drawPdfHeader(doc);
+              contractsY = 28;
+            }
+
             autoTable(doc, {
               startY: contractsY,
               body: [[group.branchLabel]],
@@ -3975,7 +4144,7 @@ export default {
             autoTable(doc, {
               startY: doc.lastAutoTable.finalY,
               body: [[
-                { content: `SUBTOTAL CONTRATOS ${String(group.branchLabel || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
+                { content: `SUBTOTAL SERVICIOS NO SUMADOS ${String(group.branchLabel || '').toUpperCase()}`, styles: { halign: 'right', fontStyle: 'bold' } },
                 { content: this.formatCurrency(group.total), styles: { halign: 'right', fontStyle: 'bold' } }
               ]],
               theme: 'grid',
@@ -4412,6 +4581,12 @@ export default {
   background: #fff6e4;
   border-color: #f6ddb0;
   color: #c98108;
+}
+
+.metric-tag-contract {
+  background: #f4eefc;
+  border-color: #ddd0f3;
+  color: #7550b2;
 }
 
 .metric-tag-danger {

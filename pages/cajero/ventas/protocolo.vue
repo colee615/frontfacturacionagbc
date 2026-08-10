@@ -532,6 +532,13 @@ export default {
          return `${number.toFixed(2)} Bs`;
       },
       statusClass(status) {
+         const uiClass = this.lastResponse?.status?.key === status
+            ? this.lastResponse?.status?.ui_class
+            : null;
+         if (uiClass) {
+            return uiClass;
+         }
+
          const map = {
             PENDIENTE: 'chip-pending',
             RECEPCIONADA: 'chip-info',
