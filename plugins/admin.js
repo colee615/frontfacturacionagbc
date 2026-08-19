@@ -11,7 +11,17 @@ const resolveToken = (store) => {
 
 const resolveAdminBaseUrl = ($config) => {
   const fromRuntime = $config && $config.adminApiBaseUrl ? $config.adminApiBaseUrl : '';
-  const normalized = `${trimTrailingSlash(fromRuntime)}/`;
+  let normalized = `${trimTrailingSlash(fromRuntime)}/`;
+
+  if (process.client) {
+    const hostname = String(window.location.hostname || '').toLowerCase();
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const pointsToRemoteSafe = normalized.includes('safe.correos.gob.bo/admin');
+
+    if (isLocalHost && (!normalized || pointsToRemoteSafe)) {
+      normalized = 'http://127.0.0.1:8000/admin/';
+    }
+  }
 
   if (process.client && normalized.startsWith('http://') && window.location.protocol === 'https:') {
     return normalized.replace('http://', 'https://');

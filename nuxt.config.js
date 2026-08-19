@@ -1,11 +1,21 @@
-﻿export default {
+const defaultAdminApiBaseUrl = process.env.NODE_ENV === 'development'
+  ? 'http://127.0.0.1:8000/admin/'
+  : 'https://safe.correos.gob.bo/admin/'
+
+const adminApiBaseUrl = process.env.ADMIN_API_BASE_URL || process.env.NUXT_ENV_ADMIN_API_URL || defaultAdminApiBaseUrl
+const facturaApiBaseUrl = process.env.FACTURA_API_BASE_URL
+  || process.env.NUXT_ENV_FACTURA_API_URL
+  || adminApiBaseUrl.replace(/\/admin\/?$/, '')
+
+export default {
   ssr: false,
   server: {
     host: 'localhost',
     port: 3000
   },
   publicRuntimeConfig: {
-    adminApiBaseUrl: process.env.ADMIN_API_BASE_URL || process.env.NUXT_ENV_ADMIN_API_URL || 'https://safe.correos.gob.bo/admin/'
+    adminApiBaseUrl,
+    facturaApiBaseUrl
   },
  
   head: {

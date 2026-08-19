@@ -497,6 +497,32 @@
               <strong>{{ formatCurrency(activeDetailVenta.total) }}</strong>
             </div>
 
+            <div v-if="detailVentaHistory(activeDetailVenta).length" class="detail-audit-card">
+              <h4>Historial de venta QR</h4>
+              <div class="detail-history-list">
+                <article
+                  v-for="(historyVenta, historyIndex) in detailVentaHistory(activeDetailVenta)"
+                  :key="`detail-history-${historyVenta.id || historyVenta.codigoOrden || historyIndex}`"
+                  class="detail-history-item"
+                >
+                  <div class="detail-history-head">
+                    <span class="status-pill" :class="detailHistoryPillClass(historyVenta, historyIndex)">
+                      {{ detailHistoryRoleLabel(historyVenta, historyIndex) }}
+                    </span>
+                    <strong>{{ historyVenta.codigoOrden || `Venta ${historyVenta.id}` }}</strong>
+                  </div>
+                  <div class="detail-audit-grid">
+                    <div><strong>Factura:</strong> {{ numeroFacturaValue(historyVenta) || '-' }}</div>
+                    <div><strong>Estado:</strong> {{ isAnuladaVenta(historyVenta) ? 'ANULADA' : emissionStateLabel(historyVenta) }}</div>
+                    <div><strong>Fecha y hora:</strong> {{ formatDateTime(historyVenta.fecha || historyVenta.created_at) }}</div>
+                    <div><strong>Tx QR:</strong> {{ historyVenta.qr_transaction_id || activeDetailVenta.qr_transaction_id || '-' }}</div>
+                    <div><strong>Seguimiento:</strong> {{ historyVenta.codigoSeguimiento || '-' }}</div>
+                    <div><strong>Total:</strong> {{ formatCurrency(historyVenta.total || 0) }}</div>
+                  </div>
+                </article>
+              </div>
+            </div>
+
             <div v-if="isReviewedQrIncident(activeDetailVenta)" class="detail-modal-meta">
               <span>Incidencia revisada</span>
               <span>{{ activeDetailVenta.incidencia_revisada_por || 'Sin usuario' }}</span>
@@ -517,29 +543,29 @@
             <div v-if="hasAnulacionAudit(activeDetailVenta)" class="detail-audit-card">
               <h4>Auditoria de anulacion</h4>
               <div class="detail-audit-grid">
-                <div><strong>Factura:</strong> {{ activeDetailVenta.anulacion?.numeroFactura || numeroFacturaValue(activeDetailVenta) || '-' }}</div>
-                <div><strong>Orden:</strong> {{ activeDetailVenta.anulacion?.codigoOrden || activeDetailVenta.codigoOrden || '-' }}</div>
-                <div><strong>CUF:</strong> {{ activeDetailVenta.anulacion?.cuf || activeDetailVenta.status?.cuf || activeDetailVenta.cuf || '-' }}</div>
-                <div><strong>Anulada por:</strong> {{ activeDetailVenta.anulacion?.anuladaPorNombre || activeDetailVenta.anulacion?.anuladaPorEmail || 'Sin registro' }}</div>
-                <div><strong>Fecha y hora:</strong> {{ formatDateTime(activeDetailVenta.anulacion?.anuladaAt) }}</div>
-                <div><strong>Tipo:</strong> {{ activeDetailVenta.anulacion?.tipo || 'Sin registro' }}</div>
-                <div class="detail-audit-full"><strong>Motivo:</strong> {{ activeDetailVenta.anulacion?.motivo || 'Sin motivo registrado' }}</div>
-                <div v-if="anulacionRespaldoUrl(activeDetailVenta)" class="detail-audit-full">
+                <div><strong>Factura:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.numeroFactura || numeroFacturaValue(detailAnulacionVenta(activeDetailVenta)) || '-' }}</div>
+                <div><strong>Orden:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.codigoOrden || detailAnulacionVenta(activeDetailVenta)?.codigoOrden || '-' }}</div>
+                <div><strong>CUF:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.cuf || detailAnulacionVenta(activeDetailVenta)?.status?.cuf || detailAnulacionVenta(activeDetailVenta)?.cuf || '-' }}</div>
+                <div><strong>Anulada por:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.anuladaPorNombre || detailAnulacionVenta(activeDetailVenta)?.anulacion?.anuladaPorEmail || 'Sin registro' }}</div>
+                <div><strong>Fecha y hora:</strong> {{ formatDateTime(detailAnulacionVenta(activeDetailVenta)?.anulacion?.anuladaAt) }}</div>
+                <div><strong>Tipo:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.tipo || 'Sin registro' }}</div>
+                <div class="detail-audit-full"><strong>Motivo:</strong> {{ detailAnulacionVenta(activeDetailVenta)?.anulacion?.motivo || 'Sin motivo registrado' }}</div>
+                <div v-if="anulacionRespaldoUrl(detailAnulacionVenta(activeDetailVenta))" class="detail-audit-full">
                   <strong>Respaldo:</strong>
                   <a
-                    :href="anulacionRespaldoUrl(activeDetailVenta)"
+                    :href="anulacionRespaldoUrl(detailAnulacionVenta(activeDetailVenta))"
                     target="_blank"
                     rel="noopener"
                   >
-                    {{ anulacionRespaldoNombre(activeDetailVenta) || 'Ver archivo adjunto' }}
+                    {{ anulacionRespaldoNombre(detailAnulacionVenta(activeDetailVenta)) || 'Ver archivo adjunto' }}
                   </a>
-                  <span v-if="anulacionRespaldoMime(activeDetailVenta) || anulacionRespaldoSize(activeDetailVenta)">
-                    · {{ anulacionRespaldoMime(activeDetailVenta) || 'Archivo' }}
-                    <span v-if="anulacionRespaldoSize(activeDetailVenta)"> · {{ formatFileSize(anulacionRespaldoSize(activeDetailVenta)) }}</span>
+                  <span v-if="anulacionRespaldoMime(detailAnulacionVenta(activeDetailVenta)) || anulacionRespaldoSize(detailAnulacionVenta(activeDetailVenta))">
+                    · {{ anulacionRespaldoMime(detailAnulacionVenta(activeDetailVenta)) || 'Archivo' }}
+                    <span v-if="anulacionRespaldoSize(detailAnulacionVenta(activeDetailVenta))"> · {{ formatFileSize(anulacionRespaldoSize(detailAnulacionVenta(activeDetailVenta))) }}</span>
                   </span>
                 </div>
-                <div v-if="activeDetailVenta.anulacion?.autorizadaPorEmail" class="detail-audit-full">
-                  <strong>Autorizada por:</strong> {{ activeDetailVenta.anulacion.autorizadaPorEmail }}
+                <div v-if="detailAnulacionVenta(activeDetailVenta)?.anulacion?.autorizadaPorEmail" class="detail-audit-full">
+                  <strong>Autorizada por:</strong> {{ detailAnulacionVenta(activeDetailVenta).anulacion.autorizadaPorEmail }}
                 </div>
               </div>
             </div>
@@ -1178,8 +1204,16 @@ export default {
         || String(venta?.canal_emision || '').trim().toLowerCase() === 'qr';
     },
     hasFacturaEmitidaEvidence(venta) {
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
       const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
+      if (
+        this.isQrPaymentVenta(venta)
+        && statusKey === 'QR_PAGADO'
+        && this.hasAnulacionAudit(venta)
+      ) {
+        return false;
+      }
+
+      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
       const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
       const cuf = String(
         venta?.cuf
@@ -1623,6 +1657,7 @@ export default {
         || venta?.respuesta_emision?.factura?.nroFactura
         || venta?.respuesta_emision?.nroFactura
         || venta?.seguimiento?.numeroFactura
+        || venta?.anulacion?.numeroFactura
         || ''
       ).trim();
 
@@ -1742,6 +1777,117 @@ export default {
 
       return this.isQrPaymentVenta(venta) ? 'qr' : 'efectivo';
     },
+    detailVentaHistory(venta) {
+      if (!venta) {
+        return [];
+      }
+
+      const selectedId = Number(venta?.id || 0);
+      const selectedOriginId = Number(venta?.origenVentaId || venta?.origen_venta_id || 0);
+      const selectedQrId = String(venta?.qr_transaction_id || '').trim();
+      const selectedTracking = String(venta?.codigoSeguimiento || '').trim();
+      const candidateIds = new Set([selectedId, selectedOriginId].filter((value) => value > 0));
+      const related = [];
+      const seenKeys = new Set();
+
+      this.ventas.forEach((candidate) => {
+        const candidateId = Number(candidate?.id || 0);
+        const candidateOriginId = Number(candidate?.origenVentaId || candidate?.origen_venta_id || 0);
+        const candidateQrId = String(candidate?.qr_transaction_id || '').trim();
+        const candidateTracking = String(candidate?.codigoSeguimiento || '').trim();
+        const matchesQr = selectedQrId !== '' && candidateQrId !== '' && candidateQrId === selectedQrId;
+        const matchesTracking = selectedTracking !== '' && candidateTracking !== '' && candidateTracking === selectedTracking;
+        const matchesOrigin = candidateIds.has(candidateId) || candidateIds.has(candidateOriginId)
+          || (candidateId > 0 && candidateOriginId > 0 && candidateId === selectedOriginId)
+          || (selectedId > 0 && candidateOriginId > 0 && candidateOriginId === selectedId);
+
+        if (!matchesQr && !matchesTracking && !matchesOrigin) {
+          return;
+        }
+
+        const candidateKey = String(candidate?.id || candidate?.codigoOrden || `${candidateTracking}-${candidateQrId}`);
+        if (seenKeys.has(candidateKey)) {
+          return;
+        }
+
+        seenKeys.add(candidateKey);
+        related.push(candidate);
+      });
+
+      if (!related.length) {
+        related.push(venta);
+      }
+
+      const backendHistory = Array.isArray(venta?.historial_qr) ? venta.historial_qr : [];
+      backendHistory.forEach((candidate) => {
+        const candidateKey = String(candidate?.id || candidate?.codigoOrden || candidate?.codigoSeguimiento || '');
+        if (!candidateKey || seenKeys.has(candidateKey)) {
+          return;
+        }
+
+        seenKeys.add(candidateKey);
+        related.push(candidate);
+      });
+
+      return related.sort((left, right) => {
+        const leftDate = new Date(left?.fecha || left?.created_at || 0).getTime();
+        const rightDate = new Date(right?.fecha || right?.created_at || 0).getTime();
+        return leftDate - rightDate;
+      });
+    },
+    detailHistoryRoleLabel(venta, index) {
+      if (venta?.timelineRole === 'original_anulada') {
+        return 'Venta original anulada';
+      }
+
+      if (this.isAnuladaVenta(venta)) {
+        return 'Venta anulada';
+      }
+
+      if (index === 0) {
+        return 'Venta original';
+      }
+
+      if (this.hasFacturaEmitidaEvidence(venta)) {
+        return 'Venta nueva facturada';
+      }
+
+      return 'Venta relacionada';
+    },
+    detailHistoryPillClass(venta, index) {
+      if (venta?.timelineRole === 'original_anulada') {
+        return 'status-pill-dark';
+      }
+
+      if (this.isAnuladaVenta(venta)) {
+        return 'status-pill-dark';
+      }
+
+      if (index === 0) {
+        return 'status-pill-neutral';
+      }
+
+      if (this.hasFacturaEmitidaEvidence(venta)) {
+        return 'status-pill-success';
+      }
+
+      return 'status-pill-warning';
+    },
+    detailAnulacionVenta(venta) {
+      const history = this.detailVentaHistory(venta);
+      const activeFactura = this.numeroFacturaValue(venta);
+      const historicalAnulada = history.find((candidate) => (
+        this.isAnuladaVenta(candidate)
+        && this.numeroFacturaValue(candidate)
+        && this.numeroFacturaValue(candidate) !== activeFactura
+      ));
+
+      if (historicalAnulada) {
+        return historicalAnulada;
+      }
+
+      return history.find((candidate) => this.isAnuladaVenta(candidate)) || venta;
+    },
     ventaStatusMeta(venta) {
       const hasFactura = this.hasFacturaEmitidaEvidence(venta);
       const qrStatus = String(venta?.estado_pago || '').trim().toLowerCase();
@@ -1814,11 +1960,15 @@ export default {
         }
 
         if (qrStatus === 'pagado') {
+          const detailLines = ['Pendiente de facturacion'];
+          if (this.hasAnulacionAudit(venta) && venta?.anulacion?.numeroFactura) {
+            detailLines.unshift(`Factura anulada Nro ${venta.anulacion.numeroFactura}`);
+          }
           return {
             key: 'QR_PAGADO_SIN_FACTURA',
             label: 'QR PAGADO',
             pillClass: 'status-pill-warning',
-            detailLines: ['Pendiente de facturacion']
+            detailLines
           };
         }
 
@@ -2137,6 +2287,12 @@ export default {
         }
         : {};
     },
+    facturaVentaApiUrl(path) {
+      const normalizedPath = `/${String(path || '').replace(/^\/+/, '')}`;
+      const baseUrl = String(this.$config?.facturaApiBaseUrl || '').replace(/\/+$/, '');
+
+      return baseUrl ? `${baseUrl}${normalizedPath}` : normalizedPath;
+    },
     async verQrVenta(venta) {
       const originUserId = this.usuarioId(venta);
       const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
@@ -2150,7 +2306,7 @@ export default {
       this.load = true;
       try {
         const response = await this.$axios.$post(
-          '/api/factura-venta/cart/ver-qr',
+          this.facturaVentaApiUrl('/api/factura-venta/cart/ver-qr'),
           {
             origen_usuario_id: originUserId,
             cart_id: cartId
@@ -2215,16 +2371,35 @@ export default {
 
       this.load = true;
       try {
-        const payload = {
-          origen_usuario_id: originUserId,
-          cart_id: cartId,
-          auto_emit_invoice: autoEmitInvoice ? 1 : 0
-        };
-        const response = await this.$axios.$post(
-          '/api/factura-venta/cart/consultar',
-          payload,
-          this.facturaVentaAuthConfig()
-        );
+        const directEmitPayload = autoEmitInvoice && venta?.status?.emit_payload
+          ? {
+            origen_usuario_id: originUserId,
+            cart_id: cartId,
+            ...venta.status.emit_payload
+          }
+          : null;
+        const response = directEmitPayload
+          ? await this.$axios.$post(
+            this.facturaVentaApiUrl('/api/factura-venta/cart/emitir'),
+            directEmitPayload,
+            this.facturaVentaAuthConfig()
+          )
+          : await this.$axios.$post(
+            this.facturaVentaApiUrl('/api/factura-venta/cart/consultar'),
+            {
+              origen_usuario_id: originUserId,
+              cart_id: cartId,
+              auto_emit_invoice: autoEmitInvoice ? 1 : 0
+            },
+            this.facturaVentaAuthConfig()
+          );
+
+        if (response?.ok === false || Number(response?.status_code || 200) >= 400 || response?.respuesta?.ok === false) {
+          const failedMessage = response?.respuesta?.mensaje || response?.respuesta?.message || response?.message || 'No se pudo emitir la factura de la venta QR.';
+          this.load = false;
+          await this.$swal.fire({ icon: 'error', title: 'No se pudo facturar', text: failedMessage });
+          return;
+        }
         const qrPayload = this.extractQrPayloadFromConsultResponse(response);
 
         await this.loadVentas();
@@ -2246,6 +2421,16 @@ export default {
         }
 
         const finalState = this.emissionStateLabel(refreshedVenta);
+        if (autoEmitInvoice && finalState === 'PAGADO QR') {
+          this.load = false;
+          await this.$swal.fire({
+            icon: 'warning',
+            title: 'Pago QR confirmado',
+            text: 'El pago QR sigue vigente, pero la factura no se reemitio todavia.',
+            confirmButtonText: 'Entendido'
+          });
+          return;
+        }
         const message = response?.respuesta?.mensaje || response?.respuesta?.message || `Estado actualizado: ${finalState}`;
 
         this.load = false;
@@ -2634,8 +2819,69 @@ export default {
         timerProgressBar: true
       });
     },
-    openVentaDetail(venta) {
+    async openVentaDetail(venta) {
       this.activeDetailVenta = venta;
+
+      const cartId = Number(venta?.cartId || venta?.origenVentaId || 0);
+      const originUserId = this.usuarioId(venta);
+      if (!cartId || !originUserId || !this.isCartVenta(venta)) {
+        return;
+      }
+
+      try {
+        const response = await this.$axios.$get(
+          this.facturaVentaApiUrl(`/api/factura-venta/cart/ventas/${cartId}`),
+          {
+            params: {
+              origen_usuario_id: originUserId
+            },
+            ...(this.facturaVentaAuthConfig() || {})
+          }
+        );
+
+        const detailedVenta = response?.cart || null;
+        if (!detailedVenta) {
+          return;
+        }
+
+        const mergedVenta = {
+          ...venta,
+          ...detailedVenta,
+          cliente: {
+            ...(venta?.cliente || {}),
+            ...(detailedVenta?.cliente || {})
+          },
+          usuario: {
+            ...(venta?.usuario || {}),
+            ...(detailedVenta?.usuario || {})
+          },
+          sucursal: {
+            ...(venta?.sucursal || {}),
+            ...(detailedVenta?.sucursal || {})
+          },
+          status: {
+            ...(venta?.status || {}),
+            ...(detailedVenta?.status || {})
+          },
+          anulacion: {
+            ...(venta?.anulacion || {}),
+            ...(detailedVenta?.anulacion || {})
+          },
+          qrCancelacion: {
+            ...(venta?.qrCancelacion || {}),
+            ...(detailedVenta?.qrCancelacion || {})
+          }
+        };
+
+        this.activeDetailVenta = mergedVenta;
+      } catch (error) {
+        console.error('[ventas/sucursal] openVentaDetail:error', {
+          cartId,
+          status: error?.response?.status || null,
+          data: error?.response?.data || null,
+          message: error?.message || null
+        });
+      }
     },
     scheduleLoadVentas() {
       if (this.isSyncingFilters) {
@@ -3930,7 +4176,7 @@ export default {
         || venta?.qrCancelacion?.motivo
         || venta?.qrCancelacion?.canceladaPorNombre
         || venta?.qrCancelacion?.canceladaPorEmail
-        || venta?.qrCancelacion?.mensaje
+        || venta?.qrCancelacion?.origen
       );
     },
     hasAnulacionAudit(venta) {
@@ -4948,6 +5194,27 @@ export default {
 
 .detail-audit-full {
   grid-column: 1 / -1;
+}
+
+.detail-history-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.detail-history-item {
+  padding: 0.9rem 1rem;
+  border: 1px solid #dde7f3;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.detail-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  color: #1d3360;
 }
 
 @media (max-width: 1199px) {

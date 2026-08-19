@@ -105,6 +105,12 @@
                     <span>Reportes</span>
                   </nuxt-link>
                 </li>
+                <li class="nav-item">
+                  <nuxt-link class="nav-link enterprise-sub-link" to="/cajero/ventas/servicios">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Ventas por servicio</span>
+                  </nuxt-link>
+                </li>
               </ul>
             </div>
           </li>
@@ -143,7 +149,8 @@ export default {
     },
     isKardexRoute() {
       return String(this.$route?.path || '').startsWith('/cajero/ventas/lista')
-        || String(this.$route?.path || '').startsWith('/cajero/ventas/sucursal');
+        || String(this.$route?.path || '').startsWith('/cajero/ventas/sucursal')
+        || String(this.$route?.path || '').startsWith('/cajero/ventas/servicios');
     },
     showAdminSection() {
       return this.usuariosAccess
