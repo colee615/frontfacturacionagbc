@@ -70,6 +70,11 @@ export default {
   // Modules: https://go.nuxtjs.dev/config-modules
   modules: ['@nuxtjs/axios','vue-sweetalert2/nuxt'],
 
+  serverMiddleware: [
+    { path: '/api/banco-union/comprobante', handler: '~/server-middleware/banco-union-comprobante.js' },
+    { path: '/api/qr/decode', handler: '~/server-middleware/qr-decode.js' }
+  ],
+
   // Build Configuration: https://go.nuxtjs.dev/config-build
   build: {
   },

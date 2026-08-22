@@ -3,7 +3,7 @@
     <JcLoader :load="load" />
     <AdminTemplate :page="page" :modulo="modulo">
       <div slot="body" class="closure-page">
-        <div class="closure-shell">
+        <div v-if="!activeConciliationModal" class="closure-shell">
           <section class="hero-card">
             <div class="hero-copy">
               <h1>Control de cierre</h1>
@@ -36,11 +36,30 @@
                 </select>
               </label>
               <div class="toolbar-actions">
-                <button type="button" class="toolbar-export-btn" @click="downloadResumenPdf">
+                <button
+                  type="button"
+                  class="toolbar-export-btn"
+                  :disabled="exportExcelLoading"
+                  @click="downloadResumenExcel"
+                >
+                  <i class="fas fa-file-excel"></i>
+                  <span>{{ exportExcelLoading ? 'Generando Excel...' : 'Exportar Excel' }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-export-btn"
+                  :disabled="exportPdfLoading"
+                  @click="downloadResumenPdf"
+                >
                   <i class="fas fa-file-pdf"></i>
-                  <span>Exportar PDF</span>
+                  <span>{{ exportPdfLoading ? 'Generando PDF...' : 'Exportar PDF' }}</span>
                 </button>
               </div>
+            </div>
+
+            <div v-if="load" class="report-loading-banner">
+              <i class="fas fa-sync-alt fa-spin"></i>
+              <span>Actualizando, espere...</span>
             </div>
 
             <section v-if="error" class="error-card">
@@ -229,7 +248,7 @@
                             <button
                               class="action-btn action-btn-warning"
                               type="button"
-                              @click="openConciliationModal(item)"
+                              @click="goToConciliation(item)"
                             >
                               <i class="far fa-calendar-check"></i>
                               <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliacion' : 'Conciliar sucursal' }}</span>
@@ -343,17 +362,24 @@
           </div>
         </div>
 
-        <div v-if="activeConciliationModal" class="detail-modal-backdrop" @click.self="closeConciliationModal">
-          <div class="detail-modal-card conciliation-modal-card">
-            <div class="detail-modal-head">
+        <section v-if="activeConciliationModal" class="conciliation-page-shell">
+          <div class="conciliation-page-topbar">
+            <button type="button" class="action-btn action-btn-primary conciliation-back-btn" @click="closeConciliationModal">
+              <i class="fas fa-arrow-left"></i>
+              <span>Volver a control de cierre</span>
+            </button>
+          </div>
+
+          <section class="hero-card conciliation-hero-card">
+            <div class="conciliation-hero-head">
               <div class="users-modal-head-copy">
                 <p class="detail-kicker mb-1">Conciliacion diaria</p>
                 <h3>{{ activeConciliationModal.title }}</h3>
                 <p class="detail-copy mb-0">{{ activeConciliationModal.subtitle }}</p>
               </div>
-              <button type="button" class="detail-modal-close" @click="closeConciliationModal">
-                <i class="fas fa-times"></i>
-              </button>
+              <span class="calendar-selection-pill" :class="conciliacionStatusPillClass(activeConciliationModal.conciliacion)">
+                {{ conciliacionLabel(activeConciliationModal.conciliacion) }}
+              </span>
             </div>
 
             <div ref="conciliationDetailPanel" class="conciliation-form-card conciliation-detail-card">
@@ -363,35 +389,36 @@
                   <h4>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
                   <p class="detail-copy mb-0">Al tocar una fecha, aqui se actualizan el estado, los comprobantes y la carga del dia elegido.</p>
                 </div>
-                <span class="calendar-selection-pill" :class="conciliacionStatusPillClass(activeConciliationModal.conciliacion)">
-                  {{ conciliacionLabel(activeConciliationModal.conciliacion) }}
-                </span>
               </div>
 
               <div class="conciliation-summary-grid">
-                <article class="conciliation-summary-card">
-                  <span>Fecha activa</span>
-                  <strong>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</strong>
+                <article class="summary-card summary-card-primary conciliation-summary-card">
+                  <div class="summary-copy">
+                    <span>Fecha activa</span>
+                    <strong>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</strong>
+                  </div>
                 </article>
-                <article class="conciliation-summary-card">
-                  <span>Efectivo esperado</span>
-                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalEfectivoSistema) }}</strong>
+                <article class="summary-card summary-card-success conciliation-summary-card">
+                  <div class="summary-copy">
+                    <span>Efectivo esperado</span>
+                    <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalEfectivoSistema) }}</strong>
+                  </div>
                 </article>
-                <article class="conciliation-summary-card">
-                  <span>Total comprobantes</span>
-                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalComprobantes) }}</strong>
+                <article class="summary-card summary-card-warning conciliation-summary-card">
+                  <div class="summary-copy">
+                    <span>Total comprobantes</span>
+                    <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalComprobantes) }}</strong>
+                  </div>
                 </article>
-                <article class="conciliation-summary-card">
-                  <span>Diferencia</span>
-                  <strong>{{ formatCurrency(activeConciliationModal.conciliacion.diferencia) }}</strong>
+                <article class="summary-card summary-card-money conciliation-summary-card">
+                  <div class="summary-copy">
+                    <span>Diferencia</span>
+                    <strong>{{ formatCurrency(activeConciliationModal.conciliacion.diferencia) }}</strong>
+                  </div>
                 </article>
               </div>
 
               <div class="conciliation-cta-row">
-                <button type="button" class="toolbar-export-btn" @click="triggerConciliationFilePicker">
-                  <i class="fas fa-upload"></i>
-                  <span>Agregar comprobante de {{ formatDateLabel(activeConciliationModal.selectedDate) }}</span>
-                </button>
                 <span class="detail-copy mb-0">
                   {{ activeConciliationModal.comprobantes.length
                     ? `${activeConciliationModal.comprobantes.length} comprobante(s) registrados para esta fecha.`
@@ -399,8 +426,10 @@
                 </span>
               </div>
             </div>
+          </section>
 
-            <section class="calendar-card calendar-card-modal">
+          <div class="conciliation-content-grid">
+            <section class="calendar-card calendar-card-modal conciliation-panel-card">
               <div class="calendar-card-head">
                 <div>
                   <p class="detail-kicker mb-1">Calendario de conciliacion</p>
@@ -448,210 +477,287 @@
               </div>
             </section>
 
-            <div ref="conciliationUploadPanel" class="conciliation-form-card">
-              <div class="conciliation-detail-head conciliation-detail-head-form">
-                <div>
-                  <p class="detail-kicker mb-1">Carga del comprobante</p>
-                  <h4>Comprobante para {{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
-                  <p class="detail-copy mb-0">
-                    Suba una foto del comprobante. Si el QR es legible, intentaremos completar monto, banco y referencia automaticamente.
-                  </p>
-                </div>
-              </div>
-              <div class="conciliation-scanner-card">
-                <div class="conciliation-scanner-head">
+            <div class="conciliation-side-stack">
+              <div ref="conciliationUploadPanel" class="conciliation-form-card conciliation-upload-card">
+                <div class="conciliation-detail-head conciliation-detail-head-form">
                   <div>
-                    <p class="detail-kicker mb-1">Escanear QR del comprobante</p>
-                    <h4>Vista asistida</h4>
+                    <p class="detail-kicker mb-1">Carga del comprobante</p>
+                    <h4>Comprobante para {{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
                   </div>
                 </div>
 
-                <div class="conciliation-scanner-toolbar">
+                <div
+                  v-if="!isConciliationCompletedWithReceipts(activeConciliationModal.conciliacion, activeConciliationModal.comprobantes) || activeConciliationModal.showUploadComposer"
+                  class="conciliation-scanner-card"
+                >
+                  <div class="conciliation-scanner-head">
+                    <div>
+                      <p class="detail-kicker mb-1">Escanear QR del comprobante</p>
+                      <h4>Selecciona la imagen y recorta el QR</h4>
+                    </div>
+                  </div>
+
+                  <div class="conciliation-scanner-toolbar">
+                    <div class="conciliation-scanner-copy">
+                      <strong>Comprobante del dia</strong>
+                      <p>Sube una foto del comprobante y arrastra el recuadro sobre el QR para completar los datos automaticamente.</p>
+                    </div>
+                    <div class="conciliation-scanner-actions">
+                      <button type="button" class="action-btn action-btn-primary" @click="triggerConciliationScannerImagePicker">
+                        <i class="fas fa-image"></i>
+                        <span>Seleccionar imagen</span>
+                      </button>
+                      <input ref="conciliationQrScannerInput" type="file" accept=".jpg,.jpeg,.png,.webp" class="sr-only-input" @change="onConciliationScannerImageChange" />
+                    </div>
+                  </div>
+
+                  <div class="conciliation-scanner-stage">
+                    <div
+                      v-if="activeConciliationQrHasSource"
+                      ref="conciliationQrStage"
+                      class="conciliation-scanner-preview"
+                      :class="{ 'conciliation-scanner-preview-selecting': activeConciliationModal.qrScanner.cropEnabled }"
+                      @mousedown.prevent="startConciliationQrSelection"
+                      @mousemove.prevent="updateConciliationQrSelection"
+                      @mouseup.prevent="finishConciliationQrSelection"
+                      @mouseleave="finishConciliationQrSelection"
+                      @dragstart.prevent
+                    >
+                      <img
+                        v-if="activeConciliationModal.qrScanner.previewUrl"
+                        ref="conciliationQrImage"
+                        :src="activeConciliationModal.qrScanner.previewUrl"
+                        alt="Comprobante seleccionado"
+                        class="conciliation-scanner-media"
+                      />
+                      <div
+                        v-if="activeConciliationModal.qrScanner.cropEnabled"
+                        class="conciliation-scanner-crop"
+                        :style="activeConciliationQrCropStyle"
+                      ></div>
+                    </div>
+                    <div v-else class="conciliation-scanner-empty">
+                      <p>Seleccione una imagen del comprobante para empezar el recorte del QR.</p>
+                    </div>
+                  </div>
+
+                  <div v-if="activeConciliationQrHasSource" class="conciliation-scanner-footer">
+                    <p class="detail-copy mb-0">
+                      Arrastre para seleccionar el area del QR y luego procesela.
+                    </p>
+                    <div class="conciliation-scanner-actions">
+                      <button
+                        type="button"
+                        class="action-btn action-btn-primary"
+                        :disabled="activeConciliationModal.qrScan && activeConciliationModal.qrScan.status === 'loading'"
+                        @click="processConciliationQrFullSource"
+                      >
+                        <i class="fas fa-expand"></i>
+                        <span>{{ activeConciliationModal.qrScan && activeConciliationModal.qrScan.status === 'loading' ? 'Procesando...' : 'Procesar recorte' }}</span>
+                      </button>
+                      <button type="button" class="action-btn action-btn-danger" @click="resetConciliationQrSource">
+                        <i class="fas fa-times"></i>
+                        <span>Cancelar</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <p class="detail-copy mb-0">{{ activeConciliationModal.qrScanner.statusMessage }}</p>
+                </div>
+
+                <div
+                  v-if="activeConciliationModal.qrScan && ['error', 'unsupported'].includes(activeConciliationModal.qrScan.status)"
+                  class="conciliation-manual-card"
+                >
+                  <div class="conciliation-scanner-toolbar">
+                    <div class="conciliation-scanner-copy">
+                      <strong>Registro manual</strong>
+                      <p>Como no se pudo detectar el QR, completa los datos manualmente antes de guardar.</p>
+                    </div>
+                    <div class="conciliation-scanner-actions">
+                      <button type="button" class="action-btn action-btn-primary" @click="triggerConciliationScannerImagePicker">
+                        <i class="fas fa-image"></i>
+                        <span>Seleccionar imagen</span>
+                      </button>
+                      <input ref="conciliationQrScannerInput" type="file" accept=".jpg,.jpeg,.png,.webp" class="sr-only-input" @change="onConciliationScannerImageChange" />
+                    </div>
+                  </div>
+                  <div class="conciliation-manual-file" v-if="activeConciliationModal.selectedFileName">
+                    <span class="calendar-selection-pill">
+                      Archivo: <strong>{{ activeConciliationModal.selectedFileName }}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="activeConciliationModal.qrScan && ['error', 'unsupported'].includes(activeConciliationModal.qrScan.status)" class="conciliation-form-grid">
                   <label class="toolbar-field">
-                    <span>Camaras disponibles</span>
-                    <select v-model="activeConciliationModal.qrScanner.selectedDeviceId" :disabled="activeConciliationModal.qrScanner.loadingDevices || !activeConciliationModal.qrScanner.cameras.length">
-                      <option value="">
-                        {{ activeConciliationModal.qrScanner.loadingDevices ? 'Detectando camaras...' : 'No se detectaron camaras' }}
-                      </option>
-                      <option v-for="camera in activeConciliationModal.qrScanner.cameras" :key="camera.deviceId" :value="camera.deviceId">
-                        {{ camera.label || 'Camara disponible' }}
-                      </option>
-                    </select>
+                    <span>Monto depositado</span>
+                    <input ref="conciliationAmountInput" v-model="activeConciliationModal.form.montoDepositado" type="number" min="0" step="0.01" placeholder="0.00" />
                   </label>
-
-                  <div class="conciliation-scanner-actions">
-                    <button type="button" class="action-btn action-btn-warning" @click="activateConciliationCamera">
-                      <i class="fas fa-camera"></i>
-                      <span>Activar camara</span>
-                    </button>
-                    <button type="button" class="action-btn action-btn-primary" @click="triggerConciliationScannerImagePicker">
-                      <i class="fas fa-image"></i>
-                      <span>Seleccionar imagen</span>
-                    </button>
-                    <input ref="conciliationQrScannerInput" type="file" accept=".jpg,.jpeg,.png,.webp" class="sr-only-input" @change="onConciliationScannerImageChange" />
-                  </div>
-                </div>
-
-                <div class="conciliation-scanner-stage">
-                  <div
-                    v-if="activeConciliationQrHasSource"
-                    ref="conciliationQrStage"
-                    class="conciliation-scanner-preview"
-                    @click="handleConciliationQrStageClick"
-                  >
-                    <video
-                      v-if="activeConciliationModal.qrScanner.mode === 'camera'"
-                      ref="conciliationQrVideo"
-                      autoplay
-                      playsinline
-                      muted
-                      class="conciliation-scanner-media"
-                    ></video>
-                    <img
-                      v-else-if="activeConciliationModal.qrScanner.previewUrl"
-                      ref="conciliationQrImage"
-                      :src="activeConciliationModal.qrScanner.previewUrl"
-                      alt="Comprobante seleccionado"
-                      class="conciliation-scanner-media"
-                    />
-                    <div class="conciliation-scanner-crop" :style="activeConciliationQrCropStyle"></div>
-                  </div>
-                  <div v-else class="conciliation-scanner-empty">
-                    <p>Pulsa "Activar camara" o selecciona una imagen.</p>
-                  </div>
-                </div>
-
-                <div v-if="activeConciliationQrHasSource" class="conciliation-scanner-footer">
-                  <p class="detail-copy mb-0">Marca solo el QR y procesa el recorte.</p>
-                  <div class="conciliation-scanner-actions">
-                    <button type="button" class="action-btn action-btn-warning" @click="processConciliationQrCrop">
-                      <i class="fas fa-crop-alt"></i>
-                      <span>Procesar recorte</span>
-                    </button>
-                    <button type="button" class="action-btn action-btn-primary" @click="processConciliationQrFullSource">
-                      <i class="fas fa-expand"></i>
-                      <span>Imagen completa</span>
-                    </button>
-                    <button type="button" class="action-btn action-btn-danger" @click="resetConciliationQrSource">
-                      <i class="fas fa-times"></i>
-                      <span>Cancelar</span>
-                    </button>
-                  </div>
-                </div>
-
-                <p class="detail-copy mb-0">{{ activeConciliationModal.qrScanner.statusMessage }}</p>
-              </div>
-              <div class="conciliation-form-grid">
-                <label class="toolbar-field">
-                  <span>Monto depositado</span>
-                  <input ref="conciliationAmountInput" v-model="activeConciliationModal.form.montoDepositado" type="number" min="0" step="0.01" placeholder="0.00" />
-                </label>
-                <label class="toolbar-field">
-                  <span>Banco</span>
-                  <input v-model.trim="activeConciliationModal.form.banco" type="text" placeholder="Banco / entidad" />
-                </label>
-                <label class="toolbar-field">
-                  <span>Referencia</span>
-                  <input v-model.trim="activeConciliationModal.form.referencia" type="text" placeholder="Nro. operacion" />
-                </label>
-                <label class="toolbar-field toolbar-field-file">
-                  <span>Comprobante</span>
-                  <input ref="conciliationFileInput" type="file" accept=".jpg,.jpeg,.png,.pdf,.webp" @change="onConciliationFileChange" />
-                </label>
-                <label class="toolbar-field toolbar-field-wide">
-                  <span>Observacion</span>
-                  <textarea v-model.trim="activeConciliationModal.form.observacion" rows="3" placeholder="Detalle del deposito o nota de control"></textarea>
-                </label>
-              </div>
-              <div v-if="activeConciliationModal.qrScan && activeConciliationModal.qrScan.status !== 'idle'" class="conciliation-qr-panel">
-                <div class="conciliation-qr-head">
-                  <strong>Lectura del QR del comprobante</strong>
-                  <span class="calendar-selection-pill" :class="conciliationQrStatusClass(activeConciliationModal.qrScan.status)">
-                    {{ conciliationQrStatusLabel(activeConciliationModal.qrScan.status) }}
-                  </span>
-                </div>
-                <p v-if="activeConciliationModal.qrScan.message" class="detail-copy mb-0">
-                  {{ activeConciliationModal.qrScan.message }}
-                </p>
-                <div v-if="activeConciliationModal.qrScan.parsed" class="conciliation-qr-grid">
-                  <div v-if="activeConciliationModal.qrScan.parsed.bankName" class="conciliation-qr-chip">
+                  <label class="toolbar-field">
                     <span>Banco</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.bankName }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.amount !== null" class="conciliation-qr-chip">
-                    <span>Monto detectado</span>
-                    <strong>{{ formatCurrency(activeConciliationModal.qrScan.parsed.amount) }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.reference" class="conciliation-qr-chip">
-                    <span>Referencia</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.reference }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.bank" class="conciliation-qr-chip">
-                    <span>Agencia / entidad</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.bank }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.transaction" class="conciliation-qr-chip">
-                    <span>Transaccion</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.transaction }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.user" class="conciliation-qr-chip">
+                    <input v-model.trim="activeConciliationModal.form.banco" type="text" placeholder="Banco / entidad" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Nombre del banco</span>
+                    <input v-model.trim="activeConciliationModal.form.nombreBanco" type="text" placeholder="BANCO UNIÓN S.A." />
+                  </label>
+                  <label class="toolbar-field">
                     <span>Usuario</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.user }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.depositante" class="conciliation-qr-chip">
+                    <input v-model.trim="activeConciliationModal.form.usuarioBanco" type="text" placeholder="Usuario del comprobante" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Agencia</span>
+                    <input v-model.trim="activeConciliationModal.form.agenciaBanco" type="text" placeholder="Agencia / soporte operativo" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Transaccion</span>
+                    <input v-model.trim="activeConciliationModal.form.transaccionBanco" type="text" placeholder="Depositos a cuenta" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Fecha comprobante</span>
+                    <input v-model.trim="activeConciliationModal.form.fechaComprobante" type="text" placeholder="20/08/2026" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Moneda</span>
+                    <input v-model.trim="activeConciliationModal.form.monedaComprobante" type="text" placeholder="Bs" />
+                  </label>
+                  <label class="toolbar-field">
                     <span>Depositante</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.depositante }}</strong>
-                  </div>
-                  <div v-if="activeConciliationModal.qrScan.parsed.beneficiario" class="conciliation-qr-chip">
+                    <input v-model.trim="activeConciliationModal.form.depositante" type="text" placeholder="Nombre del depositante" />
+                  </label>
+                  <label class="toolbar-field">
                     <span>Beneficiario</span>
-                    <strong>{{ activeConciliationModal.qrScan.parsed.beneficiario }}</strong>
+                    <input v-model.trim="activeConciliationModal.form.beneficiario" type="text" placeholder="Nombre del beneficiario" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span>Referencia</span>
+                    <input v-model.trim="activeConciliationModal.form.referencia" type="text" placeholder="Nro. operacion" />
+                  </label>
+                  <label class="toolbar-field toolbar-field-wide">
+                    <span>Observacion</span>
+                    <textarea v-model.trim="activeConciliationModal.form.observacion" rows="3" placeholder="Detalle del deposito o nota de control"></textarea>
+                  </label>
+                </div>
+                <div v-if="activeConciliationModal.qrScan && activeConciliationModal.qrScan.status !== 'idle'" class="conciliation-qr-panel">
+                  <div class="conciliation-qr-head">
+                    <strong>Datos detectados del comprobante</strong>
+                    <span class="calendar-selection-pill" :class="conciliationQrStatusClass(activeConciliationModal.qrScan.status)">
+                      {{ conciliationQrStatusLabel(activeConciliationModal.qrScan.status) }}
+                    </span>
+                  </div>
+
+                  <p v-if="activeConciliationModal.qrScan.message" class="detail-copy mb-0">
+                    {{ activeConciliationModal.qrScan.message }}
+                  </p>
+                  <div v-if="activeConciliationModal.qrScan.parsed" class="conciliation-qr-grid">
+                    <div v-if="activeConciliationModal.qrScan.parsed.bankName" class="conciliation-qr-chip">
+                      <span>Banco</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.bankName }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.amount !== null" class="conciliation-qr-chip">
+                      <span>Monto detectado</span>
+                      <strong>{{ formatCurrency(activeConciliationModal.qrScan.parsed.amount) }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.reference" class="conciliation-qr-chip">
+                      <span>Referencia</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.reference }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.date" class="conciliation-qr-chip">
+                      <span>Fecha</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.date }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.currency" class="conciliation-qr-chip">
+                      <span>Moneda</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.currency }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.bank" class="conciliation-qr-chip">
+                      <span>Agencia</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.bank }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.transaction" class="conciliation-qr-chip">
+                      <span>Transaccion</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.transaction }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.user" class="conciliation-qr-chip">
+                      <span>Usuario</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.user }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.depositante" class="conciliation-qr-chip">
+                      <span>Depositante</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.depositante }}</strong>
+                    </div>
+                    <div v-if="activeConciliationModal.qrScan.parsed.beneficiario" class="conciliation-qr-chip">
+                      <span>Beneficiario</span>
+                      <strong>{{ activeConciliationModal.qrScan.parsed.beneficiario }}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="conciliation-form-actions">
-                <span v-if="activeConciliationModal.selectedFileName" class="calendar-selection-pill">
-                  Archivo: <strong>{{ activeConciliationModal.selectedFileName }}</strong>
-                </span>
-                <button type="button" class="toolbar-export-btn" @click="submitConciliationReceipt">
-                  <i class="fas fa-upload"></i>
-                  <span>Guardar comprobante</span>
-                </button>
-              </div>
-            </div>
-
-            <div v-if="activeConciliationModal.loading" class="empty-state users-modal-empty">
-              <h3>Cargando conciliacion</h3>
-              <p>Estamos consultando los comprobantes registrados para esta fecha.</p>
-            </div>
-
-            <div v-else-if="activeConciliationModal.comprobantes.length" class="conciliation-receipts-list">
-              <article v-for="receipt in activeConciliationModal.comprobantes" :key="receipt.id" class="conciliation-receipt-card">
-                <div class="conciliation-receipt-main">
-                  <strong>{{ formatCurrency(receipt.montoDepositado) }}</strong>
-                  <small>{{ formatDateLabel(receipt.fechaDeposito) }}</small>
-                  <small>{{ receipt.banco || 'Sin banco' }}<span v-if="receipt.referencia"> · {{ receipt.referencia }}</span></small>
-                  <small>{{ receipt.observacion || 'Sin observacion' }}</small>
-                  <small>Subido por {{ receipt.subidoPorNombre || receipt.subidoPorEmail || 'Sin usuario' }} · {{ formatDate(receipt.createdAt) }}</small>
-                </div>
-                <div class="conciliation-receipt-actions">
-                  <a class="action-secondary-btn" :href="receipt.archivoUrl" target="_blank" rel="noopener">
-                    <i class="fas fa-paperclip"></i>
-                    <span>Ver archivo</span>
-                  </a>
-                  <button type="button" class="action-danger-btn" @click="deleteConciliationReceipt(receipt)">
-                    <i class="fas fa-trash-alt"></i>
-                    <span>Eliminar</span>
+                <div
+                  v-if="!isConciliationCompletedWithReceipts(activeConciliationModal.conciliacion, activeConciliationModal.comprobantes) || activeConciliationModal.showUploadComposer"
+                  class="conciliation-form-actions"
+                >
+                  <span v-if="activeConciliationModal.selectedFileName" class="calendar-selection-pill">
+                    Archivo: <strong>{{ activeConciliationModal.selectedFileName }}</strong>
+                  </span>
+                  <button type="button" class="toolbar-export-btn" @click="submitConciliationReceipt">
+                    <i class="fas fa-upload"></i>
+                    <span>Guardar comprobante</span>
                   </button>
                 </div>
-              </article>
-            </div>
+                <div v-else class="empty-state users-modal-empty conciliation-upload-complete-state">
+                  <h3>Dia ya conciliado</h3>
+                  <p>Este dia ya tiene comprobante cargado y la conciliacion figura como cumplida. Solo vuelva a subir una imagen si desea reemplazar o agregar otro comprobante.</p>
+                  <button type="button" class="action-btn action-btn-primary" @click="openConciliationUploadComposer">
+                    <i class="fas fa-upload"></i>
+                    <span>Cargar otro comprobante</span>
+                  </button>
+                </div>
+              </div>
 
-            <div v-else class="empty-state users-modal-empty">
-              <h3>Sin comprobantes</h3>
-              <p>Todavia no se cargaron comprobantes para esta sucursal en la fecha seleccionada.</p>
+              <div class="conciliation-form-card conciliation-receipts-panel">
+                <div class="conciliation-detail-head conciliation-detail-head-form">
+                  <div>
+                    <p class="detail-kicker mb-1">Comprobantes registrados</p>
+                    <h4>Historial del dia</h4>
+                    <p class="detail-copy mb-0">Revise los comprobantes subidos, abra el archivo o elimine registros incorrectos.</p>
+                  </div>
+                </div>
+                <div v-if="activeConciliationModal.loading" class="empty-state users-modal-empty">
+                  <h3>Cargando conciliacion</h3>
+                  <p>Estamos consultando los comprobantes registrados para esta fecha.</p>
+                </div>
+
+                <div v-else-if="activeConciliationModal.comprobantes.length" class="conciliation-receipts-list">
+                  <article v-for="receipt in activeConciliationModal.comprobantes" :key="receipt.id" class="conciliation-receipt-card">
+                    <div class="conciliation-receipt-main">
+                      <strong>{{ formatCurrency(receipt.montoDepositado) }}</strong>
+                      <small>{{ formatDateLabel(receipt.fechaDeposito) }}</small>
+                      <small>{{ receipt.banco || 'Sin banco' }}<span v-if="receipt.referencia"> · {{ receipt.referencia }}</span></small>
+                      <small>{{ receipt.observacion || 'Sin observacion' }}</small>
+                      <small>Subido por {{ receipt.subidoPorNombre || receipt.subidoPorEmail || 'Sin usuario' }} · {{ formatDate(receipt.createdAt) }}</small>
+                    </div>
+                    <div class="conciliation-receipt-actions">
+                      <a class="action-secondary-btn" :href="receipt.archivoUrl" target="_blank" rel="noopener">
+                        <i class="fas fa-paperclip"></i>
+                        <span>Ver archivo</span>
+                      </a>
+                      <button type="button" class="action-danger-btn" @click="deleteConciliationReceipt(receipt)">
+                        <i class="fas fa-trash-alt"></i>
+                        <span>Eliminar</span>
+                      </button>
+                    </div>
+                  </article>
+                </div>
+
+                <div v-else class="empty-state users-modal-empty">
+                  <h3>Sin comprobantes</h3>
+                  <p>Todavia no se cargaron comprobantes para esta sucursal en la fecha seleccionada.</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </AdminTemplate>
   </div>
@@ -661,16 +767,26 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import jsQR from 'jsqr';
+import { saveAs } from 'file-saver';
+
+let zxingModulePromise = null;
+let qrScannerModulePromise = null;
 
 export default {
   data() {
     return {
       load: false,
+      exportExcelLoading: false,
+      exportPdfLoading: false,
       page: 'Reportes',
       modulo: 'Kardex',
       error: '',
+      qrScanDebugEntries: [],
       isSyncingFilters: false,
       searchTimer: null,
+      activeLoadReportToken: 0,
+      branchVentasCache: {},
+      pdfAssetCache: {},
       startDate: '',
       endDate: '',
       statusFilter: 'all',
@@ -748,15 +864,16 @@ export default {
     },
     activeConciliationQrHasSource() {
       const scanner = this.activeConciliationModal?.qrScanner;
-      return Boolean(scanner?.previewUrl || scanner?.mode === 'camera');
+      return Boolean(scanner?.previewUrl);
     },
     activeConciliationQrCropStyle() {
-      const crop = this.activeConciliationModal?.qrScanner?.crop || { x: 0.2, y: 0.2, w: 0.55, h: 0.4 };
+      const crop = this.activeConciliationModal?.qrScanner?.crop || { x: 0.58, y: 0.63, w: 0.18, h: 0.18 };
+      const mediaBox = this.getConciliationQrMediaBox();
       return {
-        left: `${crop.x * 100}%`,
-        top: `${crop.y * 100}%`,
-        width: `${crop.w * 100}%`,
-        height: `${crop.h * 100}%`
+        left: `${(mediaBox.leftRatio + (crop.x * mediaBox.widthRatio)) * 100}%`,
+        top: `${(mediaBox.topRatio + (crop.y * mediaBox.heightRatio)) * 100}%`,
+        width: `${crop.w * mediaBox.widthRatio * 100}%`,
+        height: `${crop.h * mediaBox.heightRatio * 100}%`
       };
     },
     calendarDays() {
@@ -929,11 +1046,13 @@ export default {
     this.initializeDateRange();
     this.initializeCalendarAnchor();
     this.loadReport();
+    this.syncRouteConciliationState();
   },
   beforeDestroy() {
     if (this.searchTimer) {
       clearTimeout(this.searchTimer);
     }
+    this.releaseConciliationQrBitmap(this.activeConciliationModal?.qrScanner?.sourceBitmap || null);
     this.stopConciliationCameraStream();
   },
   watch: {
@@ -953,6 +1072,11 @@ export default {
     },
     'filters.puntoVenta'() {
       this.scheduleLoadReport();
+    },
+    '$route.query': {
+      handler() {
+        this.syncRouteConciliationState();
+      }
     }
   },
   methods: {
@@ -964,10 +1088,89 @@ export default {
     initializeCalendarAnchor() {
       this.calendarAnchorMonth = this.startOfMonth(this.selectedConciliationDate || this.defaultToday());
     },
+    goToConciliation(item) {
+      const selectedDate = this.endDate || this.startDate || this.defaultToday();
+      const codigoSucursal = this.normalizeNonNegativeInteger(item?.codigoSucursal, 0);
+      const puntoVenta = this.normalizeNonNegativeInteger(item?.puntoVenta, 0);
+      this.$router.push({
+        path: this.$route.path,
+        query: {
+          ...this.$route.query,
+          view: 'conciliation',
+          fecha: selectedDate,
+          codigoSucursal: String(codigoSucursal),
+          puntoVenta: String(puntoVenta)
+        }
+      });
+    },
+    async syncRouteConciliationState() {
+      const view = String(this.$route.query?.view || '').toLowerCase();
+      if (view !== 'conciliation') {
+        if (this.activeConciliationModal) {
+          this.stopConciliationCameraStream();
+          this.activeConciliationModal = null;
+        }
+        return;
+      }
+
+      const fecha = String(this.$route.query?.fecha || this.endDate || this.startDate || this.defaultToday());
+      const codigoSucursal = this.normalizeNonNegativeInteger(this.$route.query?.codigoSucursal, NaN);
+      const puntoVenta = this.normalizeNonNegativeInteger(this.$route.query?.puntoVenta, NaN);
+      if (Number.isNaN(codigoSucursal) || Number.isNaN(puntoVenta)) {
+        return;
+      }
+
+      const branch = this.branchRows.find((row) => (
+        Number(row?.codigoSucursal ?? -1) === codigoSucursal
+        && Number(row?.puntoVenta ?? -1) === puntoVenta
+      ));
+
+      const nextKey = this.branchKey(codigoSucursal, puntoVenta);
+      if (
+        this.activeConciliationModal
+        && this.activeConciliationModal.branchKey === nextKey
+        && this.activeConciliationModal.selectedDate === fecha
+      ) {
+        return;
+      }
+
+      const fallbackItem = branch || {
+        codigoSucursal,
+        puntoVenta,
+        displayName: `Sucursal ${String(codigoSucursal).padStart(3, '0')}`,
+        departamento: '',
+        nombre: '',
+        conciliacion: this.emptyConciliacion({ codigoSucursal, puntoVenta })
+      };
+
+      await this.openConciliationModal(fallbackItem, { selectedDate: fecha, fromRoute: true });
+    },
     branchKey(codigoSucursal, puntoVenta) {
-      const codigo = String(codigoSucursal ?? '0').padStart(3, '0');
-      const punto = String(puntoVenta ?? '0');
+      const codigo = String(this.normalizeNonNegativeInteger(codigoSucursal, 0)).padStart(3, '0');
+      const punto = String(this.normalizeNonNegativeInteger(puntoVenta, 0));
       return `${codigo}-${punto}`;
+    },
+    normalizeNonNegativeInteger(value, fallback = 0) {
+      if (Array.isArray(value)) {
+        return this.normalizeNonNegativeInteger(value[0], fallback);
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value >= 0 ? Math.trunc(value) : fallback;
+      }
+
+      const text = String(value ?? '').trim();
+      if (!text) {
+        return fallback;
+      }
+
+      const match = text.match(/\d+/);
+      if (!match) {
+        return fallback;
+      }
+
+      const parsed = Number.parseInt(match[0], 10);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
     },
     dateToIso(date) {
       const year = date.getFullYear();
@@ -1031,6 +1234,16 @@ export default {
         fecha: today,
         calendarAnchorMonth: this.startOfMonth(today)
       };
+      this.$router.replace({
+        path: this.$route.path,
+        query: {
+          ...this.$route.query,
+          view: 'conciliation',
+          fecha: today,
+          codigoSucursal: String(this.activeConciliationModal.codigoSucursal),
+          puntoVenta: String(this.activeConciliationModal.puntoVenta)
+        }
+      });
       await this.reloadActiveConciliationDetail();
       this.scrollConciliationUploadIntoView();
     },
@@ -1046,6 +1259,16 @@ export default {
         fecha: day.iso,
         calendarAnchorMonth: this.startOfMonth(day.iso)
       };
+      this.$router.replace({
+        path: this.$route.path,
+        query: {
+          ...this.$route.query,
+          view: 'conciliation',
+          fecha: day.iso,
+          codigoSucursal: String(this.activeConciliationModal.codigoSucursal),
+          puntoVenta: String(this.activeConciliationModal.puntoVenta)
+        }
+      });
       await this.reloadActiveConciliationDetail();
       this.scrollConciliationUploadIntoView();
       this.focusConciliationAmountField();
@@ -1078,15 +1301,19 @@ export default {
         cameras: [],
         selectedDeviceId: '',
         mode: '',
+        sourceBitmap: null,
         previewUrl: '',
         previewFileName: '',
-        statusMessage: 'Pulsa "Activar camara" o selecciona una imagen.',
+        statusMessage: 'Selecciona una imagen del comprobante para comenzar el recorte.',
+        cropEnabled: true,
         crop: {
-          x: 0.18,
-          y: 0.28,
-          w: 0.56,
-          h: 0.34
+          x: 0.58,
+          y: 0.63,
+          w: 0.18,
+          h: 0.18
         },
+        cropSelectionStart: null,
+        cropSelecting: false,
         stream: null
       };
     },
@@ -1099,7 +1326,7 @@ export default {
               ...this.activeConciliationModal.qrScanner,
               loadingDevices: false,
               cameras: [],
-              statusMessage: 'Este navegador no permite detectar camaras. Use la opcion de imagen.'
+              statusMessage: 'Selecciona una imagen del comprobante para comenzar el recorte.'
             }
           };
         }
@@ -1126,9 +1353,7 @@ export default {
             loadingDevices: false,
             cameras,
             selectedDeviceId: this.activeConciliationModal.qrScanner.selectedDeviceId || cameras?.[0]?.deviceId || '',
-            statusMessage: cameras.length
-              ? 'Seleccione una imagen o active la camara para ubicar el QR.'
-              : 'No se detectaron camaras. Puede continuar con una imagen.'
+            statusMessage: 'Selecciona una imagen del comprobante para comenzar el recorte.'
           }
         };
       } catch (error) {
@@ -1142,20 +1367,10 @@ export default {
             ...this.activeConciliationModal.qrScanner,
             loadingDevices: false,
             cameras: [],
-            statusMessage: 'No se pudieron consultar las camaras del dispositivo. Use la opcion de imagen.'
+            statusMessage: 'Selecciona una imagen del comprobante para comenzar el recorte.'
           }
         };
       }
-    },
-    triggerConciliationFilePicker() {
-      this.scrollConciliationUploadIntoView();
-      this.$nextTick(() => {
-        const ref = this.$refs?.conciliationFileInput;
-        const input = Array.isArray(ref) ? ref[0] : ref;
-        if (input && typeof input.click === 'function') {
-          input.click();
-        }
-      });
     },
     triggerConciliationScannerImagePicker() {
       const ref = this.$refs?.conciliationQrScannerInput;
@@ -1175,6 +1390,7 @@ export default {
         ...this.activeConciliationModal,
         selectedFile: null,
         selectedFileName: '',
+        entryMode: this.activeConciliationModal.entryMode || 'qr',
         qrScan: {
           status: 'idle',
           message: '',
@@ -1190,6 +1406,14 @@ export default {
         form: {
           montoDepositado: '',
           banco: '',
+          nombreBanco: '',
+          usuarioBanco: '',
+          agenciaBanco: '',
+          transaccionBanco: '',
+          fechaComprobante: '',
+          monedaComprobante: '',
+          depositante: '',
+          beneficiario: '',
           referencia: '',
           observacion: ''
         }
@@ -1203,6 +1427,17 @@ export default {
           input.focus();
         }
       });
+    },
+    pushQrScanDebug(message) {
+      const nextEntry = String(message || '').trim();
+      if (!nextEntry) {
+        return;
+      }
+
+      this.qrScanDebugEntries = [
+        ...this.qrScanDebugEntries.slice(-11),
+        nextEntry
+      ];
     },
     stopConciliationCameraStream() {
       const stream = this.activeConciliationModal?.qrScanner?.stream || null;
@@ -1224,10 +1459,34 @@ export default {
             stream: null,
             mode: this.activeConciliationModal.qrScanner.previewUrl ? 'image' : '',
             statusMessage: this.activeConciliationModal.qrScanner.previewUrl
-              ? 'Marca solo el QR y procesa el recorte.'
-              : 'Pulsa "Activar camara" o selecciona una imagen.'
+              ? 'Imagen lista para procesar.'
+              : 'Selecciona una imagen del comprobante para comenzar el recorte.'
           }
         };
+      }
+    },
+    releaseConciliationQrBitmap(bitmap) {
+      if (bitmap && typeof bitmap.close === 'function') {
+        try {
+          bitmap.close();
+        } catch (error) {
+          // ignore bitmap cleanup failure
+        }
+      }
+    },
+    async createConciliationImageBitmap(file) {
+      if (!process.client || typeof window === 'undefined' || typeof window.createImageBitmap !== 'function' || !file) {
+        return null;
+      }
+
+      try {
+        return await window.createImageBitmap(file, { imageOrientation: 'from-image' });
+      } catch (error) {
+        try {
+          return await window.createImageBitmap(file);
+        } catch (innerError) {
+          return null;
+        }
       }
     },
     async activateConciliationCamera() {
@@ -1254,9 +1513,11 @@ export default {
           qrScanner: {
             ...this.activeConciliationModal.qrScanner,
             mode: 'camera',
+            sourceBitmap: null,
             stream,
             previewUrl: '',
-            statusMessage: 'Camara activa. Toque la vista para centrar el recorte sobre el QR.'
+            cropEnabled: true,
+            statusMessage: 'Camara activa. Arrastre para seleccionar el area del QR y luego procesela.'
           }
         };
 
@@ -1285,27 +1546,96 @@ export default {
     },
     async onConciliationScannerImageChange(event) {
       const file = event?.target?.files?.[0] || null;
-      if (!file || !this.activeConciliationModal) {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      const previousBitmap = this.activeConciliationModal?.qrScanner?.sourceBitmap || null;
+
+      let nextModal = {
+        ...this.activeConciliationModal,
+        selectedFile: file,
+        selectedFileName: file?.name || '',
+        qrScan: {
+          status: 'idle',
+          message: '',
+          rawText: '',
+          parsed: null
+        }
+      };
+      this.activeConciliationModal = nextModal;
+
+      if (!file) {
+        this.releaseConciliationQrBitmap(previousBitmap);
+        if (this.activeConciliationModal?.qrScanner) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              sourceBitmap: null,
+              previewUrl: '',
+              previewFileName: '',
+              mode: '',
+              statusMessage: 'Selecciona una imagen del comprobante para comenzar el recorte.'
+            }
+          };
+        }
         return;
       }
 
       this.stopConciliationCameraStream();
 
-      const previewUrl = await this.readFileAsDataUrl(file);
-      if (!this.activeConciliationModal) {
+      const mimeType = String(file.type || '').toLowerCase();
+      const isImage = mimeType.startsWith('image/');
+
+      if (!isImage) {
+        this.releaseConciliationQrBitmap(previousBitmap);
+        this.activeConciliationModal = {
+          ...this.activeConciliationModal,
+          qrScan: {
+            status: 'unsupported',
+            message: 'El archivo fue cargado correctamente. La lectura automatica del QR solo funciona con imagenes.',
+            rawText: '',
+            parsed: null
+          }
+        };
         return;
+      }
+
+      try {
+        const [previewUrl, sourceBitmap] = await Promise.all([
+          this.readFileAsDataUrl(file),
+          this.createConciliationImageBitmap(file)
+        ]);
+
+        this.releaseConciliationQrBitmap(previousBitmap);
+
+        if (this.activeConciliationModal?.qrScanner) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              mode: 'image',
+              sourceBitmap,
+              cropEnabled: true,
+              previewUrl,
+              previewFileName: file.name || '',
+              statusMessage: 'Imagen cargada. Arrastre para seleccionar el area del QR y luego procesela.'
+            }
+          };
+        }
+      } catch (error) {
+        this.releaseConciliationQrBitmap(previousBitmap);
+        // preview is optional
       }
 
       this.activeConciliationModal = {
         ...this.activeConciliationModal,
-        selectedFile: file,
-        selectedFileName: file.name || '',
-        qrScanner: {
-          ...this.activeConciliationModal.qrScanner,
-          mode: 'image',
-          previewUrl,
-          previewFileName: file.name || '',
-          statusMessage: 'Marca solo el QR y procesa el recorte.'
+        qrScan: {
+          status: 'idle',
+          message: 'Imagen lista. Puede procesar el QR cuando desee.',
+          rawText: '',
+          parsed: null
         }
       };
     },
@@ -1317,34 +1647,76 @@ export default {
         reader.readAsDataURL(file);
       });
     },
-    handleConciliationQrStageClick(event) {
-      if (!this.activeConciliationModal?.qrScanner) {
-        return;
+    async cloneFileForUpload(file) {
+      if (!file) {
+        return null;
       }
 
-      const stage = event?.currentTarget;
-      if (!stage?.getBoundingClientRect) {
-        return;
+      if (process.client && typeof File === 'function' && typeof file.arrayBuffer === 'function') {
+        const buffer = await file.arrayBuffer();
+        return new File([buffer], file.name || 'comprobante', {
+          type: file.type || 'application/octet-stream',
+          lastModified: file.lastModified || Date.now()
+        });
       }
 
-      const rect = stage.getBoundingClientRect();
-      const x = (event.clientX - rect.left) / rect.width;
-      const y = (event.clientY - rect.top) / rect.height;
-      const currentCrop = this.activeConciliationModal.qrScanner.crop || { x: 0.18, y: 0.28, w: 0.56, h: 0.34 };
-      const nextCrop = {
-        ...currentCrop,
-        x: Math.min(Math.max(0, x - (currentCrop.w / 2)), 1 - currentCrop.w),
-        y: Math.min(Math.max(0, y - (currentCrop.h / 2)), 1 - currentCrop.h)
-      };
+      return file;
+    },
+    dataUrlToUploadFile(dataUrl, filename = 'comprobante.png') {
+      const raw = String(dataUrl || '').trim();
+      if (!raw.startsWith('data:')) {
+        return null;
+      }
 
-      this.activeConciliationModal = {
-        ...this.activeConciliationModal,
-        qrScanner: {
-          ...this.activeConciliationModal.qrScanner,
-          crop: nextCrop,
-          statusMessage: 'Recorte ajustado. Procese el recorte cuando el QR quede dentro del marco.'
+      const parts = raw.split(',');
+      if (parts.length < 2) {
+        return null;
+      }
+
+      const header = parts[0] || '';
+      const body = parts.slice(1).join(',');
+      const mimeMatch = header.match(/^data:([^;]+);base64$/i);
+      const mimeType = mimeMatch?.[1] || 'image/png';
+
+      try {
+        const binary = window.atob(body);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
         }
-      };
+
+        return new File([bytes], filename, {
+          type: mimeType,
+          lastModified: Date.now()
+        });
+      } catch (error) {
+        return null;
+      }
+    },
+    async resolveConciliationUploadFile() {
+      const selectedFile = this.activeConciliationModal?.selectedFile || null;
+      if (selectedFile) {
+        return this.cloneFileForUpload(selectedFile);
+      }
+
+      const previewUrl = this.activeConciliationModal?.qrScanner?.previewUrl || '';
+      const fallbackName = this.activeConciliationModal?.selectedFileName || 'comprobante.png';
+      if (previewUrl) {
+        return this.dataUrlToUploadFile(previewUrl, fallbackName);
+      }
+
+      return null;
+    },
+    canvasToDataUrl(canvas) {
+      if (!canvas || typeof canvas.toDataURL !== 'function') {
+        return '';
+      }
+
+      try {
+        return canvas.toDataURL('image/png');
+      } catch (error) {
+        return '';
+      }
     },
     emptyConciliacion(item = {}) {
       return {
@@ -1377,6 +1749,21 @@ export default {
       if (estado === 'con_diferencia') return 'metric-tag-danger';
       return 'metric-tag-neutral';
     },
+    isConciliationCompletedWithReceipts(conciliacion, comprobantes = []) {
+      const estado = String(conciliacion?.estado || '').toLowerCase();
+      return estado === 'conciliado' && Array.isArray(comprobantes) && comprobantes.length > 0;
+    },
+    openConciliationUploadComposer() {
+      if (!this.activeConciliationModal) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        showUploadComposer: true
+      };
+      this.scrollConciliationUploadIntoView();
+    },
     conciliacionStatusPillClass(conciliacion) {
       const estado = String(conciliacion?.estado || 'sin_comprobante').toLowerCase();
       if (estado === 'conciliado') return 'calendar-selection-pill-success';
@@ -1402,11 +1789,22 @@ export default {
         return null;
       }
 
-      const bitmap = await createImageBitmap(file);
+      this.pushQrScanDebug(`Archivo recibido: ${file?.name || 'sin nombre'}`);
+      const bitmap = await this.createConciliationImageBitmap(file);
+      if (!bitmap) {
+        return null;
+      }
 
       try {
+        const directScanResult = await this.decodeQrWithQrScanner(bitmap);
+        if (directScanResult) {
+          this.pushQrScanDebug('qr-scanner detecto el QR directamente desde el archivo.');
+          return directScanResult;
+        }
+
         const nativeResult = await this.decodeQrFromBitmapWithNativeDetector(bitmap);
         if (nativeResult) {
+          this.pushQrScanDebug('BarcodeDetector detecto el QR desde el bitmap.');
           return nativeResult;
         }
 
@@ -1419,11 +1817,10 @@ export default {
         }
 
         ctx.drawImage(bitmap, 0, 0);
-        return this.decodeQrFromCanvasWithJsQr(fallbackCanvas);
+        this.pushQrScanDebug(`Bitmap convertido a canvas ${fallbackCanvas.width}x${fallbackCanvas.height}.`);
+        return this.decodeQrFromCanvasWithJsQr(fallbackCanvas, { cropped: false, sourceLabel: 'archivo original' });
       } finally {
-        if (bitmap && typeof bitmap.close === 'function') {
-          bitmap.close();
-        }
+        this.releaseConciliationQrBitmap(bitmap);
       }
     },
     async decodeQrFromBitmapWithNativeDetector(bitmap) {
@@ -1440,10 +1837,12 @@ export default {
       const results = await detector.detect(bitmap);
       return results?.[0]?.rawValue ? String(results[0].rawValue) : null;
     },
-    async decodeQrFromCanvas(canvas) {
+    async decodeQrFromCanvas(canvas, options = {}) {
       if (!process.client || typeof window === 'undefined' || !canvas) {
         return null;
       }
+
+      const { cropped = false } = options;
 
       try {
         const nativeBitmap = await createImageBitmap(canvas);
@@ -1461,83 +1860,447 @@ export default {
         // ignore native path failure and continue with jsQR
       }
 
-      return this.decodeQrFromCanvasWithJsQr(canvas);
+      return this.decodeQrFromCanvasWithJsQr(canvas, { cropped });
     },
-    decodeQrFromCanvasWithJsQr(canvas) {
+    async loadZxingModule() {
+      if (!zxingModulePromise) {
+        zxingModulePromise = import('@zxing/library');
+      }
+
+      return zxingModulePromise;
+    },
+    async loadQrScannerModule() {
+      if (!qrScannerModulePromise) {
+        qrScannerModulePromise = import('qr-scanner');
+      }
+
+      return qrScannerModulePromise;
+    },
+    async decodeQrWithQrScanner(source) {
+      if (!process.client || typeof window === 'undefined' || !source) {
+        return null;
+      }
+
+      try {
+        const qrScannerModule = await this.loadQrScannerModule();
+        const QrScanner = qrScannerModule.default || qrScannerModule;
+        const result = await QrScanner.scanImage(source, {
+          returnDetailedScanResult: true,
+          highlightScanRegion: false,
+          highlightCodeOutline: false
+        });
+        return result?.data ? String(result.data) : null;
+      } catch (error) {
+        return null;
+      }
+    },
+    async decodeQrFromImageDataWithZxing(imageData, width, height) {
+      if (!process.client || !imageData || !width || !height) {
+        return null;
+      }
+
+      try {
+        const zxing = await this.loadZxingModule();
+        const {
+          MultiFormatReader,
+          BarcodeFormat,
+          DecodeHintType,
+          RGBLuminanceSource,
+          BinaryBitmap,
+          HybridBinarizer
+        } = zxing;
+
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
+        hints.set(DecodeHintType.TRY_HARDER, true);
+
+        const reader = new MultiFormatReader();
+        reader.setHints(hints);
+
+        const luminanceSource = new RGBLuminanceSource(imageData.data, width, height);
+        const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
+        const result = reader.decode(binaryBitmap);
+        return result?.getText ? String(result.getText()) : null;
+      } catch (error) {
+        return null;
+      }
+    },
+    async decodeQrFromCanvasWithJsQr(canvas, options = {}) {
       if (!canvas) {
         return null;
       }
 
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      if (!context) {
-        return null;
-      }
+      const { cropped = false, sourceLabel = cropped ? 'recorte' : 'imagen completa' } = options;
+      const candidates = this.buildQrScanCandidates({ cropped, canvas });
+      console.info('[ventas/lista] qrScan:candidates', {
+        cropped,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        candidates: candidates.length
+      });
+      this.pushQrScanDebug(`Analizando ${sourceLabel} ${canvas.width}x${canvas.height} con ${candidates.length} intento(s).`);
 
-      const scanAtScale = (scale = 1) => {
-        let workingCanvas = canvas;
-        if (scale !== 1) {
-          workingCanvas = document.createElement('canvas');
-          workingCanvas.width = Math.max(1, Math.round(canvas.width * scale));
-          workingCanvas.height = Math.max(1, Math.round(canvas.height * scale));
-          const workingCtx = workingCanvas.getContext('2d', { willReadFrequently: true });
-          if (!workingCtx) {
-            return null;
-          }
-          workingCtx.drawImage(canvas, 0, 0, workingCanvas.width, workingCanvas.height);
+      for (let index = 0; index < candidates.length; index += 1) {
+        if (index > 0) {
+          await this.pauseQrScanIteration();
         }
 
-        const workingCtx = workingCanvas.getContext('2d', { willReadFrequently: true });
+        const candidateConfig = candidates[index];
+        const candidate = this.createQrScanCanvasVariant(canvas, candidateConfig);
+        if (!candidate) {
+          continue;
+        }
+
+        const qrScannerValue = await this.decodeQrWithQrScanner(candidate);
+        if (qrScannerValue) {
+          console.info('[ventas/lista] qrScan:success', {
+            engine: 'qr-scanner',
+            candidateIndex: index,
+            cropped
+          });
+          this.pushQrScanDebug(`Intento ${index + 1}: QR detectado con qr-scanner.`);
+          return qrScannerValue;
+        }
+
+        const workingCtx = candidate.getContext('2d', { willReadFrequently: true });
         if (!workingCtx) {
-          return null;
+          continue;
         }
 
-        const imageData = workingCtx.getImageData(0, 0, workingCanvas.width, workingCanvas.height);
+        const imageData = workingCtx.getImageData(0, 0, candidate.width, candidate.height);
         const result = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'attemptBoth'
         });
-        return result?.data ? String(result.data) : null;
-      };
+        if (result?.data) {
+          console.info('[ventas/lista] qrScan:success', {
+            engine: 'jsqr',
+            candidateIndex: index,
+            cropped
+          });
+          this.pushQrScanDebug(`Intento ${index + 1}: QR detectado con jsQR.`);
+          return String(result.data);
+        }
 
-      const scales = [1, 1.5, 2, 2.5, 3];
-      for (const scale of scales) {
-        const value = scanAtScale(scale);
-        if (value) {
-          return value;
+        if (candidateConfig.useZxing) {
+          const zxingValue = await this.decodeQrFromImageDataWithZxing(imageData, candidate.width, candidate.height);
+          if (zxingValue) {
+            console.info('[ventas/lista] qrScan:success', {
+              engine: 'zxing',
+              candidateIndex: index,
+              cropped
+            });
+            this.pushQrScanDebug(`Intento ${index + 1}: QR detectado con ZXing.`);
+            return zxingValue;
+          }
+        }
+
+        if (index < 4) {
+          this.pushQrScanDebug(`Intento ${index + 1}: sin coincidencia (${candidate.width}x${candidate.height}).`);
         }
       }
 
+      console.warn('[ventas/lista] qrScan:not-found', {
+        cropped,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height
+      });
+      this.pushQrScanDebug('No se encontro ningun QR valido en los intentos realizados.');
       return null;
     },
-    buildConciliationQrCanvas({ cropped = false } = {}) {
+    pauseQrScanIteration() {
+      return new Promise((resolve) => {
+        if (process.client && typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(() => resolve());
+          return;
+        }
+
+        setTimeout(resolve, 0);
+      });
+    },
+    getConciliationQrStagePoint(event) {
+      const mediaBox = this.getConciliationQrMediaBox();
+      if (!mediaBox.rect.width || !mediaBox.rect.height || !mediaBox.contentWidth || !mediaBox.contentHeight) {
+        return null;
+      }
+
+      const x = Math.min(
+        Math.max(0, (event.clientX - mediaBox.contentLeft) / mediaBox.contentWidth),
+        1
+      );
+      const y = Math.min(
+        Math.max(0, (event.clientY - mediaBox.contentTop) / mediaBox.contentHeight),
+        1
+      );
+      return { x, y };
+    },
+    getConciliationQrMediaBox() {
+      const imageRef = this.activeConciliationModal?.qrScanner?.mode === 'camera'
+        ? this.$refs?.conciliationQrVideo
+        : this.$refs?.conciliationQrImage;
+      const media = Array.isArray(imageRef) ? imageRef[0] : imageRef;
+      const sourceBitmap = this.activeConciliationModal?.qrScanner?.sourceBitmap || null;
+      if (!media?.getBoundingClientRect) {
+        return {
+          rect: { width: 0, height: 0 },
+          contentLeft: 0,
+          contentTop: 0,
+          contentWidth: 0,
+          contentHeight: 0,
+          leftRatio: 0,
+          topRatio: 0,
+          widthRatio: 1,
+          heightRatio: 1
+        };
+      }
+
+      const rect = media.getBoundingClientRect();
+      const boxWidth = rect.width || 0;
+      const boxHeight = rect.height || 0;
+      const naturalWidth = sourceBitmap?.width || media.videoWidth || media.naturalWidth || boxWidth || 0;
+      const naturalHeight = sourceBitmap?.height || media.videoHeight || media.naturalHeight || boxHeight || 0;
+
+      if (!boxWidth || !boxHeight || !naturalWidth || !naturalHeight) {
+        return {
+          rect,
+          contentLeft: rect.left,
+          contentTop: rect.top,
+          contentWidth: boxWidth,
+          contentHeight: boxHeight,
+          leftRatio: 0,
+          topRatio: 0,
+          widthRatio: 1,
+          heightRatio: 1
+        };
+      }
+
+      const mediaRatio = naturalWidth / naturalHeight;
+      const boxRatio = boxWidth / boxHeight;
+      let contentWidth = boxWidth;
+      let contentHeight = boxHeight;
+
+      if (boxRatio > mediaRatio) {
+        contentWidth = boxHeight * mediaRatio;
+      } else {
+        contentHeight = boxWidth / mediaRatio;
+      }
+
+      const contentLeft = rect.left + ((boxWidth - contentWidth) / 2);
+      const contentTop = rect.top + ((boxHeight - contentHeight) / 2);
+
+      return {
+        rect,
+        contentLeft,
+        contentTop,
+        contentWidth,
+        contentHeight,
+        leftRatio: boxWidth ? (contentLeft - rect.left) / boxWidth : 0,
+        topRatio: boxHeight ? (contentTop - rect.top) / boxHeight : 0,
+        widthRatio: boxWidth ? contentWidth / boxWidth : 1,
+        heightRatio: boxHeight ? contentHeight / boxHeight : 1
+      };
+    },
+    startConciliationQrSelection(event) {
+      if (!this.activeConciliationModal?.qrScanner?.cropEnabled) {
+        return;
+      }
+
+      const point = this.getConciliationQrStagePoint(event);
+      if (!point) {
+        return;
+      }
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          cropSelectionStart: point,
+          cropSelecting: true,
+          crop: {
+            x: point.x,
+            y: point.y,
+            w: 0.001,
+            h: 0.001
+          },
+          statusMessage: 'Seleccionando area del QR...'
+        }
+      };
+    },
+    updateConciliationQrSelection(event) {
+      if (!this.activeConciliationModal?.qrScanner?.cropEnabled || !this.activeConciliationModal?.qrScanner?.cropSelecting) {
+        return;
+      }
+
+      const point = this.getConciliationQrStagePoint(event);
+      const start = this.activeConciliationModal.qrScanner.cropSelectionStart;
+      if (!point || !start) {
+        return;
+      }
+
+      const nextCrop = {
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        w: Math.max(0.001, Math.abs(point.x - start.x)),
+        h: Math.max(0.001, Math.abs(point.y - start.y))
+      };
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          crop: nextCrop,
+          statusMessage: 'Arrastre para ampliar o ajustar el area del QR.'
+        }
+      };
+    },
+    finishConciliationQrSelection(event) {
+      if (!this.activeConciliationModal?.qrScanner?.cropEnabled || !this.activeConciliationModal?.qrScanner?.cropSelecting) {
+        return;
+      }
+
+      if (event) {
+        this.updateConciliationQrSelection(event);
+      }
+
+      const crop = this.activeConciliationModal.qrScanner.crop || { x: 0.58, y: 0.63, w: 0.18, h: 0.18 };
+      const normalizedCrop = {
+        x: crop.x,
+        y: crop.y,
+        w: Math.max(0.04, crop.w),
+        h: Math.max(0.04, crop.h)
+      };
+
+      this.activeConciliationModal = {
+        ...this.activeConciliationModal,
+        qrScanner: {
+          ...this.activeConciliationModal.qrScanner,
+          crop: normalizedCrop,
+          cropSelectionStart: null,
+          cropSelecting: false,
+          statusMessage: 'Area QR seleccionada. Pulse "Procesar recorte" para analizarla.'
+        }
+      };
+    },
+    buildQrScanCandidates({ cropped = false, canvas = null } = {}) {
+      if (cropped) {
+        return [
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 1, variant: 'none', rotation: 0, useZxing: true },
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 2, variant: 'grayscale', rotation: 0, useZxing: true },
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 3, variant: 'contrast', rotation: 0, useZxing: true },
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 4, variant: 'threshold', rotation: 0, useZxing: true },
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 3, variant: 'contrast', rotation: -4, useZxing: true },
+          { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 3, variant: 'contrast', rotation: 4, useZxing: true }
+        ];
+      }
+
+      return [
+        { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 1, variant: 'none', rotation: 0, useZxing: true },
+        { region: { x: 0, y: 0, w: 1, h: 1 }, scale: 1.5, variant: 'grayscale', rotation: 0, useZxing: true },
+        { region: { x: 0.48, y: 0.48, w: 0.44, h: 0.44 }, scale: 3, variant: 'contrast', rotation: 0, useZxing: true },
+        { region: { x: 0.48, y: 0.48, w: 0.44, h: 0.44 }, scale: 4, variant: 'threshold', rotation: 0, useZxing: true },
+        { region: { x: 0.44, y: 0.44, w: 0.5, h: 0.5 }, scale: 3, variant: 'contrast', rotation: -4, useZxing: true },
+        { region: { x: 0.44, y: 0.44, w: 0.5, h: 0.5 }, scale: 3, variant: 'contrast', rotation: 4, useZxing: true }
+      ];
+    },
+    createQrScanCanvasVariant(sourceCanvas, { region, scale = 1, variant = 'none', rotation = 0 } = {}) {
+      if (!sourceCanvas) {
+        return null;
+      }
+
+      const sx = Math.max(0, Math.round(sourceCanvas.width * Number(region?.x || 0)));
+      const sy = Math.max(0, Math.round(sourceCanvas.height * Number(region?.y || 0)));
+      const sw = Math.max(1, Math.round(sourceCanvas.width * Number(region?.w || 1)));
+      const sh = Math.max(1, Math.round(sourceCanvas.height * Number(region?.h || 1)));
+      const dw = Math.max(1, Math.round(sw * scale));
+      const dh = Math.max(1, Math.round(sh * scale));
+
+      const workingCanvas = document.createElement('canvas');
+      workingCanvas.width = dw;
+      workingCanvas.height = dh;
+      const ctx = workingCanvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) {
+        return null;
+      }
+
+      if (rotation) {
+        ctx.save();
+        ctx.translate(dw / 2, dh / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(sourceCanvas, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(sourceCanvas, sx, sy, sw, sh, 0, 0, dw, dh);
+      }
+
+      if (variant === 'none') {
+        return workingCanvas;
+      }
+
+      const imageData = ctx.getImageData(0, 0, dw, dh);
+      const data = imageData.data;
+
+      for (let index = 0; index < data.length; index += 4) {
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const gray = Math.round((r * 0.299) + (g * 0.587) + (b * 0.114));
+
+        if (variant === 'grayscale') {
+          data[index] = gray;
+          data[index + 1] = gray;
+          data[index + 2] = gray;
+        } else if (variant === 'contrast') {
+          const contrasted = gray < 128 ? 0 : 255;
+          data[index] = contrasted;
+          data[index + 1] = contrasted;
+          data[index + 2] = contrasted;
+        } else if (variant === 'threshold') {
+          const normalized = gray > 170 ? 255 : gray < 90 ? 0 : gray;
+          data[index] = normalized;
+          data[index + 1] = normalized;
+          data[index + 2] = normalized;
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      return workingCanvas;
+    },
+    buildConciliationQrCanvas() {
       const scanner = this.activeConciliationModal?.qrScanner;
       if (!scanner) {
         return null;
       }
 
       let source = null;
+      let naturalWidth = 0;
+      let naturalHeight = 0;
       if (scanner.mode === 'camera') {
         const ref = this.$refs?.conciliationQrVideo;
         source = Array.isArray(ref) ? ref[0] : ref;
+        naturalWidth = source?.videoWidth || source?.clientWidth || 0;
+        naturalHeight = source?.videoHeight || source?.clientHeight || 0;
       } else if (scanner.previewUrl) {
-        const ref = this.$refs?.conciliationQrImage;
-        source = Array.isArray(ref) ? ref[0] : ref;
+        source = scanner.sourceBitmap || null;
+        if (!source) {
+          const ref = this.$refs?.conciliationQrImage;
+          source = Array.isArray(ref) ? ref[0] : ref;
+        }
+        naturalWidth = source?.width || source?.naturalWidth || source?.clientWidth || 0;
+        naturalHeight = source?.height || source?.naturalHeight || source?.clientHeight || 0;
       }
 
       if (!source) {
         return null;
       }
 
-      const naturalWidth = source.videoWidth || source.naturalWidth || source.clientWidth || 0;
-      const naturalHeight = source.videoHeight || source.naturalHeight || source.clientHeight || 0;
       if (!naturalWidth || !naturalHeight) {
         return null;
       }
 
-      const crop = scanner.crop || { x: 0.18, y: 0.28, w: 0.56, h: 0.34 };
-      const sx = cropped ? Math.round(naturalWidth * crop.x) : 0;
-      const sy = cropped ? Math.round(naturalHeight * crop.y) : 0;
-      const sw = cropped ? Math.round(naturalWidth * crop.w) : naturalWidth;
-      const sh = cropped ? Math.round(naturalHeight * crop.h) : naturalHeight;
+      const crop = scanner.crop || { x: 0.58, y: 0.63, w: 0.18, h: 0.18 };
+      const sx = Math.round(naturalWidth * crop.x);
+      const sy = Math.round(naturalHeight * crop.y);
+      const sw = Math.max(1, Math.round(naturalWidth * crop.w));
+      const sh = Math.max(1, Math.round(naturalHeight * crop.h));
 
       const canvas = document.createElement('canvas');
       canvas.width = sw;
@@ -1581,16 +2344,29 @@ export default {
         if (parsed.bankName || parsed.bank) {
           nextForm.banco = [parsed.bankName, parsed.bank].filter(Boolean).join(' - ').slice(0, 255);
         }
-        if (parsed.reference) {
-          nextForm.referencia = parsed.reference;
+        nextForm.nombreBanco = String(parsed.bankName || '').slice(0, 160);
+        nextForm.usuarioBanco = String(parsed.user || '').slice(0, 120);
+        nextForm.agenciaBanco = String(parsed.bank || '').slice(0, 180);
+        nextForm.transaccionBanco = String(parsed.transaction || '').slice(0, 180);
+        nextForm.fechaComprobante = String(parsed.date || '').slice(0, 40);
+        nextForm.monedaComprobante = String(parsed.currency || '').slice(0, 20);
+        nextForm.depositante = String(parsed.depositante || '').slice(0, 180);
+        nextForm.beneficiario = String(parsed.beneficiario || '').slice(0, 180);
+
+        const resolvedReference = parsed.reference || parsed.user || parsed.transaction || '';
+        if (resolvedReference) {
+          nextForm.referencia = resolvedReference.slice(0, 255);
         }
 
         const observationParts = [
+          parsed.bankName ? `Banco: ${parsed.bankName}` : '',
+          parsed.bank ? `Agencia: ${parsed.bank}` : '',
+          parsed.user ? `Usuario: ${parsed.user}` : '',
           parsed.transaction ? `Transaccion: ${parsed.transaction}` : '',
           parsed.date ? `Fecha: ${parsed.date}` : '',
+          parsed.currency ? `Moneda: ${parsed.currency}` : '',
           parsed.depositante ? `Depositante: ${parsed.depositante}` : '',
-          parsed.beneficiario ? `Beneficiario: ${parsed.beneficiario}` : '',
-          parsed.user ? `Usuario: ${parsed.user}` : ''
+          parsed.beneficiario ? `Beneficiario: ${parsed.beneficiario}` : ''
         ].filter(Boolean);
 
         if (observationParts.length) {
@@ -1619,62 +2395,119 @@ export default {
 
       return true;
     },
-    async processConciliationQrCrop() {
-      if (!this.activeConciliationModal?.qrScanner) {
-        return;
+    async decodeQrViaServer(canvas) {
+      const imageDataUrl = this.canvasToDataUrl(canvas);
+      if (!imageDataUrl) {
+        return null;
       }
 
-      this.activeConciliationModal = {
-        ...this.activeConciliationModal,
-        qrScanner: {
-          ...this.activeConciliationModal.qrScanner,
-          statusMessage: 'Procesando el recorte del QR...'
+      try {
+        const response = await this.$axios.$post('/api/qr/decode', {
+          imageDataUrl
+        });
+
+        if (Array.isArray(response?.attempts)) {
+          response.attempts.slice(0, 10).forEach((entry) => {
+            this.pushQrScanDebug(`server: ${entry}`);
+          });
         }
-      };
 
-      const canvas = this.buildConciliationQrCanvas({ cropped: true });
-      const rawText = canvas ? await this.decodeQrFromCanvas(canvas) : null;
-      const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado desde el recorte. Revise los datos autocompletados antes de guardar.');
-
-      if (this.activeConciliationModal?.qrScanner) {
-        this.activeConciliationModal = {
-          ...this.activeConciliationModal,
-          qrScanner: {
-            ...this.activeConciliationModal.qrScanner,
-            statusMessage: ok
-              ? 'Recorte procesado correctamente.'
-              : 'No se pudo leer el recorte. Ajuste el marco sobre el QR o pruebe con imagen completa.'
-          }
-        };
+        if (response?.ok && response?.rawText) {
+          this.pushQrScanDebug(`Servidor detecto QR con ${response.engine || 'desconocido'} (${response.variant || 'sin variante'}).`);
+          return String(response.rawText);
+        }
+      } catch (error) {
+        this.pushQrScanDebug(`Servidor QR error: ${error?.response?.data?.message || error?.message || 'desconocido'}`);
       }
+
+      return null;
     },
     async processConciliationQrFullSource() {
       if (!this.activeConciliationModal?.qrScanner) {
         return;
       }
 
+      if (this.activeConciliationModal.qrScan?.status === 'loading') {
+        return;
+      }
+
+      this.$swal.fire({
+        title: 'Procesando QR',
+        text: 'Estamos leyendo la imagen del comprobante. Espere un momento.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          this.$swal.showLoading();
+        }
+      });
+
       this.activeConciliationModal = {
         ...this.activeConciliationModal,
+        qrScan: {
+          status: 'loading',
+          message: 'Leyendo el QR del area recortada para completar los datos...',
+          rawText: '',
+          parsed: null
+        },
         qrScanner: {
           ...this.activeConciliationModal.qrScanner,
-          statusMessage: 'Procesando la imagen completa...'
+          statusMessage: 'Procesando el area recortada del QR...'
         }
       };
+      this.qrScanDebugEntries = [];
 
-      const canvas = this.buildConciliationQrCanvas({ cropped: false });
-      const rawText = canvas ? await this.decodeQrFromCanvas(canvas) : null;
-      const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado desde la imagen completa. Revise los datos autocompletados antes de guardar.');
+      try {
+        const useCrop = true;
+        const canvas = this.buildConciliationQrCanvas();
+        const selectedFile = this.activeConciliationModal.selectedFile || null;
+        console.info('[ventas/lista] qrScan:start', {
+          useCrop,
+          crop: useCrop ? this.activeConciliationModal.qrScanner.crop : null,
+          canvasWidth: canvas?.width || null,
+          canvasHeight: canvas?.height || null
+        });
+        this.pushQrScanDebug(useCrop
+          ? `Inicio de lectura sobre recorte ${canvas?.width || 0}x${canvas?.height || 0}.`
+          : `Inicio de lectura sobre imagen completa ${canvas?.width || 0}x${canvas?.height || 0}.`);
 
-      if (this.activeConciliationModal?.qrScanner) {
-        this.activeConciliationModal = {
-          ...this.activeConciliationModal,
-          qrScanner: {
-            ...this.activeConciliationModal.qrScanner,
-            statusMessage: ok
-              ? 'Imagen completa procesada correctamente.'
-              : 'No se pudo leer la imagen completa. Ajuste el recorte sobre el QR.'
-          }
-        };
+        let rawText = null;
+
+        if (!useCrop && selectedFile) {
+          this.pushQrScanDebug('Intentando leer directamente el archivo original.');
+          rawText = await this.decodeQrFromImageFile(selectedFile);
+        }
+
+        if (!rawText) {
+          this.pushQrScanDebug(`Intentando lectura local sobre ${useCrop ? 'el recorte exacto' : 'la imagen preparada'}.`);
+          rawText = canvas ? await this.decodeQrFromCanvas(canvas, { cropped: useCrop, sourceLabel: useCrop ? 'recorte exacto' : 'imagen preparada' }) : null;
+        }
+
+        if (!rawText) {
+          this.pushQrScanDebug('Lectura local sin exito. Se envia al servidor para un analisis adicional.');
+          rawText = canvas ? await this.decodeQrViaServer(canvas) : null;
+        }
+
+        const ok = await this.applyConciliationQrRawText(
+          rawText,
+          useCrop
+            ? 'QR detectado desde el recorte. Revise los datos autocompletados antes de guardar.'
+            : 'QR detectado desde la imagen completa. Revise los datos autocompletados antes de guardar.'
+        );
+
+        if (this.activeConciliationModal?.qrScanner) {
+          this.activeConciliationModal = {
+            ...this.activeConciliationModal,
+            qrScanner: {
+              ...this.activeConciliationModal.qrScanner,
+              statusMessage: ok
+                ? 'Recorte procesado correctamente.'
+                : 'No se pudo leer el QR del recorte. Ajuste mejor el area seleccionada.'
+            }
+          };
+        }
+      } finally {
+        this.$swal.close();
       }
     },
     resetConciliationQrSource() {
@@ -1682,6 +2515,8 @@ export default {
       if (!this.activeConciliationModal?.qrScanner) {
         return;
       }
+
+      this.releaseConciliationQrBitmap(this.activeConciliationModal.qrScanner.sourceBitmap || null);
 
       this.activeConciliationModal = {
         ...this.activeConciliationModal,
@@ -1802,28 +2637,28 @@ export default {
         const host = String(url.hostname || '').toLowerCase();
         const isBancoUnion = host.includes('bancounion.com.bo');
 
-        if (!isBancoUnion || !process.client || typeof window === 'undefined' || typeof window.fetch !== 'function') {
+        if (!isBancoUnion || !process.client) {
           return {
             ...parsed,
             reference: fallbackReference || String(url.searchParams.get('parametro') || '').trim()
           };
         }
 
-        const response = await window.fetch(targetUrl, {
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'omit'
+        const response = await this.$axios.$get('/api/banco-union/comprobante', {
+          params: {
+            url: targetUrl,
+            reference: fallbackReference || String(url.searchParams.get('parametro') || '').trim()
+          }
         });
 
-        if (!response.ok) {
+        if (!response?.ok || !response?.parsed) {
           return {
             ...parsed,
             reference: fallbackReference || String(url.searchParams.get('parametro') || '').trim()
           };
         }
 
-        const html = await response.text();
-        const enriched = this.parseBankReceiptHtml(html, fallbackReference || targetUrl);
+        const enriched = response.parsed;
 
         return {
           ...parsed,
@@ -1950,10 +2785,13 @@ export default {
 
       return difference > 0 ? 'metric-tag-info' : 'metric-tag-danger';
     },
-    async loadConciliacionesSummary() {
+    async loadConciliacionesSummary(requestToken = this.activeLoadReportToken) {
       try {
         const fecha = this.activeConciliationModal?.selectedDate || this.selectedConciliationDate || this.defaultToday();
         const response = await this.$admin.$get(`caja/conciliaciones?fecha=${encodeURIComponent(fecha)}`);
+        if (requestToken !== this.activeLoadReportToken) {
+          return;
+        }
         this.conciliacionSummaryRows = Array.isArray(response?.conciliaciones)
           ? response.conciliaciones.map((item) => ({
             ...item,
@@ -1966,7 +2804,9 @@ export default {
           data: error?.response?.data || null,
           message: error?.message || null
         });
-        this.conciliacionSummaryRows = [];
+        if (requestToken === this.activeLoadReportToken) {
+          this.conciliacionSummaryRows = [];
+        }
       }
     },
     emptyBranchRow(baseItem) {
@@ -2372,10 +3212,12 @@ export default {
         contratosNoSumados: 0
       });
     },
-    async refreshBranchTotalsFromVentas() {
+    async refreshBranchTotalsFromVentas(requestToken = this.activeLoadReportToken) {
       const sourceRows = Array.isArray(this.report?.sucursales) ? this.report.sucursales : [];
       if (!sourceRows.length) {
-        this.branchTotalsByBranch = {};
+        if (requestToken === this.activeLoadReportToken) {
+          this.branchTotalsByBranch = {};
+        }
         return;
       }
 
@@ -2392,6 +3234,10 @@ export default {
         }
       }));
 
+      if (requestToken !== this.activeLoadReportToken) {
+        return;
+      }
+
       this.branchTotalsByBranch = adjustments
         .filter(Boolean)
         .reduce((acc, item) => {
@@ -2403,7 +3249,7 @@ export default {
       const key = this.branchKey(codigoSucursal, puntoVenta);
       return Number(this.userCountsByBranch[key] || 0);
     },
-    async ensureBranchUserCounts() {
+    async ensureBranchUserCounts(requestToken = this.activeLoadReportToken) {
       try {
         const fecha = this.endDate || this.defaultToday();
         const response = await this.$admin.$get(`caja/reporte-diario?fecha=${encodeURIComponent(fecha)}`);
@@ -2421,6 +3267,10 @@ export default {
             nextCounts[key] = 0;
           }
         });
+
+        if (requestToken !== this.activeLoadReportToken) {
+          return;
+        }
 
         this.userCountsByBranch = nextCounts;
       } catch (error) {
@@ -2453,6 +3303,17 @@ export default {
       return `${year}-${month}-${day}`;
     },
     async fetchBranchVentas(branch) {
+      const cacheKey = [
+        String(branch?.codigoSucursal ?? ''),
+        String(branch?.puntoVenta ?? '0'),
+        this.startDate || '',
+        this.endDate || ''
+      ].join('|');
+
+      if (Array.isArray(this.branchVentasCache[cacheKey])) {
+        return this.branchVentasCache[cacheKey];
+      }
+
       const params = new URLSearchParams();
       params.append('codigoSucursal', String(branch?.codigoSucursal ?? ''));
       params.append('puntoVenta', String(branch?.puntoVenta ?? '0'));
@@ -2465,7 +3326,12 @@ export default {
 
       const path = `ventas?${params.toString()}`;
       const response = await this.$admin.$get(path);
-      return Array.isArray(response) ? response : [];
+      const ventas = Array.isArray(response) ? response : [];
+      this.branchVentasCache = {
+        ...this.branchVentasCache,
+        [cacheKey]: ventas
+      };
+      return ventas;
     },
     startOfMonth(isoDate) {
       const [year, month] = String(isoDate || '').split('-');
@@ -2745,8 +3611,11 @@ export default {
       return Math.round(Number(value || 0) * 100) / 100;
     },
     async loadReport() {
+      const requestToken = this.activeLoadReportToken + 1;
+      this.activeLoadReportToken = requestToken;
       this.load = true;
       this.error = '';
+      this.branchVentasCache = {};
 
       try {
         const endDate = this.endDate || this.defaultToday();
@@ -2780,16 +3649,45 @@ export default {
             : null
         });
 
+        if (requestToken !== this.activeLoadReportToken) {
+          console.warn('[ventas/lista] loadReport:stale-success-ignored', {
+            requestToken,
+            activeLoadReportToken: this.activeLoadReportToken
+          });
+          return;
+        }
+
         this.report = {
           resumen: response && response.resumen ? response.resumen : this.report.resumen,
           sucursales: response && response.sucursales ? response.sucursales : []
         };
-        await Promise.all([
-          this.refreshBranchTotalsFromVentas(),
-          this.ensureBranchUserCounts(),
-          this.loadConciliacionesSummary()
-        ]);
+        this.syncRouteConciliationState();
+        Promise.allSettled([
+          this.refreshBranchTotalsFromVentas(requestToken),
+          this.ensureBranchUserCounts(requestToken),
+          this.loadConciliacionesSummary(requestToken)
+        ]).then((results) => {
+          results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              const taskName = ['refreshBranchTotalsFromVentas', 'ensureBranchUserCounts', 'loadConciliacionesSummary'][index];
+              console.warn('[ventas/lista] loadReport:background-task:error', {
+                taskName,
+                message: result.reason?.message || null,
+                status: result.reason?.response?.status || null,
+                data: result.reason?.response?.data || null
+              });
+            }
+          });
+        });
       } catch (err) {
+        if (requestToken !== this.activeLoadReportToken) {
+          console.warn('[ventas/lista] loadReport:stale-error-ignored', {
+            requestToken,
+            activeLoadReportToken: this.activeLoadReportToken,
+            message: err?.message || null
+          });
+          return;
+        }
         console.error('[ventas/lista] loadReport:error', {
           filters: { ...this.filters },
           status: err?.response?.status || null,
@@ -2802,7 +3700,9 @@ export default {
 
         this.error = message;
       } finally {
-        this.load = false;
+        if (requestToken === this.activeLoadReportToken) {
+          this.load = false;
+        }
       }
     },
     resetFilters() {
@@ -2869,24 +3769,37 @@ export default {
       this.activeIncidentsModal = null;
     },
     closeConciliationModal() {
+      this.releaseConciliationQrBitmap(this.activeConciliationModal?.qrScanner?.sourceBitmap || null);
       this.stopConciliationCameraStream();
       this.activeConciliationModal = null;
+      if (String(this.$route.query?.view || '').toLowerCase() === 'conciliation') {
+        const nextQuery = { ...this.$route.query };
+        delete nextQuery.view;
+        delete nextQuery.fecha;
+        delete nextQuery.codigoSucursal;
+        delete nextQuery.puntoVenta;
+        this.$router.replace({ path: this.$route.path, query: nextQuery });
+      }
     },
-    async openConciliationModal(item) {
-      const selectedDate = this.endDate || this.startDate || this.defaultToday();
-      const branchKey = this.branchKey(item?.codigoSucursal, item?.puntoVenta);
+    async openConciliationModal(item, options = {}) {
+      const selectedDate = options.selectedDate || this.endDate || this.startDate || this.defaultToday();
+      const codigoSucursal = this.normalizeNonNegativeInteger(item?.codigoSucursal, 0);
+      const puntoVenta = this.normalizeNonNegativeInteger(item?.puntoVenta, 0);
+      const branchKey = this.branchKey(codigoSucursal, puntoVenta);
       this.activeConciliationModal = {
         branchKey,
-        codigoSucursal: Number(item?.codigoSucursal ?? 0),
-        puntoVenta: Number(item?.puntoVenta ?? 0),
+        codigoSucursal,
+        puntoVenta,
         fecha: selectedDate,
         selectedDate,
         calendarAnchorMonth: this.startOfMonth(selectedDate),
+        showUploadComposer: true,
         title: item.displayName || item.departamento || item.nombre || 'Sucursal',
-        subtitle: `Sucursal ${String(item?.codigoSucursal ?? 0).padStart(3, '0')} · Punto ${item?.puntoVenta ?? 0}`,
+        subtitle: `Sucursal ${String(codigoSucursal).padStart(3, '0')} · Punto ${puntoVenta}`,
         conciliacion: item.conciliacion || this.emptyConciliacion(item),
         comprobantes: [],
         loading: true,
+        entryMode: 'qr',
         selectedFile: null,
         selectedFileName: '',
         qrScan: {
@@ -2899,12 +3812,19 @@ export default {
         form: {
           montoDepositado: '',
           banco: '',
+          nombreBanco: '',
+          usuarioBanco: '',
+          agenciaBanco: '',
+          transaccionBanco: '',
+          fechaComprobante: '',
+          monedaComprobante: '',
+          depositante: '',
+          beneficiario: '',
           referencia: '',
           observacion: ''
         }
       };
 
-      this.loadConciliationCameraDevices();
       await this.reloadActiveConciliationDetail();
     },
     async reloadActiveConciliationDetail() {
@@ -2934,6 +3854,10 @@ export default {
             receiptCount: Array.isArray(response?.comprobantes) ? response.comprobantes.length : 0
           },
           comprobantes: Array.isArray(response?.comprobantes) ? response.comprobantes : [],
+          showUploadComposer: !this.isConciliationCompletedWithReceipts(
+            response?.conciliacion || this.activeConciliationModal.conciliacion,
+            Array.isArray(response?.comprobantes) ? response.comprobantes : []
+          ),
           loading: false
         };
         await this.loadConciliacionesSummary();
@@ -2956,133 +3880,76 @@ export default {
         });
       }
     },
-    async onConciliationFileChange(event) {
-      const file = event?.target?.files?.[0] || null;
-      if (!this.activeConciliationModal) {
-        return;
-      }
-
-      let nextModal = {
-        ...this.activeConciliationModal,
-        selectedFile: file,
-        selectedFileName: file?.name || '',
-        qrScan: {
-          status: 'idle',
-          message: '',
-          rawText: '',
-          parsed: null
-        }
-      };
-      this.activeConciliationModal = nextModal;
-
-      if (!file) {
-        return;
-      }
-
-      const mimeType = String(file.type || '').toLowerCase();
-      const isImage = mimeType.startsWith('image/');
-
-      if (!isImage) {
-        this.activeConciliationModal = {
-          ...this.activeConciliationModal,
-          qrScan: {
-            status: 'unsupported',
-            message: 'El archivo fue cargado correctamente. La lectura automatica del QR solo funciona con imagenes.',
-            rawText: '',
-            parsed: null
-          }
-        };
-        return;
-      }
-
-      try {
-        const previewUrl = await this.readFileAsDataUrl(file);
-        if (this.activeConciliationModal?.qrScanner) {
-          this.stopConciliationCameraStream();
-          this.activeConciliationModal = {
-            ...this.activeConciliationModal,
-            qrScanner: {
-              ...this.activeConciliationModal.qrScanner,
-              mode: 'image',
-              previewUrl,
-              previewFileName: file?.name || '',
-              statusMessage: 'Imagen cargada. Puede procesar la imagen completa o ajustar el recorte sobre el QR.'
-            }
-          };
-        }
-      } catch (error) {
-        // preview is optional
-      }
-
-      this.activeConciliationModal = {
-        ...this.activeConciliationModal,
-        qrScan: {
-          status: 'loading',
-          message: 'Leyendo el QR del comprobante para completar los datos...',
-          rawText: '',
-          parsed: null
-        }
-      };
-
-      try {
-        const rawText = await this.decodeQrFromImageFile(file);
-        const ok = await this.applyConciliationQrRawText(rawText, 'QR detectado. Los datos fueron cargados y puede confirmarlos antes de guardar.');
-        if (this.activeConciliationModal?.qrScanner) {
-          this.activeConciliationModal = {
-            ...this.activeConciliationModal,
-            qrScanner: {
-              ...this.activeConciliationModal.qrScanner,
-              statusMessage: ok
-                ? 'Lectura automatica completada. Si desea, puede ajustar el recorte para mejorar la precision.'
-                : 'No se detecto el QR completo. Ajuste el recorte sobre la zona del QR e intente de nuevo.'
-            }
-          };
-        }
-      } catch (error) {
-        console.error('[ventas/lista] onConciliationFileChange:qr:error', {
-          message: error?.message || null,
-          fileName: file?.name || null,
-          fileType: file?.type || null
-        });
-        this.activeConciliationModal = {
-          ...this.activeConciliationModal,
-          qrScan: {
-            status: 'error',
-            message: 'No pudimos procesar la imagen del comprobante. Puede continuar con carga manual.',
-            rawText: '',
-            parsed: null
-          }
-        };
-      }
-    },
     async submitConciliationReceipt() {
       if (!this.activeConciliationModal) {
         return;
       }
 
-      if (!this.activeConciliationModal.selectedFile) {
+      const hasVisualSource = Boolean(
+        this.activeConciliationModal.selectedFile
+        || this.activeConciliationModal.qrScanner?.previewUrl
+      );
+
+      if (!hasVisualSource) {
         this.$swal.fire({
           icon: 'warning',
           title: 'Archivo requerido',
-          text: 'Seleccione un comprobante antes de guardar.'
+          text: 'Seleccione o capture el comprobante en la parte superior antes de guardar.'
+        });
+        return;
+      }
+
+      let uploadFile = null;
+      try {
+        uploadFile = await this.resolveConciliationUploadFile();
+      } catch (error) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'No se pudo preparar el archivo',
+          text: 'Vuelva a seleccionar la imagen del comprobante antes de guardar.'
+        });
+        return;
+      }
+
+      if (!uploadFile) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Archivo no disponible',
+          text: 'Vuelva a seleccionar la imagen del comprobante antes de guardar.'
         });
         return;
       }
 
       const activeBranch = this.branchRows.find((row) => this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey);
+      const codigoSucursal = this.normalizeNonNegativeInteger(
+        activeBranch?.codigoSucursal ?? this.activeConciliationModal.codigoSucursal ?? this.activeConciliationModal.conciliacion?.codigoSucursal,
+        0
+      );
+      const puntoVenta = this.normalizeNonNegativeInteger(
+        activeBranch?.puntoVenta ?? this.activeConciliationModal.puntoVenta ?? this.activeConciliationModal.conciliacion?.puntoVenta,
+        0
+      );
       const formData = new FormData();
       formData.append('fecha', this.activeConciliationModal.fecha);
-      formData.append('codigoSucursal', String(activeBranch?.codigoSucursal ?? this.activeConciliationModal.codigoSucursal ?? this.activeConciliationModal.conciliacion?.codigoSucursal ?? 0));
-      formData.append('puntoVenta', String(activeBranch?.puntoVenta ?? this.activeConciliationModal.puntoVenta ?? this.activeConciliationModal.conciliacion?.puntoVenta ?? 0));
+      formData.append('codigoSucursal', String(codigoSucursal));
+      formData.append('puntoVenta', String(puntoVenta));
       formData.append('sucursalNombre', activeBranch?.displayName || activeBranch?.sucursalNombre || this.activeConciliationModal.title);
       formData.append('totalEfectivoSistema', String(activeBranch?.totalEfectivoFacturado ?? this.activeConciliationModal.conciliacion?.totalEfectivoSistema ?? 0));
       formData.append('totalQrSistema', String(activeBranch?.totalQrFacturado ?? this.activeConciliationModal.conciliacion?.totalQrSistema ?? 0));
       formData.append('totalGeneralSistema', String(activeBranch?.totalVendido ?? this.activeConciliationModal.conciliacion?.totalGeneralSistema ?? 0));
       formData.append('montoDepositado', String(this.activeConciliationModal.form.montoDepositado || 0));
       formData.append('banco', this.activeConciliationModal.form.banco || '');
+      formData.append('nombreBanco', this.activeConciliationModal.form.nombreBanco || '');
+      formData.append('usuarioBanco', this.activeConciliationModal.form.usuarioBanco || '');
+      formData.append('agenciaBanco', this.activeConciliationModal.form.agenciaBanco || '');
+      formData.append('transaccionBanco', this.activeConciliationModal.form.transaccionBanco || '');
+      formData.append('fechaComprobante', this.activeConciliationModal.form.fechaComprobante || '');
+      formData.append('monedaComprobante', this.activeConciliationModal.form.monedaComprobante || '');
+      formData.append('depositante', this.activeConciliationModal.form.depositante || '');
+      formData.append('beneficiario', this.activeConciliationModal.form.beneficiario || '');
       formData.append('referencia', this.activeConciliationModal.form.referencia || '');
       formData.append('observacion', this.activeConciliationModal.form.observacion || '');
-      formData.append('archivo', this.activeConciliationModal.selectedFile);
+      formData.append('archivo', uploadFile, uploadFile.name || this.activeConciliationModal.selectedFileName || 'comprobante');
 
       this.load = true;
       try {
@@ -3094,11 +3961,23 @@ export default {
             receiptCount: Array.isArray(response?.comprobantes) ? response.comprobantes.length : 0
           },
           comprobantes: Array.isArray(response?.comprobantes) ? response.comprobantes : [],
+          showUploadComposer: !this.isConciliationCompletedWithReceipts(
+            response?.conciliacion || this.activeConciliationModal.conciliacion,
+            Array.isArray(response?.comprobantes) ? response.comprobantes : []
+          ),
           selectedFile: null,
           selectedFileName: '',
           form: {
             montoDepositado: '',
             banco: '',
+            nombreBanco: '',
+            usuarioBanco: '',
+            agenciaBanco: '',
+            transaccionBanco: '',
+            fechaComprobante: '',
+            monedaComprobante: '',
+            depositante: '',
+            beneficiario: '',
             referencia: '',
             observacion: ''
           },
@@ -3430,15 +4309,26 @@ export default {
       return parts.length ? parts.join(' | ') : 'Sin incidencias';
     },
     async loadImageDataUrl(src) {
+      if (this.pdfAssetCache[src]) {
+        return this.pdfAssetCache[src];
+      }
+
       const response = await fetch(src);
       const blob = await response.blob();
 
-      return await new Promise((resolve, reject) => {
+      const dataUrl = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
+
+      this.pdfAssetCache = {
+        ...this.pdfAssetCache,
+        [src]: dataUrl
+      };
+
+      return dataUrl;
     },
     async drawPdfHeader(doc) {
       try {
@@ -3785,7 +4675,495 @@ export default {
         margin: { left: 12, right: 12 }
       });
     },
+    async downloadResumenExcel() {
+      if (this.exportExcelLoading) {
+        return;
+      }
+
+      this.exportExcelLoading = true;
+      this.$swal.fire({
+        title: 'Generando Excel',
+        text: 'Estamos preparando la descarga. Esto puede tardar unos segundos.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          this.$swal.showLoading();
+        }
+      });
+
+      try {
+        const ExcelJSModule = await import('exceljs');
+        const ExcelJS = ExcelJSModule.default || ExcelJSModule;
+        const statusLabel = {
+          all: 'Todos',
+          cerrada: 'Sin observaciones',
+          pendiente: 'Con pendientes',
+          diferencia: 'Con observaciones',
+          sin_ventas: 'Sin ventas'
+        }[this.statusFilter] || 'Todos';
+        const visibleBranches = this.filteredBranches;
+
+        if (!visibleBranches.length) {
+          this.$swal.fire({
+            icon: 'warning',
+            title: 'Sin datos para exportar',
+            text: 'No hay sucursales visibles con el filtro actual.'
+          });
+          return;
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Control de cierre';
+        workbook.created = new Date();
+        const generatedAt = this.currentPdfTimestamp();
+        const totalFacturasAnuladas = visibleBranches.reduce(
+          (acc, branch) => acc + Number(branch.totalFacturasAnuladas || 0),
+          0
+        );
+        const totalCartRechazadoDescartado = visibleBranches.reduce(
+          (acc, branch) => acc + Number(branch.totalCartRechazadoDescartado || 0),
+          0
+        );
+        const contractBranches = visibleBranches.filter(
+          (branch) => Number(branch.totalContratosNoSumados || branch.contratosNoSumados || 0) > 0
+        );
+        const contractRows = (await Promise.all(contractBranches.map(async (branch) => {
+          try {
+            const ventas = await this.fetchBranchVentas(branch);
+
+            return ventas
+              .filter((venta) => this.isExcludedServiceVenta(venta))
+              .map((venta) => ({
+                sucursal: branch.displayName || '-',
+                codigo_sucursal: branch.codigoSucursalLabel,
+                punto_venta: branch.puntoVentaLabel,
+                cajero: this.usuarioNombreFromVenta(venta),
+                empresa: this.contratoEmpresaLabel(venta),
+                tipo_servicio: this.excludedServiceTypeLabel(venta),
+                descripcion: this.contratoDescripcionLabel(venta),
+                importe: Number(venta.total || 0)
+              }));
+          } catch (error) {
+            return [];
+          }
+        }))).flat();
+
+        const mainSheet = workbook.addWorksheet('Control cierre', {
+          views: [{ state: 'frozen', ySplit: 11 }]
+        });
+        mainSheet.pageSetup = {
+          paperSize: 1,
+          orientation: 'portrait',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+        };
+        mainSheet.columns = [
+          { width: 28 },
+          { width: 23 },
+          { width: 18 },
+          { width: 28 },
+          { width: 13 },
+          { width: 20 }
+        ];
+
+        const border = {
+          top: { style: 'thin', color: { argb: 'FF6B7280' } },
+          left: { style: 'thin', color: { argb: 'FF6B7280' } },
+          bottom: { style: 'thin', color: { argb: 'FF6B7280' } },
+          right: { style: 'thin', color: { argb: 'FF6B7280' } }
+        };
+        const sectionFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        const titleFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+        const applyRangeBorder = (fromRow, fromCol, toRow, toCol) => {
+          for (let row = fromRow; row <= toRow; row += 1) {
+            for (let col = fromCol; col <= toCol; col += 1) {
+              mainSheet.getCell(row, col).border = border;
+            }
+          }
+        };
+        const styleSectionTitle = (rowNumber, text, mergeTo = 6) => {
+          mainSheet.mergeCells(rowNumber, 1, rowNumber, mergeTo);
+          const cell = mainSheet.getCell(rowNumber, 1);
+          cell.value = text;
+          cell.font = { name: 'Calibri', size: 11, bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.fill = sectionFill;
+          applyRangeBorder(rowNumber, 1, rowNumber, mergeTo);
+          mainSheet.getRow(rowNumber).height = 24;
+        };
+
+        mainSheet.mergeCells('A1:F1');
+        const titleCell = mainSheet.getCell('A1');
+        titleCell.value = 'CONTROL DE CIERRE';
+        titleCell.font = { name: 'Calibri', size: 16, bold: false };
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        titleCell.fill = titleFill;
+        mainSheet.getRow(1).height = 30;
+
+        const infoRows = [
+          ['Fecha inicio:', this.startDate || this.defaultToday(), 'Fecha fin:', this.endDate || this.defaultToday(), 'Estado:', statusLabel],
+          ['Busqueda:', this.filters.q || 'Todas las sucursales', 'Sucursales visibles:', Number(this.dashboardMetrics.total || 0), 'Total vendido:', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
+        ];
+        infoRows.forEach((rowData, index) => {
+          const rowNumber = 3 + index;
+          rowData.forEach((value, cellIndex) => {
+            const cell = mainSheet.getCell(rowNumber, cellIndex + 1);
+            cell.value = value;
+            cell.font = {
+              name: 'Calibri',
+              size: 10,
+              bold: cellIndex % 2 === 0
+            };
+            cell.alignment = {
+              vertical: 'middle',
+              horizontal: cellIndex % 2 === 0 ? 'left' : (cellIndex === 5 ? 'right' : 'left'),
+              wrapText: true
+            };
+            if (cellIndex % 2 === 0) {
+              cell.fill = headerFill;
+            }
+          });
+          mainSheet.getRow(rowNumber).height = 24;
+        });
+        applyRangeBorder(3, 1, 4, 6);
+
+        styleSectionTitle(6, 'KARDEX DE VENTAS COBRADAS');
+        const metricRows = [
+          ['Sucursales del dia', Number(this.dashboardMetrics.total || 0), 'Sin observaciones', Number(this.dashboardMetrics.conformes || 0), 'Con pendientes', Number(this.dashboardMetrics.pendientes || 0)],
+          ['Con observaciones', Number(this.dashboardMetrics.diferencias || 0), 'Sin ventas', Number(this.dashboardMetrics.sinVentas || 0), 'Total vendido', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
+        ];
+        metricRows.forEach((rowData, index) => {
+          const rowNumber = 7 + index;
+          rowData.forEach((value, cellIndex) => {
+            const cell = mainSheet.getCell(rowNumber, cellIndex + 1);
+            cell.value = value;
+            cell.font = { name: 'Calibri', size: 10, bold: cellIndex % 2 === 0 };
+            cell.alignment = {
+              vertical: 'middle',
+              horizontal: cellIndex % 2 === 0 ? 'left' : 'right',
+              wrapText: true
+            };
+            if (cellIndex % 2 === 0) {
+              cell.fill = headerFill;
+            }
+          });
+          mainSheet.getRow(rowNumber).height = 24;
+        });
+        applyRangeBorder(7, 1, 8, 6);
+
+        styleSectionTitle(10, 'RESUMEN DE SUCURSALES', 4);
+        const branchHeaderRow = 11;
+        ['Sucursal', 'Estado e incidencias', 'Total ventas', 'Total vendido'].forEach((value, index) => {
+          const cell = mainSheet.getCell(branchHeaderRow, index + 1);
+          cell.value = value;
+          cell.font = { name: 'Calibri', size: 10, bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          cell.fill = headerFill;
+          cell.border = border;
+        });
+        mainSheet.getRow(branchHeaderRow).height = 26;
+
+        let currentRow = 12;
+        visibleBranches.forEach((branch) => {
+          const branchLabel = `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`;
+          const incidentText = this.buildPdfIncidentBlocks(branch).map((block) => block.text).join('\n');
+          const salesText = this.buildPdfSalesBlocks(branch).map((block) => block.text).join('\n');
+          const totalsText = this.buildPdfTotalBlocks(branch).map((block) => block.text).join('\n');
+          const row = mainSheet.getRow(currentRow);
+          row.getCell(1).value = branchLabel;
+          row.getCell(2).value = incidentText;
+          row.getCell(3).value = salesText;
+          row.getCell(4).value = totalsText;
+          [1, 2, 3, 4].forEach((col) => {
+            const cell = row.getCell(col);
+            cell.border = border;
+            cell.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+            cell.font = { name: 'Calibri', size: 10 };
+          });
+          row.height = 56;
+          currentRow += 1;
+        });
+
+        const totalBoxStart = currentRow;
+        mainSheet.mergeCells(totalBoxStart, 1, totalBoxStart, 3);
+        const totalTitle = mainSheet.getCell(totalBoxStart, 1);
+        totalTitle.value = 'TOTALES';
+        totalTitle.font = { name: 'Calibri', size: 11, bold: true };
+        totalTitle.fill = sectionFill;
+        totalTitle.alignment = { vertical: 'middle', horizontal: 'left' };
+        applyRangeBorder(totalBoxStart, 1, totalBoxStart, 4);
+
+        const totalRows = [
+          ['Total general', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)],
+          ['Total QR', this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)],
+          ['Total efectivo', this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)]
+        ];
+        if (totalFacturasAnuladas > 0) {
+          totalRows.push(['Facturas anuladas no sumadas', this.formatCurrency(totalFacturasAnuladas)]);
+        }
+        if (totalCartRechazadoDescartado > 0) {
+          totalRows.push(['QR rechazado/descartado', this.formatCurrency(totalCartRechazadoDescartado)]);
+        }
+        totalRows.forEach((rowData, index) => {
+          const rowNumber = totalBoxStart + 1 + index;
+          mainSheet.mergeCells(rowNumber, 1, rowNumber, 3);
+          mainSheet.getCell(rowNumber, 1).value = rowData[0];
+          mainSheet.getCell(rowNumber, 4).value = rowData[1];
+          mainSheet.getCell(rowNumber, 1).font = { name: 'Calibri', size: 10, bold: true };
+          mainSheet.getCell(rowNumber, 4).font = { name: 'Calibri', size: 10, bold: true };
+          mainSheet.getCell(rowNumber, 1).alignment = { vertical: 'middle', horizontal: 'left' };
+          mainSheet.getCell(rowNumber, 4).alignment = { vertical: 'middle', horizontal: 'right' };
+          applyRangeBorder(rowNumber, 1, rowNumber, 4);
+        });
+        currentRow = totalBoxStart + totalRows.length + 2;
+
+        currentRow += 1;
+        mainSheet.mergeCells(currentRow, 1, currentRow, 2);
+        mainSheet.getCell(currentRow, 1).value = 'Generado en';
+        mainSheet.getCell(currentRow, 3).value = generatedAt;
+        mainSheet.getCell(currentRow, 1).font = { name: 'Calibri', size: 10, bold: true };
+        mainSheet.getCell(currentRow, 3).font = { name: 'Calibri', size: 10 };
+        mainSheet.getCell(currentRow, 1).alignment = { horizontal: 'left' };
+        mainSheet.getCell(currentRow, 3).alignment = { horizontal: 'left' };
+
+        const branchesSheet = workbook.addWorksheet('Sucursales');
+        branchesSheet.columns = [
+          { header: 'Sucursal', key: 'sucursal', width: 28 },
+          { header: 'Codigo sucursal', key: 'codigo_sucursal', width: 16 },
+          { header: 'Punto venta', key: 'punto_venta', width: 14 },
+          { header: 'Estado', key: 'estado', width: 20 },
+          { header: 'Detalle estado', key: 'detalle_estado', width: 24 },
+          { header: 'Total vendido', key: 'total_vendido', width: 16 },
+          { header: 'Total QR', key: 'total_qr_facturado', width: 16 },
+          { header: 'Total efectivo', key: 'total_efectivo_facturado', width: 18 },
+          { header: 'Total ECA', key: 'total_eca_facturado', width: 16 },
+          { header: 'Contratos no sumados', key: 'total_contratos_no_sumados', width: 22 },
+          { header: 'Ventas totales', key: 'ventas_totales', width: 14 },
+          { header: 'Ventas QR', key: 'ventas_qr', width: 12 },
+          { header: 'Ventas efectivo', key: 'ventas_efectivo', width: 15 },
+          { header: 'Ventas ECA', key: 'ventas_eca', width: 12 },
+          { header: 'Ventas contrato', key: 'ventas_contrato', width: 15 },
+          { header: 'Observadas', key: 'observadas', width: 12 },
+          { header: 'Pendientes', key: 'pendientes', width: 12 },
+          { header: 'Cuf otro estado', key: 'facturas_anuladas_o_cuf_otro_estado', width: 18 },
+          { header: 'QR pendiente factura', key: 'qr_pagado_pendiente_factura', width: 20 },
+          { header: 'QR cancelado', key: 'qr_cancelado', width: 14 },
+          { header: 'QR pendiente', key: 'qr_pendiente', width: 14 },
+          { header: 'Cajeros unicos', key: 'cajeros_unicos', width: 14 }
+        ];
+        visibleBranches.forEach((branch) => {
+          branchesSheet.addRow({
+            sucursal: branch.displayName || '-',
+            codigo_sucursal: branch.codigoSucursalLabel,
+            punto_venta: branch.puntoVentaLabel,
+            estado: branch.status?.label || '',
+            detalle_estado: branch.status?.hint || '',
+            total_vendido: Number(branch.totalVendido || 0),
+            total_qr_facturado: Number(branch.totalQrFacturado || 0),
+            total_efectivo_facturado: Number(branch.totalEfectivoFacturado || 0),
+            total_eca_facturado: Number(branch.totalEcaFacturado || 0),
+            total_contratos_no_sumados: Number(branch.totalContratosNoSumados || 0),
+            ventas_totales: Number(branch.facturadas || 0),
+            ventas_qr: Number(branch.qrFacturadas || 0),
+            ventas_efectivo: Number(branch.electronicasFacturadas || 0),
+            ventas_eca: Number(branch.ecaFacturadas || 0),
+            ventas_contrato: Number(branch.contratosNoSumados || 0),
+            observadas: Number(branch.observadas || 0),
+            pendientes: Number(branch.pendientes || 0),
+            facturas_anuladas_o_cuf_otro_estado: Number(branch.conCufOtroEstado || 0),
+            qr_pagado_pendiente_factura: Number(branch.qrPagadoPendienteFactura || 0),
+            qr_cancelado: Number(branch.qrCancelado || 0),
+            qr_pendiente: Number(branch.qrPendiente || 0),
+            cajeros_unicos: Number(branch.cajerosUnicos || 0)
+          });
+        });
+
+        const incidentsSheet = workbook.addWorksheet('Incidencias');
+        incidentsSheet.columns = [
+          { header: 'Sucursal', key: 'sucursal', width: 28 },
+          { header: 'Codigo sucursal', key: 'codigo_sucursal', width: 16 },
+          { header: 'Punto venta', key: 'punto_venta', width: 14 },
+          { header: 'Incidencia', key: 'incidencia', width: 52 }
+        ];
+        visibleBranches.forEach((branch) => {
+          const blocks = this.buildPdfIncidentBlocks(branch);
+          if (!blocks.length) {
+            incidentsSheet.addRow({
+              sucursal: branch.displayName || '-',
+              codigo_sucursal: branch.codigoSucursalLabel,
+              punto_venta: branch.puntoVentaLabel,
+              incidencia: 'Sin incidencias'
+            });
+            return;
+          }
+
+          blocks.forEach((block) => {
+            incidentsSheet.addRow({
+              sucursal: branch.displayName || '-',
+              codigo_sucursal: branch.codigoSucursalLabel,
+              punto_venta: branch.puntoVentaLabel,
+              incidencia: block.text
+            });
+          });
+        });
+
+        if (contractRows.length) {
+          const contractsSheet = workbook.addWorksheet('Servicios no sumados', {
+            views: [{ state: 'frozen', ySplit: 2 }]
+          });
+          contractsSheet.pageSetup = {
+            paperSize: 1,
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 0,
+            margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+          };
+          contractsSheet.columns = [
+            { width: 22 },
+            { width: 28 },
+            { width: 32 },
+            { width: 44 },
+            { width: 14 }
+          ];
+
+          const applyContractsBorder = (fromRow, fromCol, toRow, toCol) => {
+            for (let row = fromRow; row <= toRow; row += 1) {
+              for (let col = fromCol; col <= toCol; col += 1) {
+                contractsSheet.getCell(row, col).border = border;
+              }
+            }
+          };
+
+          contractsSheet.mergeCells('A1:E1');
+          const contractsTitleCell = contractsSheet.getCell('A1');
+          contractsTitleCell.value = 'DETALLE DE SERVICIOS NO SUMADOS';
+          contractsTitleCell.font = { name: 'Calibri', size: 13, bold: true };
+          contractsTitleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+          contractsTitleCell.fill = sectionFill;
+          applyContractsBorder(1, 1, 1, 5);
+          contractsSheet.getRow(1).height = 24;
+
+          contractsSheet.mergeCells('A2:C2');
+          contractsSheet.getCell('A2').value = `Emitido por: ${this.currentPdfUserLabel()}`;
+          contractsSheet.getCell('A2').font = { name: 'Calibri', size: 10 };
+          contractsSheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left' };
+          contractsSheet.mergeCells('D2:E2');
+          contractsSheet.getCell('D2').value = `Fecha y hora: ${generatedAt}`;
+          contractsSheet.getCell('D2').font = { name: 'Calibri', size: 10 };
+          contractsSheet.getCell('D2').alignment = { vertical: 'middle', horizontal: 'right' };
+          contractsSheet.getRow(2).height = 22;
+
+          let contractRowCursor = 4;
+          const groupedContractRows = contractRows.reduce((acc, row) => {
+            const key = `${row.sucursal} (${row.codigo_sucursal} / PV ${row.punto_venta})`;
+            if (!acc[key]) {
+              acc[key] = [];
+            }
+            acc[key].push(row);
+            return acc;
+          }, {});
+
+          Object.entries(groupedContractRows).forEach(([groupLabel, rows]) => {
+            contractsSheet.mergeCells(contractRowCursor, 1, contractRowCursor, 5);
+            const groupCell = contractsSheet.getCell(contractRowCursor, 1);
+            groupCell.value = groupLabel;
+            groupCell.font = { name: 'Calibri', size: 11, bold: true };
+            groupCell.alignment = { vertical: 'middle', horizontal: 'left' };
+            groupCell.fill = headerFill;
+            applyContractsBorder(contractRowCursor, 1, contractRowCursor, 5);
+            contractsSheet.getRow(contractRowCursor).height = 22;
+            contractRowCursor += 1;
+
+            ['Cajero', 'Empresa', 'Descripcion', 'Importe'].forEach((value, index) => {
+              const cell = contractsSheet.getCell(contractRowCursor, index + 1);
+              cell.value = value;
+              cell.font = { name: 'Calibri', size: 10, bold: true };
+              cell.alignment = { vertical: 'middle', horizontal: index === 3 ? 'right' : 'center', wrapText: true };
+              cell.fill = headerFill;
+              cell.border = border;
+            });
+            contractsSheet.mergeCells(contractRowCursor, 4, contractRowCursor, 4);
+            contractsSheet.getRow(contractRowCursor).height = 22;
+            contractRowCursor += 1;
+
+            rows.forEach((row) => {
+              const excelRow = contractsSheet.getRow(contractRowCursor);
+              excelRow.getCell(1).value = row.cajero;
+              excelRow.getCell(2).value = row.empresa;
+              excelRow.getCell(3).value = `${row.tipo_servicio}\n${row.descripcion}`;
+              excelRow.getCell(4).value = this.formatCurrency(row.importe);
+              [1, 2, 3, 4].forEach((col) => {
+                const cell = excelRow.getCell(col);
+                cell.border = border;
+                cell.alignment = {
+                  vertical: 'top',
+                  horizontal: col === 4 ? 'right' : 'left',
+                  wrapText: true
+                };
+                cell.font = { name: 'Calibri', size: 10 };
+              });
+              excelRow.height = 40;
+              contractRowCursor += 1;
+            });
+
+            contractRowCursor += 1;
+          });
+        }
+
+        workbook.worksheets.forEach((sheet) => {
+          const headerRow = sheet.getRow(1);
+          if (sheet.name !== 'Control cierre') {
+            headerRow.font = { name: 'Calibri', size: 10, bold: true };
+            headerRow.fill = headerFill;
+            headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            headerRow.eachCell((cell) => {
+              cell.border = border;
+            });
+            sheet.views = [{ state: 'frozen', ySplit: 1 }];
+          }
+        });
+
+        this.$swal.close();
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(
+          new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          }),
+          `control-cierre-${this.startDate || 'inicio'}-${this.endDate || 'fin'}.xlsx`
+        );
+      } catch (error) {
+        this.$swal.close();
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Exportacion no disponible',
+          text: 'No se pudo generar el Excel del control de cierre.'
+        });
+      } finally {
+        this.exportExcelLoading = false;
+      }
+    },
     async downloadResumenPdf() {
+      if (this.exportPdfLoading) {
+        return;
+      }
+
+      this.exportPdfLoading = true;
+      this.$swal.fire({
+        title: 'Generando PDF',
+        text: 'Estamos preparando la descarga. Esto puede tardar unos segundos.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          this.$swal.showLoading();
+        }
+      });
+
       try {
         const doc = new jsPDF({
           orientation: 'portrait',
@@ -3805,7 +5183,8 @@ export default {
           sin_ventas: 'Sin ventas'
         }[this.statusFilter] || 'Todos';
         const visibleBranches = this.filteredBranches;
-        const contractGroups = await Promise.all(visibleBranches.map(async (branch) => {
+        const contractBranches = visibleBranches.filter((branch) => Number(branch.totalContratosNoSumados || branch.contratosNoSumados || 0) > 0);
+        const contractGroups = await Promise.all(contractBranches.map(async (branch) => {
           try {
             const ventas = await this.fetchBranchVentas(branch);
             const rows = ventas
@@ -4166,13 +5545,17 @@ export default {
         }
 
         this.drawPdfFooter(doc, generatedBy, generatedAt);
+        this.$swal.close();
         doc.save(`control-cierre-${this.startDate || 'inicio'}-${this.endDate || 'fin'}.pdf`);
       } catch (error) {
+        this.$swal.close();
         this.$swal.fire({
           icon: 'error',
           title: 'Exportacion no disponible',
           text: 'No se pudo generar el PDF del control de cierre.'
         });
+      } finally {
+        this.exportPdfLoading = false;
       }
     }
   }
@@ -4188,6 +5571,49 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.conciliation-page-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+}
+
+.conciliation-page-topbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.conciliation-page-card {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+.conciliation-back-btn {
+  min-height: 42px;
+}
+
+.conciliation-hero-card {
+  padding: 1.15rem;
+}
+
+.conciliation-hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.conciliation-hero-head h3 {
+  margin: 0;
+  color: #173163;
+  font-size: 1.65rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
 }
 
 .hero-card,
@@ -4223,7 +5649,7 @@ export default {
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: 190px 190px minmax(320px, 1fr) 220px 170px;
+  grid-template-columns: 190px 190px minmax(320px, 1fr) 190px 280px;
   gap: 0.7rem;
   margin-top: 0.95rem;
   align-items: center;
@@ -4242,8 +5668,9 @@ export default {
 }
 
 .toolbar-actions {
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
   min-width: 0;
 }
 
@@ -4279,6 +5706,21 @@ export default {
   border-radius: 12px;
   background: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.report-loading-banner {
+  margin-top: 0.85rem;
+  border: 1px solid #cfe0ff;
+  background: linear-gradient(180deg, #eef5ff 0%, #e4efff 100%);
+  color: #20407a;
+  border-radius: 14px;
+  min-height: 46px;
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .toolbar-field i {
@@ -5167,7 +6609,62 @@ export default {
 }
 
 .conciliation-detail-card {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+  padding: 1.1rem;
+  background: linear-gradient(180deg, #fdfefe 0%, #f7fbff 100%);
+}
+
+.conciliation-content-grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 0.95fr) minmax(460px, 1.25fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.conciliation-panel-card {
+  min-height: 100%;
+  order: 2;
+}
+
+.conciliation-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  order: 1;
+}
+
+.conciliation-upload-card,
+.conciliation-receipts-panel {
+  padding: 1.1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+}
+
+.conciliation-entry-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  margin-bottom: 0.95rem;
+  border: 1px solid #e3eaf7;
+  border-radius: 999px;
+  background: #f7faff;
+}
+
+.conciliation-entry-mode-btn {
+  border: 0;
+  background: transparent;
+  color: #5f7293;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.conciliation-entry-mode-btn-active {
+  background: #ffffff;
+  color: #18386b;
+  box-shadow: 0 8px 18px rgba(32, 64, 122, 0.12);
 }
 
 .conciliation-detail-head {
@@ -5198,9 +6695,14 @@ export default {
   margin-top: 0.25rem;
 }
 
+.conciliation-primary-cta {
+  width: auto;
+  min-width: min(100%, 360px);
+}
+
 .conciliation-qr-panel {
   margin-top: 0.95rem;
-  padding: 0.95rem 1rem;
+  padding: 1rem 1.05rem;
   border: 1px dashed #d6e2f4;
   border-radius: 18px;
   background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
@@ -5246,6 +6748,10 @@ export default {
   word-break: break-word;
 }
 
+.conciliation-qr-chip-wide {
+  grid-column: span 3;
+}
+
 .sr-only-input {
   position: absolute;
   width: 1px;
@@ -5279,9 +6785,28 @@ export default {
 
 .conciliation-scanner-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
-  gap: 0.8rem;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.conciliation-scanner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.conciliation-scanner-copy strong {
+  color: #223658;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.conciliation-scanner-copy p {
+  margin: 0;
+  color: #6d7f9d;
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .conciliation-scanner-actions {
@@ -5316,9 +6841,10 @@ export default {
 .conciliation-scanner-crop {
   position: absolute;
   border: 2px solid #f3be2f;
-  background: rgba(255, 214, 79, 0.14);
-  box-shadow: 0 0 0 9999px rgba(9, 20, 45, 0.18);
+  background: rgba(255, 214, 79, 0.16);
+  box-shadow: 0 0 0 9999px rgba(11, 23, 48, 0.18);
   pointer-events: none;
+  border-radius: 10px;
 }
 
 .conciliation-scanner-empty {
@@ -5345,8 +6871,8 @@ export default {
 
 .conciliation-form-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
 }
 
 .toolbar-field-file input[type="file"] {
@@ -5354,7 +6880,7 @@ export default {
 }
 
 .toolbar-field-wide {
-  grid-column: span 4;
+  grid-column: span 3;
 }
 
 .conciliation-form-actions {
@@ -5364,6 +6890,30 @@ export default {
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-top: 0.9rem;
+}
+
+.conciliation-autofill-panel {
+  border-style: solid;
+  background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+}
+
+.conciliation-manual-card {
+  margin-bottom: 1rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid #e4ebf7;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+}
+
+.conciliation-manual-file {
+  margin-top: 0.85rem;
+}
+
+.conciliation-autofill-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
 }
 
 .conciliation-receipts-list {
@@ -5439,6 +6989,10 @@ export default {
 }
 
 @media (max-width: 1400px) {
+  .conciliation-content-grid {
+    grid-template-columns: 1fr;
+  }
+
   .summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -5450,12 +7004,24 @@ export default {
     grid-template-columns: 1fr;
   }
 
+  .toolbar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .conciliation-hero-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .conciliation-summary-grid,
-  .conciliation-form-grid {
+  .conciliation-form-grid,
+  .conciliation-autofill-grid,
+  .conciliation-qr-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .toolbar-field-wide {
+  .toolbar-field-wide,
+  .conciliation-qr-chip-wide {
     grid-column: span 2;
   }
 }
@@ -5503,6 +7069,16 @@ export default {
     align-items: stretch;
   }
 
+  .conciliation-entry-mode {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .conciliation-entry-mode-btn {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
   .conciliation-receipt-actions {
     width: 100%;
     min-width: 0;
@@ -5522,11 +7098,13 @@ export default {
   .calendar-grid,
   .conciliation-summary-grid,
   .conciliation-form-grid,
+  .conciliation-autofill-grid,
   .conciliation-qr-grid {
     grid-template-columns: 1fr;
   }
 
-  .toolbar-field-wide {
+  .toolbar-field-wide,
+  .conciliation-qr-chip-wide {
     grid-column: span 1;
   }
 }
