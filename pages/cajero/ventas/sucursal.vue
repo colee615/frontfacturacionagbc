@@ -1,6 +1,13 @@
 ﻿<template>
   <div>
     <JcLoader :load="load" />
+    <input
+      ref="contractPdfInput"
+      type="file"
+      accept="application/pdf,.pdf"
+      class="visually-hidden-input"
+      @change="handleContractPdfSelected"
+    />
     <AdminTemplate :page="page" :modulo="modulo">
       <div slot="body" class="branch-dashboard-page enterprise-page-shell">
         <section v-if="error" class="error-card">
@@ -337,6 +344,25 @@
                               <i class="fas fa-eye"></i>
                               <span>Detalle</span>
                             </button>
+                            <button
+                              v-if="isServicioContratoVenta(venta) && !isAnuladaVenta(venta)"
+                              class="action-secondary-btn"
+                              type="button"
+                              :disabled="contractPdfUploadingVentaId === venta.id"
+                              @click="openContractPdfPicker(venta)"
+                            >
+                              <i class="fas fa-upload"></i>
+                              <span>{{ contractPdfUploadingVentaId === venta.id ? 'Subiendo...' : (contractPdfUrl(venta) ? 'Reemplazar PDF' : 'Subir PDF') }}</span>
+                            </button>
+                            <button
+                              v-if="contractPdfUrl(venta)"
+                              class="action-secondary-btn"
+                              type="button"
+                              @click="openContractPdf(venta)"
+                            >
+                              <i class="fas fa-file-pdf"></i>
+                              <span>PDF contrato</span>
+                            </button>
                             <a
                               v-if="pdfOriginalUrl(venta)"
                               class="action-secondary-btn"
@@ -647,6 +673,8 @@ export default {
         estadoEmision: 'all'
       },
       activeDetailVenta: null,
+      pendingContractPdfVentaId: null,
+      contractPdfUploadingVentaId: null,
       branchName: '',
       branchDepartment: '',
       ventas: []
@@ -2078,6 +2106,136 @@ export default {
         || response?.pdfUrl
         || venta?.seguimiento?.urlPdf
         || '';
+    },
+    contractPdfUrl(venta) {
+      return String(
+        venta?.contratoPdf?.url
+        || venta?.contrato_pdf?.url
+        || venta?.contratoPdfUrl
+        || ''
+      ).trim();
+    },
+    async openContractPdf(venta) {
+      const pdfUrl = this.contractPdfUrl(venta);
+      if (!pdfUrl) {
+        await this.$swal.fire({
+          icon: 'warning',
+          title: 'PDF no disponible',
+          text: 'Esta venta todavia no tiene un PDF de contrato accesible.'
+        });
+        return;
+      }
+
+      const popup = window.open(pdfUrl, '_blank', 'noopener');
+      if (!popup) {
+        window.location.href = pdfUrl;
+      }
+    },
+    openContractPdfPicker(venta) {
+      const ventaId = Number(venta?.id || 0);
+      if (!ventaId || !this.$refs.contractPdfInput) {
+        return;
+      }
+
+      this.pendingContractPdfVentaId = ventaId;
+      this.$refs.contractPdfInput.value = '';
+      this.$refs.contractPdfInput.click();
+    },
+    async handleContractPdfSelected(event) {
+      const file = event?.target?.files?.[0] || null;
+      const ventaId = Number(this.pendingContractPdfVentaId || 0);
+      event.target.value = '';
+
+      if (!file || !ventaId) {
+        this.pendingContractPdfVentaId = null;
+        return;
+      }
+
+      const venta = this.ventas.find((item) => Number(item?.id || 0) === ventaId) || null;
+      if (!venta) {
+        this.pendingContractPdfVentaId = null;
+        await this.$swal.fire({
+          icon: 'error',
+          title: 'Venta no encontrada',
+          text: 'No se pudo identificar la venta de contrato para adjuntar el PDF.'
+        });
+        return;
+      }
+
+      const fileName = String(file.name || '').toLowerCase();
+      const isPdf = file.type === 'application/pdf' || fileName.endsWith('.pdf');
+      if (!isPdf) {
+        this.pendingContractPdfVentaId = null;
+        await this.$swal.fire({
+          icon: 'warning',
+          title: 'Archivo invalido',
+          text: 'Solo se permiten archivos PDF para ventas de contrato.'
+        });
+        return;
+      }
+
+      await this.uploadContractPdf(venta, file);
+    },
+    async uploadContractPdf(venta, file) {
+      const ventaId = Number(venta?.id || 0);
+      if (!ventaId || !file) {
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('archivo', file);
+
+      this.contractPdfUploadingVentaId = ventaId;
+      this.pendingContractPdfVentaId = null;
+
+      this.$swal.fire({
+        title: 'Subiendo PDF...',
+        text: 'Estamos adjuntando el archivo del contrato a la venta seleccionada.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          this.$swal.showLoading();
+        }
+      });
+
+      try {
+        const response = await this.$admin.$post(`ventas/${ventaId}/contrato-pdf`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        const contratoPdf = response?.contratoPdf || null;
+        const index = this.ventas.findIndex((item) => Number(item?.id || 0) === ventaId);
+        if (index >= 0) {
+          const mergedVenta = {
+            ...this.ventas[index],
+            contratoPdf
+          };
+          this.$set(this.ventas, index, mergedVenta);
+
+          if (Number(this.activeDetailVenta?.id || 0) === ventaId) {
+            this.activeDetailVenta = {
+              ...this.activeDetailVenta,
+              contratoPdf
+            };
+          }
+        }
+
+        this.$swal.close();
+        await this.notifyAnulacion('success', 'PDF cargado', response?.message || 'El PDF del contrato se cargo correctamente.');
+      } catch (error) {
+        this.$swal.close();
+        await this.$swal.fire({
+          icon: 'error',
+          title: 'No se pudo subir el PDF',
+          text: error?.response?.data?.message || 'Ocurrio un problema al adjuntar el PDF del contrato.'
+        });
+      } finally {
+        this.contractPdfUploadingVentaId = null;
+        this.pendingContractPdfVentaId = null;
+      }
     },
     isRejectedVenta(venta) {
       const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
@@ -5010,6 +5168,18 @@ export default {
   flex-wrap: wrap;
 }
 
+.visually-hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .branch-toolbar-actions {
   display: inline-flex;
   align-items: center;
@@ -5054,6 +5224,13 @@ export default {
   font-weight: 700;
   font-size: 0.8rem;
   text-decoration: none;
+}
+
+.action-secondary-btn:disabled,
+.action-danger-btn:disabled,
+.action-view-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .action-danger-btn {
