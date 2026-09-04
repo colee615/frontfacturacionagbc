@@ -330,14 +330,14 @@ export default {
       basePermissions: [
         { name: 'Dashboard', slug: 'dashboard.view' },
         { name: 'Empresa', slug: 'empresa.manage' },
-        { name: 'Usuarios Gestion', slug: 'usuarios.manage' },
+        { name: 'Gestión de usuarios', slug: 'usuarios.manage' },
         { name: 'Usuarios Crear', slug: 'usuarios.create' },
         { name: 'Usuarios Editar', slug: 'usuarios.update' },
         { name: 'Usuarios Eliminar', slug: 'usuarios.delete' },
         { name: 'Ventas Lectura', slug: 'ventas.read' },
         { name: 'Ventas Escritura', slug: 'ventas.write' },
         { name: 'Ventas Anular', slug: 'ventas.void' },
-        { name: 'RBAC Gestion', slug: 'rbac.manage' }
+        { name: 'Gestión RBAC', slug: 'rbac.manage' }
       ],
       baseViews: [
         { name: 'Dashboard', slug: 'dashboard', route: '/' },

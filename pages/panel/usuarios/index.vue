@@ -7,7 +7,7 @@
                <div class="enterprise-page-header users-page-header">
                   <div>
                      <p class="enterprise-page-kicker">Centro de accesos</p>
-                     <h2 class="enterprise-page-title">Gestion de usuarios</h2>
+                     <h2 class="enterprise-page-title">Gestión de usuarios</h2>
                      <p class="enterprise-page-copy">Administra credenciales, roles y estado operativo en una sola vista ordenada.</p>
                   </div>
                   <div class="users-badge users-badge-soft">
@@ -162,7 +162,7 @@
 
                <div v-else class="empty-state users-empty-state">
                   <h3>Sin resultados</h3>
-                  <p>No se encontraron usuarios con ese criterio de busqueda.</p>
+                  <p>No se encontraron usuarios con ese criterio de búsqueda.</p>
                </div>
             </section>
             <div v-if="showUserModal" class="users-modal-backdrop" @click.self="closeUserModal">
@@ -185,7 +185,7 @@
                   <div class="users-modal-body">
                      <div class="users-form-note">
                         <i class="fas fa-info-circle"></i>
-                        <span>{{ isEditMode ? 'La contraseÃ±a solo se cambia si escribes una nueva.' : 'Completa los datos obligatorios para registrar el acceso.' }}</span>
+                        <span>{{ isEditMode ? 'La contraseña solo se cambia si escribe una nueva.' : 'Complete los datos obligatorios para registrar el acceso.' }}</span>
                      </div>
 
                      <div class="row g-3">
@@ -197,7 +197,7 @@
                            </div>
                         </div>
                         <div class="form-group col-12">
-                           <label for="modal-user-email">Correo electronico <span>*</span></label>
+                           <label for="modal-user-email">Correo electrónico <span>*</span></label>
                            <div class="users-field">
                               <i class="fas fa-envelope"></i>
                               <input id="modal-user-email" v-model="userForm.email" type="email" class="form-control" placeholder="usuario@dominio.com">
@@ -216,10 +216,10 @@
                            </div>
                         </div>
                         <div class="form-group col-12">
-                           <label for="modal-user-password">ContraseÃ±a <span v-if="!isEditMode">*</span></label>
+                           <label for="modal-user-password">Contraseña <span v-if="!isEditMode">*</span></label>
                            <div class="users-field">
                               <i class="fas fa-lock"></i>
-                              <input id="modal-user-password" v-model="userForm.password" type="password" class="form-control" :placeholder="isEditMode ? 'Dejar en blanco para conservarla' : 'ContraseÃ±a de acceso'">
+                              <input id="modal-user-password" v-model="userForm.password" type="password" class="form-control" :placeholder="isEditMode ? 'Dejar en blanco para conservarla' : 'Contraseña de acceso'">
                            </div>
                         </div>
                      </div>
@@ -421,13 +421,13 @@ export default {
             errors.push('El nombre del usuario es obligatorio.');
          }
          if (!email || !emailPattern.test(email) || email.length > 255) {
-            errors.push('El correo electronico del usuario no es valido.');
+            errors.push('El correo electrónico del usuario no es válido.');
          }
          if (!this.userForm.role_id) {
             errors.push('Seleccione un rol para el usuario.');
          }
          if (!this.isEditMode && !password) {
-            errors.push('La contraseÃ±a del usuario es obligatoria.');
+            errors.push('La contraseña del usuario es obligatoria.');
          }
 
          return errors;

@@ -597,7 +597,7 @@
             </div>
 
             <div v-if="hasQrCancelacionAudit(activeDetailVenta)" class="detail-audit-card">
-              <h4>Auditoria de cancelacion QR</h4>
+              <h4>Auditoría de cancelación QR</h4>
               <div class="detail-audit-grid">
                 <div><strong>Orden:</strong> {{ activeDetailVenta.qrCancelacion?.codigoOrden || activeDetailVenta.codigoOrden || '-' }}</div>
                 <div><strong>Tx QR:</strong> {{ activeDetailVenta.qrCancelacion?.transactionId || activeDetailVenta.qr_transaction_id || '-' }}</div>
@@ -956,7 +956,7 @@ export default {
           key: 'alert',
           label: 'Con observaciones',
           icon: 'fas fa-exclamation-triangle',
-          message: `Se detectaron ${observed} venta(s) anuladas o con observacion para revisar.`
+          message: `Se detectaron ${observed} venta(s) anuladas o con observación para revisar.`
         };
       }
 
@@ -1988,7 +1988,7 @@ export default {
         }
 
         if (qrStatus === 'pagado') {
-          const detailLines = ['Pendiente de facturacion'];
+          const detailLines = ['Pendiente de facturación'];
           if (this.hasAnulacionAudit(venta) && venta?.anulacion?.numeroFactura) {
             detailLines.unshift(`Factura anulada Nro ${venta.anulacion.numeroFactura}`);
           }
@@ -2168,7 +2168,7 @@ export default {
         this.pendingContractPdfVentaId = null;
         await this.$swal.fire({
           icon: 'warning',
-          title: 'Archivo invalido',
+          title: 'Archivo inválido',
           text: 'Solo se permiten archivos PDF para ventas de contrato.'
         });
         return;
@@ -2710,7 +2710,7 @@ export default {
             <select id="annul-tipo" class="swal2-select protocol-annul-select">
               <option value="1">1 - Factura mal emitida</option>
               <option value="2">2 - Nota credito-debito mal emitida</option>
-              <option value="3" selected>3 - Datos de emision incorrectos</option>
+              <option value="3" selected>3 - Datos de emisión incorrectos</option>
               <option value="4">4 - Factura o nota devuelta</option>
             </select>
           </div>
@@ -2927,7 +2927,7 @@ export default {
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Guardar revision',
+        confirmButtonText: 'Guardar revisión',
         cancelButtonText: 'Volver',
         preConfirm: () => {
           const note = document.getElementById('review-incident-note')?.value?.trim();
@@ -3060,7 +3060,7 @@ export default {
           filters: { ...this.filters },
           routeQuery: { ...this.$route.query }
         });
-        this.error = 'La sucursal seleccionada no tiene un codigo de sucursal valido para consultar el kardex.';
+        this.error = 'La sucursal seleccionada no tiene un código de sucursal válido para consultar el kardex.';
         this.ventas = [];
         this.load = false;
         return;
@@ -3426,7 +3426,7 @@ export default {
 
           autoTable(doc, {
             startY: doc.lastAutoTable.finalY + 2,
-            head: [['Cajero', 'Empresa', 'Descripcion', 'Importe']],
+            head: [['Cajero', 'Empresa', 'Descripción', 'Importe']],
             body: contractRows,
             theme: 'grid',
             tableWidth: 180,
@@ -3503,7 +3503,7 @@ export default {
           ? 'LISTADO GENERAL DE VENTAS'
           : (userId === 'all' ? 'KARDEX DE SUCURSAL' : 'RESUMEN KARDEX DE CAJERO');
         const subtitle = isAllVentasPdf
-          ? 'Ventas visibles ordenadas por numero de factura'
+          ? 'Ventas visibles ordenadas por número de factura'
           : (userId === 'all'
             ? 'Resumen detallado por cajero y ventas del rango seleccionado'
             : `Resumen detallado de ventas de ${this.activeUserName}`);

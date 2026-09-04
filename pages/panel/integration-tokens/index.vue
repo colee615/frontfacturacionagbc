@@ -131,10 +131,10 @@
                     </div>
                   </div>
                   <div class="form-group col-12">
-                    <label for="token-description">Descripcion</label>
+                    <label for="token-description">Descripción</label>
                     <div class="tokens-field">
                       <i class="fas fa-align-left"></i>
-                      <textarea id="token-description" v-model.trim="tokenForm.description" class="form-control tokens-textarea" rows="3" placeholder="Descripcion opcional"></textarea>
+                      <textarea id="token-description" v-model.trim="tokenForm.description" class="form-control tokens-textarea" rows="3" placeholder="Descripción opcional"></textarea>
                     </div>
                   </div>
                   <div class="form-group col-12">
@@ -188,7 +188,7 @@ export default {
     return {
       load: false,
       page: 'Panel',
-      modulo: 'Tokens de integracion',
+      modulo: 'Tokens de integración',
       tokens: [],
       showTokenModal: false,
       tokenModalMode: 'create',
@@ -293,7 +293,7 @@ export default {
       const result = await this.$swal.fire({
         icon: 'warning',
         title: 'Eliminar token',
-        text: `Se eliminara ${token.name}. Esta accion no se puede deshacer.`,
+        text: `Se eliminará ${token.name}. Esta acción no se puede deshacer.`,
         showCancelButton: true,
         confirmButtonText: 'Eliminar'
       });

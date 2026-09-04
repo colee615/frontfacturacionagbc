@@ -75,7 +75,7 @@
                                  <tr>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
-                                       ArtÃ­culo
+                                       Artículo
                                     </th>
                                     <th
                                        class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2 text-start">
@@ -207,7 +207,7 @@
                                              </tbody>
                                           </table>
                                           <div v-else>
-                                             <p>No se encontraron clientes. Â¿Desea agregar uno nuevo?</p>
+                                             <p>No se encontraron clientes. ¿Desea agregar uno nuevo?</p>
                                              <button class="btn gold-primary-btn" @click="showAddClienteForm = true">Agregar
                                                 Cliente</button>
                                           </div>
@@ -220,7 +220,7 @@
                            <div v-if="showAddClienteForm">
                               <div slot="body" class="row">
                                  <div class="form-group col-12">
-                                    <label for="razonSocial">* RazÃ³n Social</label>
+                                    <label for="razonSocial">* Razón social</label>
                                     <input type="text" v-model="model.razonSocial" class="form-control"
                                        id="razonSocial" />
                                  </div>
@@ -229,15 +229,15 @@
                                        Cliente</label>
                                     <select v-model="model.tipoDocumentoIdentidad" class="form-control"
                                        id="tipoDocumentoIdentidad">
-                                       <option value="1">CI - CÃ©dula de identidad</option>
-                                       <option value="2">CEX - CÃ©dula de identidad de extranjero</option>
+                                       <option value="1">CI - Cédula de identidad</option>
+                                       <option value="2">CEX - Cédula de identidad de extranjero</option>
                                        <option value="3">PAS - Pasaporte</option>
                                        <option value="4">OD - Otro Documento de Identidad</option>
-                                       <option value="5">NIT - NÃºmero de identificaciÃ³n Tributaria</option>
+                                       <option value="5">NIT - Número de identificación tributaria</option>
                                     </select>
                                  </div>
                                  <div class="form-group col-12">
-                                    <label for="documentoIdentidad">* Numero Documento del Cliente</label>
+                                    <label for="documentoIdentidad">* Número de documento del cliente</label>
                                     <input type="text" v-model="model.documentoIdentidad" class="form-control"
                                        id="documentoIdentidad" />
                                  </div>
@@ -290,11 +290,11 @@ export default {
          apiUrl: "clientes",
          showAddClienteForm: false,
          tipoDocumentoMap: {
-            1: "CI - CÃ©dula de identidad",
-            2: "CEX - CÃ©dula de identidad de extranjero",
+            1: "CI - Cédula de identidad",
+            2: "CEX - Cédula de identidad de extranjero",
             3: "PAS - Pasaporte",
             4: "OD - Otro Documento de Identidad",
-            5: "NIT - NÃºmero de identificaciÃ³n Tributaria",
+            5: "NIT - Número de identificación tributaria",
          },
          modulo: "Nueva venta",
          page: "ventas",
@@ -352,7 +352,7 @@ export default {
             this.item.cantidad = 15;
             this.$swal.fire({
                icon: "error",
-               title: "Cantidad invÃ¡lida",
+               title: "Cantidad inválida",
                text: "La cantidad no puede ser mayor a 15.",
                confirmButtonText: "Entendido",
             });
@@ -380,7 +380,7 @@ export default {
          if (this.carrito.length === 0) {
             this.$swal.fire({
                icon: "error",
-               title: "Carrito VacÃ­o",
+               title: "Carrito vacío",
                text: "Debe agregar al menos un elemento al carrito para poder guardar.",
                confirmButtonText: "Entendido",
             });
@@ -393,15 +393,15 @@ export default {
       ConfirmAndSave() {
          this.$swal
             .fire({
-               title: "Â¿EstÃ¡s seguro de realizar la venta?",
+               title: "¿Está seguro de realizar la venta?",
                input: 'select',
                inputOptions: {
                   'rollo': 'Formato Rollo',
-                  'pagina': 'Formato PÃ¡gina'
+                  'pagina': 'Formato página'
                },
                inputValue: 'rollo',
                showDenyButton: true,
-               confirmButtonText: "SÃ­, facturar",
+               confirmButtonText: "Sí, facturar",
                denyButtonText: `No, cancelar`,
                inputPlaceholder: 'Seleccionar formato de factura',
                inputAttributes: {
@@ -435,10 +435,10 @@ export default {
       validateClienteFields() {
          const errors = [];
          if (!this.model.razonSocial || typeof this.model.razonSocial !== 'string') {
-            errors.push('La RazÃ³n Social es obligatoria.');
+            errors.push('La razón social es obligatoria.');
          }
          if (!this.model.documentoIdentidad) {
-            errors.push('El NÃºmero de Documento es obligatorio.');
+            errors.push('El número de documento es obligatorio.');
          }
          if (!this.model.tipoDocumentoIdentidad) {
             errors.push('El Tipo de Documento de Identidad es obligatorio.');
@@ -446,7 +446,7 @@ export default {
          if (this.model.correo) {
             const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailPattern.test(this.model.correo)) {
-               errors.push('El Email del Cliente no tiene un formato vÃ¡lido.');
+               errors.push('El correo electrónico del cliente no tiene un formato válido.');
             }
          }
          return errors;
@@ -547,7 +547,7 @@ export default {
          if (this.item.cantidad === 0) {
             this.$swal.fire({
                icon: "error",
-               title: "Cantidad invÃ¡lida",
+               title: "Cantidad inválida",
                text: "La cantidad no puede ser 0.",
                confirmButtonText: "Entendido",
             });
@@ -562,7 +562,7 @@ export default {
                   cantidad: 1, // Crear una copia con cantidad 1
                   servicio: {
                      ...this.item.servicio,
-                     codigo: `${baseCodigo}-${i + 1}` // AÃ±adir el nÃºmero secuencial al cÃ³digo del servicio
+                     codigo: `${baseCodigo}-${i + 1}` // Añadir el número secuencial al código del servicio
                   }
                };
                this.carrito.push(newItem);
@@ -596,8 +596,8 @@ export default {
       validateUserContext() {
          if (!this.user || !this.user.id) {
             this.$swal.fire({
-               title: "SesiÃ³n invÃ¡lida",
-               text: "No se encontrÃ³ el usuario autenticado. Inicie sesiÃ³n nuevamente.",
+               title: "Sesión inválida",
+               text: "No se encontró el usuario autenticado. Inicie sesión nuevamente.",
                icon: "error",
                confirmButtonText: "Ok",
             });
@@ -611,7 +611,7 @@ export default {
          if (!hasCodigoSucursal) {
             this.$swal.fire({
                title: "Sucursal no disponible",
-               text: "El usuario no tiene una sucursal asignada o la sesiÃ³n no cargÃ³ ese dato.",
+               text: "El usuario no tiene una sucursal asignada o la sesión no cargó ese dato.",
                icon: "error",
                confirmButtonText: "Ok",
             });
@@ -688,7 +688,7 @@ export default {
          }
 
          if (!['rollo', 'pagina'].includes(this.formatoFactura)) {
-            errors.push('El formato de factura debe ser rollo o pagina.');
+            errors.push('El formato de factura debe ser rollo o página.');
          }
 
          if (!Array.isArray(this.carrito) || this.carrito.length === 0 || this.carrito.length > 500) {
@@ -828,7 +828,7 @@ export default {
                   title: "Error al emitir factura",
                   html: backendErrors.length
                      ? `<ul style="text-align:left;">${backendErrors.map(error => `<li>${error}</li>`).join('')}</ul>`
-                     : "No hay conexiÃ³n con la AGETIC",
+                     : "No hay conexión con AGETIC",
                   footer: !backendErrors.length ? (e.response?.data?.details || "Hubo un error al procesar la venta") : null,
                   icon: "error",
                   confirmButtonText: "Ok",

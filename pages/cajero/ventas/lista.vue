@@ -20,6 +20,16 @@
                 <input v-model="endDate" type="date" />
               </label>
 
+              <button
+                type="button"
+                class="toolbar-filter-btn"
+                :disabled="load"
+                @click="applyDateFilter"
+              >
+                <i class="fas fa-filter"></i>
+                <span>{{ load ? 'Verificando...' : 'Filtrar' }}</span>
+              </button>
+
               <label class="toolbar-field toolbar-field-search">
                 <i class="fas fa-search"></i>
                 <input v-model.trim="filters.q" type="text" placeholder="Buscar sucursal..." />
@@ -59,7 +69,7 @@
 
             <div v-if="load" class="report-loading-banner">
               <i class="fas fa-sync-alt fa-spin"></i>
-              <span>Actualizando, espere...</span>
+              <span>Actualizando y verificando totales...</span>
             </div>
 
             <section v-if="error" class="error-card">
@@ -74,7 +84,7 @@
                     <i class="fas fa-store"></i>
                   </div>
                   <div class="summary-copy">
-                    <span>Sucursales del dia</span>
+                    <span>Sucursales del día</span>
                     <strong>{{ dashboardMetrics.total }}</strong>
                   </div>
                 </article>
@@ -145,7 +155,7 @@
                         <th>Ventas</th>
                         <th>Incidencias</th>
                         <th>Estado</th>
-                        <th>Accion</th>
+                        <th>Acción</th>
                       </tr>
                     </thead>
 
@@ -165,7 +175,7 @@
                             </span>
                             <div class="branch-cell-copy">
                               <strong>{{ item.displayName }}</strong>
-                              <small>Sucursal {{ item.codigoSucursalLabel }} Â· Punto {{ item.puntoVentaLabel }}</small>
+                              <small>Sucursal {{ item.codigoSucursalLabel }} · Punto {{ item.puntoVentaLabel }}</small>
                             </div>
                           </div>
                         </td>
@@ -251,7 +261,7 @@
                               @click="goToConciliation(item)"
                             >
                               <i class="far fa-calendar-check"></i>
-                              <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliacion' : 'Conciliar sucursal' }}</span>
+                              <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliación' : 'Conciliar sucursal' }}</span>
                             </button>
 
                             <button class="action-link" type="button" @click="loadUsersModal(item)">
@@ -342,7 +352,7 @@
               <div v-for="incident in activeIncidentsModal.items" :key="incident.key" class="users-modal-item incidents-modal-item">
                 <div class="users-modal-item-main">
                   <strong>{{ incident.title }}</strong>
-                  <small>{{ incident.code }}<span v-if="incident.tracking"> Â· {{ incident.tracking }}</span></small>
+                  <small>{{ incident.code }}<span v-if="incident.tracking"> · {{ incident.tracking }}</span></small>
                   <small>{{ incident.customer }}</small>
                   <small>{{ incident.message }}</small>
                 </div>
@@ -373,7 +383,7 @@
           <section class="hero-card conciliation-hero-card">
             <div class="conciliation-hero-head">
               <div class="users-modal-head-copy">
-                <p class="detail-kicker mb-1">Conciliacion diaria</p>
+                <p class="detail-kicker mb-1">Conciliación diaria</p>
                 <h3>{{ activeConciliationModal.title }}</h3>
                 <p class="detail-copy mb-0">{{ activeConciliationModal.subtitle }}</p>
               </div>
@@ -385,9 +395,9 @@
             <div ref="conciliationDetailPanel" class="conciliation-form-card conciliation-detail-card">
               <div class="conciliation-detail-head">
                 <div>
-                  <p class="detail-kicker mb-1">Resumen del dia seleccionado</p>
+                  <p class="detail-kicker mb-1">Resumen del día seleccionado</p>
                   <h4>{{ formatDateLabel(activeConciliationModal.selectedDate) }}</h4>
-                  <p class="detail-copy mb-0">Al tocar una fecha, aqui se actualizan el estado, los comprobantes y la carga del dia elegido.</p>
+                  <p class="detail-copy mb-0">Al seleccionar una fecha, aquí se actualizan el estado, los comprobantes y la carga del día elegido.</p>
                 </div>
               </div>
 
@@ -432,9 +442,9 @@
             <section class="calendar-card calendar-card-modal conciliation-panel-card">
               <div class="calendar-card-head">
                 <div>
-                  <p class="detail-kicker mb-1">Calendario de conciliacion</p>
+                  <p class="detail-kicker mb-1">Calendario de conciliación</p>
                   <h3>{{ activeConciliationCalendarLabel }}</h3>
-                  <p class="calendar-card-copy">Seleccione el dia del comprobante para esta regional. El panel se actualiza solo para la fecha elegida.</p>
+                  <p class="calendar-card-copy">Seleccione el día del comprobante para esta regional. El panel se actualiza solo para la fecha elegida.</p>
                 </div>
                 <div class="calendar-nav">
                   <button type="button" class="calendar-nav-btn" @click="moveActiveConciliationCalendar(-1)">
@@ -499,7 +509,7 @@
 
                   <div class="conciliation-scanner-toolbar">
                     <div class="conciliation-scanner-copy">
-                      <strong>Comprobante del dia</strong>
+                      <strong>Comprobante del día</strong>
                       <p>Sube una foto del comprobante y arrastra el recuadro sobre el QR para completar los datos automaticamente.</p>
                     </div>
                     <div class="conciliation-scanner-actions">
@@ -611,7 +621,7 @@
                     <input v-model.trim="activeConciliationModal.form.agenciaBanco" type="text" placeholder="Agencia / soporte operativo" />
                   </label>
                   <label class="toolbar-field">
-                    <span>Transaccion</span>
+                    <span>Transacción</span>
                     <input v-model.trim="activeConciliationModal.form.transaccionBanco" type="text" placeholder="Depositos a cuenta" />
                   </label>
                   <label class="toolbar-field">
@@ -635,8 +645,8 @@
                     <input v-model.trim="activeConciliationModal.form.referencia" type="text" placeholder="Nro. operacion" />
                   </label>
                   <label class="toolbar-field toolbar-field-wide">
-                    <span>Observacion</span>
-                    <textarea v-model.trim="activeConciliationModal.form.observacion" rows="3" placeholder="Detalle del deposito o nota de control"></textarea>
+                    <span>Observación</span>
+                    <textarea v-model.trim="activeConciliationModal.form.observacion" rows="3" placeholder="Detalle del depósito o nota de control"></textarea>
                   </label>
                 </div>
                 <div v-if="activeConciliationModal.qrScan && activeConciliationModal.qrScan.status !== 'idle'" class="conciliation-qr-panel">
@@ -676,7 +686,7 @@
                       <strong>{{ activeConciliationModal.qrScan.parsed.bank }}</strong>
                     </div>
                     <div v-if="activeConciliationModal.qrScan.parsed.transaction" class="conciliation-qr-chip">
-                      <span>Transaccion</span>
+                      <span>Transacción</span>
                       <strong>{{ activeConciliationModal.qrScan.parsed.transaction }}</strong>
                     </div>
                     <div v-if="activeConciliationModal.qrScan.parsed.user" class="conciliation-qr-chip">
@@ -706,8 +716,8 @@
                   </button>
                 </div>
                 <div v-else class="empty-state users-modal-empty conciliation-upload-complete-state">
-                  <h3>Dia ya conciliado</h3>
-                  <p>Este dia ya tiene comprobante cargado y la conciliacion figura como cumplida. Solo vuelva a subir una imagen si desea reemplazar o agregar otro comprobante.</p>
+                  <h3>Día ya conciliado</h3>
+                  <p>Este día ya tiene comprobante cargado y la conciliación figura como cumplida. Solo vuelva a subir una imagen si desea reemplazar o agregar otro comprobante.</p>
                   <button type="button" class="action-btn action-btn-primary" @click="openConciliationUploadComposer">
                     <i class="fas fa-upload"></i>
                     <span>Cargar otro comprobante</span>
@@ -719,12 +729,12 @@
                 <div class="conciliation-detail-head conciliation-detail-head-form">
                   <div>
                     <p class="detail-kicker mb-1">Comprobantes registrados</p>
-                    <h4>Historial del dia</h4>
+                    <h4>Historial del día</h4>
                     <p class="detail-copy mb-0">Revise los comprobantes subidos, abra el archivo o elimine registros incorrectos.</p>
                   </div>
                 </div>
                 <div v-if="activeConciliationModal.loading" class="empty-state users-modal-empty">
-                  <h3>Cargando conciliacion</h3>
+                  <h3>Cargando conciliación</h3>
                   <p>Estamos consultando los comprobantes registrados para esta fecha.</p>
                 </div>
 
@@ -734,7 +744,7 @@
                       <strong>{{ formatCurrency(receipt.montoDepositado) }}</strong>
                       <small>{{ formatDateLabel(receipt.fechaDeposito) }}</small>
                       <small>{{ receipt.banco || 'Sin banco' }}<span v-if="receipt.referencia"> · {{ receipt.referencia }}</span></small>
-                      <small>{{ receipt.observacion || 'Sin observacion' }}</small>
+                      <small>{{ receipt.observacion || 'Sin observación' }}</small>
                       <small>Subido por {{ receipt.subidoPorNombre || receipt.subidoPorEmail || 'Sin usuario' }} · {{ formatDate(receipt.createdAt) }}</small>
                     </div>
                     <div class="conciliation-receipt-actions">
@@ -1032,7 +1042,7 @@ export default {
     },
     priorityMessage() {
       if (this.dashboardMetrics.diferencias) {
-        return 'Priorice la revision de sucursales con ventas observadas.';
+        return 'Priorice la revisión de sucursales con ventas observadas.';
       }
 
       if (this.dashboardMetrics.pendientes) {
@@ -1058,11 +1068,9 @@ export default {
   watch: {
     startDate() {
       this.initializeCalendarAnchor();
-      this.scheduleLoadReport();
     },
     endDate() {
       this.initializeCalendarAnchor();
-      this.scheduleLoadReport();
     },
     'filters.q'() {
       this.scheduleLoadReport();
@@ -1539,7 +1547,7 @@ export default {
           ...this.activeConciliationModal,
           qrScanner: {
             ...this.activeConciliationModal.qrScanner,
-            statusMessage: 'No se detecto ninguna camara. Verifica permisos del navegador o usa la opcion de imagen.'
+            statusMessage: 'No se detectó ninguna cámara. Verifique los permisos del navegador o use la opción de imagen.'
           }
         };
       }
@@ -2362,7 +2370,7 @@ export default {
           parsed.bankName ? `Banco: ${parsed.bankName}` : '',
           parsed.bank ? `Agencia: ${parsed.bank}` : '',
           parsed.user ? `Usuario: ${parsed.user}` : '',
-          parsed.transaction ? `Transaccion: ${parsed.transaction}` : '',
+          parsed.transaction ? `Transacción: ${parsed.transaction}` : '',
           parsed.date ? `Fecha: ${parsed.date}` : '',
           parsed.currency ? `Moneda: ${parsed.currency}` : '',
           parsed.depositante ? `Depositante: ${parsed.depositante}` : '',
@@ -2739,7 +2747,7 @@ export default {
         parsed.bankName ? `<div><strong>Banco:</strong> ${parsed.bankName}</div>` : '',
         parsed.user ? `<div><strong>Usuario:</strong> ${parsed.user}</div>` : '',
         parsed.bank ? `<div><strong>Agencia:</strong> ${parsed.bank}</div>` : '',
-        parsed.transaction ? `<div><strong>Transaccion:</strong> ${parsed.transaction}</div>` : '',
+        parsed.transaction ? `<div><strong>Transacción:</strong> ${parsed.transaction}</div>` : '',
         parsed.date ? `<div><strong>Fecha:</strong> ${parsed.date}</div>` : '',
         parsed.amount !== null ? `<div><strong>Monto:</strong> ${this.formatCurrency(parsed.amount)}</div>` : '',
         parsed.currency ? `<div><strong>Moneda:</strong> ${parsed.currency}</div>` : '',
@@ -2785,14 +2793,15 @@ export default {
 
       return difference > 0 ? 'metric-tag-info' : 'metric-tag-danger';
     },
-    async loadConciliacionesSummary(requestToken = this.activeLoadReportToken) {
+    async fetchConciliacionesSummaryRows(requestToken = this.activeLoadReportToken) {
       try {
         const fecha = this.activeConciliationModal?.selectedDate || this.selectedConciliationDate || this.defaultToday();
         const response = await this.$admin.$get(`caja/conciliaciones?fecha=${encodeURIComponent(fecha)}`);
         if (requestToken !== this.activeLoadReportToken) {
-          return;
+          return null;
         }
-        this.conciliacionSummaryRows = Array.isArray(response?.conciliaciones)
+
+        return Array.isArray(response?.conciliaciones)
           ? response.conciliaciones.map((item) => ({
             ...item,
             receiptCount: Number(item?.receiptCount || 0)
@@ -2804,10 +2813,17 @@ export default {
           data: error?.response?.data || null,
           message: error?.message || null
         });
-        if (requestToken === this.activeLoadReportToken) {
-          this.conciliacionSummaryRows = [];
-        }
+
+        return requestToken === this.activeLoadReportToken ? [] : null;
       }
+    },
+    async loadConciliacionesSummary(requestToken = this.activeLoadReportToken) {
+      const rows = await this.fetchConciliacionesSummaryRows(requestToken);
+      if (rows === null || requestToken !== this.activeLoadReportToken) {
+        return;
+      }
+
+      this.conciliacionSummaryRows = rows;
     },
     emptyBranchRow(baseItem) {
       return {
@@ -3212,44 +3228,49 @@ export default {
         contratosNoSumados: 0
       });
     },
-    async refreshBranchTotalsFromVentas(requestToken = this.activeLoadReportToken) {
-      const sourceRows = Array.isArray(this.report?.sucursales) ? this.report.sucursales : [];
+    async buildBranchTotalsMap(sourceRows = [], requestToken = this.activeLoadReportToken) {
       if (!sourceRows.length) {
-        if (requestToken === this.activeLoadReportToken) {
-          this.branchTotalsByBranch = {};
-        }
-        return;
+        return {};
       }
 
-      const adjustments = await Promise.all(sourceRows.map(async (branch) => {
-        try {
-          const ventas = await this.fetchBranchVentas(branch);
-          const totals = this.calculateBranchTotalsFromVentas(ventas);
-          return {
-            key: this.branchKey(branch?.codigoSucursal, branch?.puntoVenta),
-            totals
-          };
-        } catch (error) {
-          return null;
-        }
-      }));
+      const ventas = await this.fetchReportVentas();
 
       if (requestToken !== this.activeLoadReportToken) {
+        return null;
+      }
+
+      const ventasByBranch = ventas.reduce((acc, venta) => {
+        const codigoSucursal = venta?.sucursal?.codigoSucursal ?? venta?.codigoSucursal;
+        const puntoVenta = venta?.sucursal?.puntoVenta ?? venta?.puntoVenta ?? venta?.sucursal?.id ?? 0;
+        const key = this.branchKey(codigoSucursal, puntoVenta);
+
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(venta);
+        return acc;
+      }, {});
+
+      return sourceRows.reduce((acc, branch) => {
+        const key = this.branchKey(branch?.codigoSucursal, branch?.puntoVenta);
+        acc[key] = this.calculateBranchTotalsFromVentas(ventasByBranch[key] || []);
+        return acc;
+      }, {});
+    },
+    async refreshBranchTotalsFromVentas(requestToken = this.activeLoadReportToken) {
+      const sourceRows = Array.isArray(this.report?.sucursales) ? this.report.sucursales : [];
+      const nextTotals = await this.buildBranchTotalsMap(sourceRows, requestToken);
+      if (nextTotals === null || requestToken !== this.activeLoadReportToken) {
         return;
       }
 
-      this.branchTotalsByBranch = adjustments
-        .filter(Boolean)
-        .reduce((acc, item) => {
-          acc[item.key] = item.totals;
-          return acc;
-        }, {});
+      this.branchTotalsByBranch = nextTotals;
     },
     cachedUserCount(codigoSucursal, puntoVenta) {
       const key = this.branchKey(codigoSucursal, puntoVenta);
       return Number(this.userCountsByBranch[key] || 0);
     },
-    async ensureBranchUserCounts(requestToken = this.activeLoadReportToken) {
+    async fetchBranchUserCounts(requestToken = this.activeLoadReportToken) {
       try {
         const fecha = this.endDate || this.defaultToday();
         const response = await this.$admin.$get(`caja/reporte-diario?fecha=${encodeURIComponent(fecha)}`);
@@ -3269,17 +3290,48 @@ export default {
         });
 
         if (requestToken !== this.activeLoadReportToken) {
-          return;
+          return null;
         }
 
-        this.userCountsByBranch = nextCounts;
+        return nextCounts;
       } catch (error) {
         console.error('[ventas/lista] ensureBranchUserCounts:error', {
           status: error?.response?.status || null,
           data: error?.response?.data || null,
           message: error?.message || null
         });
+
+        return null;
       }
+    },
+    async ensureBranchUserCounts(requestToken = this.activeLoadReportToken) {
+      const nextCounts = await this.fetchBranchUserCounts(requestToken);
+      if (!nextCounts || requestToken !== this.activeLoadReportToken) {
+        return;
+      }
+
+      this.userCountsByBranch = nextCounts;
+    },
+    applyDateFilter() {
+      if (!this.startDate || !this.endDate) {
+        this.$swal.fire({
+          icon: 'warning',
+          title: 'Seleccione ambas fechas',
+          text: 'Indique la fecha de inicio y la fecha final antes de filtrar.'
+        });
+        return;
+      }
+
+      if (this.startDate > this.endDate) {
+        this.$swal.fire({
+          icon: 'warning',
+          title: 'Rango de fechas no valido',
+          text: 'La fecha de inicio no puede ser posterior a la fecha final.'
+        });
+        return;
+      }
+
+      this.loadReport();
     },
     scheduleLoadReport() {
       if (this.isSyncingFilters) {
@@ -3301,6 +3353,30 @@ export default {
       const day = String(now.getDate()).padStart(2, '0');
 
       return `${year}-${month}-${day}`;
+    },
+    async fetchReportVentas() {
+      const cacheKey = ['report', this.startDate || '', this.endDate || ''].join('|');
+      if (Array.isArray(this.branchVentasCache[cacheKey])) {
+        return this.branchVentasCache[cacheKey];
+      }
+
+      const params = new URLSearchParams();
+      if (this.startDate) {
+        params.append('fechaInicio', this.startDate);
+      }
+      if (this.endDate) {
+        params.append('fechaFin', this.endDate);
+      }
+
+      const query = params.toString();
+      const response = await this.$admin.$get(query ? `ventas?${query}` : 'ventas');
+      const ventas = Array.isArray(response) ? response : [];
+      this.branchVentasCache = {
+        ...this.branchVentasCache,
+        [cacheKey]: ventas
+      };
+
+      return ventas;
     },
     async fetchBranchVentas(branch) {
       const cacheKey = [
@@ -3657,27 +3733,54 @@ export default {
           return;
         }
 
-        this.report = {
+        const nextReport = {
           resumen: response && response.resumen ? response.resumen : this.report.resumen,
           sucursales: response && response.sucursales ? response.sucursales : []
         };
+        const nextBranchTotals = await this.buildBranchTotalsMap(nextReport.sucursales, requestToken);
+
+        if (requestToken !== this.activeLoadReportToken) {
+          console.warn('[ventas/lista] loadReport:stale-verification-ignored', {
+            requestToken,
+            activeLoadReportToken: this.activeLoadReportToken
+          });
+          return;
+        }
+
+        this.report = nextReport;
+        this.branchTotalsByBranch = nextBranchTotals || {};
         this.syncRouteConciliationState();
         Promise.allSettled([
-          this.refreshBranchTotalsFromVentas(requestToken),
-          this.ensureBranchUserCounts(requestToken),
-          this.loadConciliacionesSummary(requestToken)
+          this.fetchBranchUserCounts(requestToken),
+          this.fetchConciliacionesSummaryRows(requestToken)
         ]).then((results) => {
-          results.forEach((result, index) => {
-            if (result.status === 'rejected') {
-              const taskName = ['refreshBranchTotalsFromVentas', 'ensureBranchUserCounts', 'loadConciliacionesSummary'][index];
-              console.warn('[ventas/lista] loadReport:background-task:error', {
-                taskName,
-                message: result.reason?.message || null,
-                status: result.reason?.response?.status || null,
-                data: result.reason?.response?.data || null
-              });
-            }
-          });
+          if (requestToken !== this.activeLoadReportToken) {
+            return;
+          }
+
+          const [userCountsResult, conciliationResult] = results;
+
+          if (userCountsResult.status === 'fulfilled' && userCountsResult.value) {
+            this.userCountsByBranch = userCountsResult.value;
+          } else if (userCountsResult.status === 'rejected') {
+            console.warn('[ventas/lista] loadReport:background-task:error', {
+              taskName: 'fetchBranchUserCounts',
+              message: userCountsResult.reason?.message || null,
+              status: userCountsResult.reason?.response?.status || null,
+              data: userCountsResult.reason?.response?.data || null
+            });
+          }
+
+          if (conciliationResult.status === 'fulfilled' && Array.isArray(conciliationResult.value)) {
+            this.conciliacionSummaryRows = conciliationResult.value;
+          } else if (conciliationResult.status === 'rejected') {
+            console.warn('[ventas/lista] loadReport:background-task:error', {
+              taskName: 'fetchConciliacionesSummaryRows',
+              message: conciliationResult.reason?.message || null,
+              status: conciliationResult.reason?.response?.status || null,
+              data: conciliationResult.reason?.response?.data || null
+            });
+          }
         });
       } catch (err) {
         if (requestToken !== this.activeLoadReportToken) {
@@ -3875,7 +3978,7 @@ export default {
         }
         this.$swal.fire({
           icon: 'error',
-          title: 'No se pudo abrir la conciliacion',
+          title: 'No se pudo abrir la conciliación',
           text: error?.response?.data?.message || 'No fue posible consultar los comprobantes de la fecha seleccionada.'
         });
       }
@@ -4012,7 +4115,7 @@ export default {
       const confirm = await this.$swal.fire({
         icon: 'warning',
         title: 'Eliminar comprobante',
-        text: 'Esta accion quitara el archivo y recalculara la conciliacion del dia.',
+        text: 'Esta acción quitará el archivo y recalculará la conciliación del día.',
         showCancelButton: true,
         confirmButtonText: 'Eliminar',
         cancelButtonText: 'Cancelar'
@@ -4092,7 +4195,7 @@ export default {
       this.load = true;
       this.activeUsersModal = {
         title: item.departamento || item.nombre || 'Sucursal',
-        subtitle: `CÃ³d. ${item.codigoSucursal ?? 0} Â· Punto ${item.puntoVenta ?? 0}`,
+        subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
         users: this.resolveBranchUsers(item),
         loading: true,
         error: '',
@@ -4152,7 +4255,7 @@ export default {
           return {
             key: user?.usuarioId || user?.id || user?.codigo || `${item.id || 'branch'}-${index}`,
             nombre,
-            detalle: detalleParts.length ? detalleParts.join(' Â· ') : 'Sin detalle',
+            detalle: detalleParts.length ? detalleParts.join(' · ') : 'Sin detalle',
             rol: user?.rol || user?.role || user?.cargo || (user?.cantidadVentas !== undefined ? 'Usuario' : 'Cajero'),
             ultimaVenta: this.formatDate(user?.ultimaVenta || user?.ultima_venta || user?.lastSaleAt || user?.ultimaVentaAt)
           };
@@ -4193,7 +4296,7 @@ export default {
       this.load = true;
       this.activeIncidentsModal = {
         title: item.departamento || item.nombre || 'Sucursal',
-        subtitle: `CÃ³d. ${item.codigoSucursal ?? 0} Â· Punto ${item.puntoVenta ?? 0}`,
+        subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
         items: [],
         loading: true,
         error: '',
@@ -4214,7 +4317,7 @@ export default {
             ...this.activeIncidentsModal,
             items: source,
             loading: false,
-            error: source.length ? '' : 'La API no devolviÃ³ incidencias para esta sucursal.'
+            error: source.length ? '' : 'La API no devolvió incidencias para esta sucursal.'
           };
         }
       } catch (err) {
@@ -4806,7 +4909,7 @@ export default {
 
         const infoRows = [
           ['Fecha inicio:', this.startDate || this.defaultToday(), 'Fecha fin:', this.endDate || this.defaultToday(), 'Estado:', statusLabel],
-          ['Busqueda:', this.filters.q || 'Todas las sucursales', 'Sucursales visibles:', Number(this.dashboardMetrics.total || 0), 'Total vendido:', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
+          ['Búsqueda:', this.filters.q || 'Todas las sucursales', 'Sucursales visibles:', Number(this.dashboardMetrics.total || 0), 'Total vendido:', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
         ];
         infoRows.forEach((rowData, index) => {
           const rowNumber = 3 + index;
@@ -4833,7 +4936,7 @@ export default {
 
         styleSectionTitle(6, 'KARDEX DE VENTAS COBRADAS');
         const metricRows = [
-          ['Sucursales del dia', Number(this.dashboardMetrics.total || 0), 'Sin observaciones', Number(this.dashboardMetrics.conformes || 0), 'Con pendientes', Number(this.dashboardMetrics.pendientes || 0)],
+          ['Sucursales del día', Number(this.dashboardMetrics.total || 0), 'Sin observaciones', Number(this.dashboardMetrics.conformes || 0), 'Con pendientes', Number(this.dashboardMetrics.pendientes || 0)],
           ['Con observaciones', Number(this.dashboardMetrics.diferencias || 0), 'Sin ventas', Number(this.dashboardMetrics.sinVentas || 0), 'Total vendido', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
         ];
         metricRows.forEach((rowData, index) => {
@@ -4933,7 +5036,7 @@ export default {
         const branchesSheet = workbook.addWorksheet('Sucursales');
         branchesSheet.columns = [
           { header: 'Sucursal', key: 'sucursal', width: 28 },
-          { header: 'Codigo sucursal', key: 'codigo_sucursal', width: 16 },
+          { header: 'Código de sucursal', key: 'codigo_sucursal', width: 16 },
           { header: 'Punto venta', key: 'punto_venta', width: 14 },
           { header: 'Estado', key: 'estado', width: 20 },
           { header: 'Detalle estado', key: 'detalle_estado', width: 24 },
@@ -4985,7 +5088,7 @@ export default {
         const incidentsSheet = workbook.addWorksheet('Incidencias');
         incidentsSheet.columns = [
           { header: 'Sucursal', key: 'sucursal', width: 28 },
-          { header: 'Codigo sucursal', key: 'codigo_sucursal', width: 16 },
+          { header: 'Código de sucursal', key: 'codigo_sucursal', width: 16 },
           { header: 'Punto venta', key: 'punto_venta', width: 14 },
           { header: 'Incidencia', key: 'incidencia', width: 52 }
         ];
@@ -5079,7 +5182,7 @@ export default {
             contractsSheet.getRow(contractRowCursor).height = 22;
             contractRowCursor += 1;
 
-            ['Cajero', 'Empresa', 'Descripcion', 'Importe'].forEach((value, index) => {
+            ['Cajero', 'Empresa', 'Descripción', 'Importe'].forEach((value, index) => {
               const cell = contractsSheet.getCell(contractRowCursor, index + 1);
               cell.value = value;
               cell.font = { name: 'Calibri', size: 10, bold: true };
@@ -5140,7 +5243,7 @@ export default {
         this.$swal.close();
         this.$swal.fire({
           icon: 'error',
-          title: 'Exportacion no disponible',
+          title: 'Exportación no disponible',
           text: 'No se pudo generar el Excel del control de cierre.'
         });
       } finally {
@@ -5238,7 +5341,7 @@ export default {
             'Estado:',
             statusLabel
           ], [
-            'Busqueda:',
+            'Búsqueda:',
             this.filters.q || 'Todas las sucursales',
             'Sucursales visibles:',
             String(this.dashboardMetrics.total),
@@ -5285,7 +5388,7 @@ export default {
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY,
           body: [[
-            'Sucursales del dia',
+            'Sucursales del día',
             String(this.dashboardMetrics.total),
             'Sin observaciones',
             String(this.dashboardMetrics.conformes),
@@ -5486,7 +5589,7 @@ export default {
               head: [[
                 'Cajero',
                 'Empresa',
-                'Descripcion',
+                'Descripción',
                 'Importe'
               ]],
               body: group.rows,
@@ -5551,7 +5654,7 @@ export default {
         this.$swal.close();
         this.$swal.fire({
           icon: 'error',
-          title: 'Exportacion no disponible',
+          title: 'Exportación no disponible',
           text: 'No se pudo generar el PDF del control de cierre.'
         });
       } finally {
@@ -5649,7 +5752,7 @@ export default {
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: 190px 190px minmax(320px, 1fr) 190px 280px;
+  grid-template-columns: 170px 170px 120px minmax(280px, 1fr) 170px 260px;
   gap: 0.7rem;
   margin-top: 0.95rem;
   align-items: center;
@@ -5695,6 +5798,33 @@ export default {
 .toolbar-export-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 20px rgba(154, 98, 0, 0.12);
+}
+
+.toolbar-filter-btn {
+  border: 1px solid #2d73df;
+  background: linear-gradient(180deg, #317be9 0%, #1e62cc 100%);
+  color: #fff;
+  border-radius: 12px;
+  min-height: 42px;
+  padding: 0.7rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.toolbar-filter-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(30, 98, 204, 0.2);
+}
+
+.toolbar-filter-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .toolbar-field {

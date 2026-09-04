@@ -6,10 +6,10 @@
             <section class="report-sheet">
                <div class="report-sheet-head">
                   <div class="report-head-copy">
-                     <p class="report-kicker mb-2">Reporte de notificacion</p>
-                     <h2 class="report-title mb-2">Notificacion #{{ model.id || '-' }}</h2>
+                     <p class="report-kicker mb-2">Reporte de notificación</p>
+                     <h2 class="report-title mb-2">Notificación #{{ model.id || '-' }}</h2>
                      <p class="report-subtitle mb-0">
-                        Tipo emision: <strong>{{ parsedDetalle.tipoEmision || 'SIN TIPO' }}</strong>
+                        Tipo de emisión: <strong>{{ parsedDetalle.tipoEmision || 'SIN TIPO' }}</strong>
                      </p>
                   </div>
 
@@ -43,7 +43,7 @@
                <div class="report-divider light"></div>
 
                <div class="report-section">
-                  <h3>Informacion principal</h3>
+                  <h3>Información principal</h3>
                   <div class="report-data-grid">
                      <div class="report-data-row">
                         <span>CUF</span>
@@ -54,7 +54,7 @@
                         <strong>{{ parsedDetalle.nroFactura || 'No disponible' }}</strong>
                      </div>
                      <div class="report-data-row">
-                        <span>Codigo Estado Impuestos</span>
+                        <span>Código de estado de Impuestos</span>
                         <strong>{{ parsedDetalle.codigoEstadoImpuestos ?? 'No disponible' }}</strong>
                      </div>
                      <div class="report-data-row wide">
@@ -62,7 +62,7 @@
                         <strong>{{ model.mensaje || 'Sin mensaje' }}</strong>
                      </div>
                      <div class="report-data-row wide">
-                        <span>Observacion</span>
+                        <span>Observación</span>
                         <strong>{{ resolvedObservacion }}</strong>
                      </div>
                   </div>

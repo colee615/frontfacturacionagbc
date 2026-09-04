@@ -10,7 +10,7 @@
                         <div class="notification-hero-head">
                            <div>
                               <p class="notification-kicker mb-2">Centro de Seguimiento</p>
-                              <h4 class="notification-title mb-2">Notificaciones de facturacion</h4>
+                              <h4 class="notification-title mb-2">Notificaciones de facturación</h4>
                               <p class="notification-subtitle mb-0">Monitorea emisiones, contingencias y respuestas de SUFE en una sola vista.</p>
                            </div>
                            <div class="notification-badge">
@@ -24,7 +24,7 @@
                               v-model="searchQuery"
                               type="text"
                               class="form-control notification-search"
-                              placeholder="Buscar por codigo de seguimiento o mensaje"
+                              placeholder="Buscar por código de seguimiento o mensaje"
                            >
                         </div>
                         <div class="row mt-4 g-3">
@@ -173,7 +173,7 @@
 
                         <div v-else class="empty-state notification-empty-state">
                            <h3>Sin resultados</h3>
-                           <p>No encontramos notificaciones con ese criterio de busqueda.</p>
+                           <p>No encontramos notificaciones con ese criterio de búsqueda.</p>
                         </div>
                      </div>
                   </div>
@@ -198,7 +198,7 @@ export default {
          list: [],
          searchQuery: '',
          apiUrl: 'notificaciones',
-         page: 'Administracion',
+         page: 'Administración',
          modulo: 'Notificaciones',
          url_editar: '/panel/notificaciones/detalle/',
          currentPage: 1,

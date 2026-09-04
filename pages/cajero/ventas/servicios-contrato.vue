@@ -492,7 +492,7 @@ export default {
           ], [
             'Filtro visible:',
             searchText,
-            'Fecha de emision:',
+            'Fecha de emisión:',
             generatedAt
           ]],
           theme: 'grid',
@@ -648,8 +648,8 @@ export default {
             startY: doc.lastAutoTable.finalY + 1.5,
             head: [[
               'Nro.',
-              'Numero de factura',
-              'Descripcion',
+              'Número de factura',
+              'Descripción',
               'Fecha',
               'Importe'
             ]],

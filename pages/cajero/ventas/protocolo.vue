@@ -759,8 +759,8 @@ export default {
                   <p class="small text-muted mb-2">Ingresa credenciales de un rol superior para habilitar anulacion temporal.</p>
                   <label class="d-block small font-weight-bold mb-1">Correo supervisor</label>
                   <input id="auth-supervisor-email" class="swal2-input" type="email" placeholder="supervisor@dominio.com">
-                  <label class="d-block small font-weight-bold mt-3 mb-1">Contrasena supervisor</label>
-                  <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contrasena">
+                  <label class="d-block small font-weight-bold mt-3 mb-1">Contraseña del supervisor</label>
+                  <input id="auth-supervisor-password" class="swal2-input" type="password" placeholder="Contraseña">
                </div>
             `,
             focusConfirm: false,
@@ -771,7 +771,7 @@ export default {
                const supervisor_email = document.getElementById('auth-supervisor-email')?.value?.trim();
                const supervisor_password = document.getElementById('auth-supervisor-password')?.value || '';
                if (!supervisor_email || !supervisor_password) {
-                  this.$swal.showValidationMessage('Correo y contrasena del supervisor son obligatorios.');
+                  this.$swal.showValidationMessage('El correo y la contraseña del supervisor son obligatorios.');
                   return false;
                }
                return { supervisor_email, supervisor_password, duracion_minutos: 15 };
@@ -816,7 +816,7 @@ export default {
                   <select id="annul-tipo" class="swal2-select protocol-annul-select">
                      <option value="1">1 - Factura mal emitida</option>
                      <option value="2">2 - Nota credito-debito mal emitida</option>
-                     <option value="3" selected>3 - Datos de emision incorrectos</option>
+                     <option value="3" selected>3 - Datos de emisión incorrectos</option>
                      <option value="4">4 - Factura o nota devuelta</option>
                   </select>
                </div>
@@ -863,7 +863,7 @@ export default {
          try {
             const response = await this.$admin.$patch(`ventas/anular/${venta.status.cuf}`, payload);
             this.showResponse(response);
-            this.$swal.fire('Solicitud enviada', response?.message || 'La anulacion fue recepcionada correctamente.', 'success');
+            this.$swal.fire('Solicitud enviada', response?.message || 'La anulación fue recibida correctamente.', 'success');
             await this.loadOperables();
          } catch (error) {
             this.showResponse(error?.response?.data || { error: error.message });

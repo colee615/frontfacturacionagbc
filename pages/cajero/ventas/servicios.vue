@@ -9,7 +9,7 @@
               <p class="service-kicker">Kardex</p>
               <h1>Ventas agrupadas por servicio</h1>
               <p>
-                Consolidado por descripcion base. Si la descripcion tiene un guion, se agrupa por el texto anterior al
+                Consolidado por descripción base. Si la descripción tiene un guion, se agrupa por el texto anterior al
                 <b>-</b>; si no lo tiene, se muestra tal como llega.
               </p>
             </div>
@@ -133,7 +133,7 @@
                         <tr>
                           <th>Venta ID</th>
                           <th>Detalle ID</th>
-                          <th>Descripcion</th>
+                          <th>Descripción</th>
                           <th>Orden</th>
                           <th>Seguimiento</th>
                           <th>Total</th>
