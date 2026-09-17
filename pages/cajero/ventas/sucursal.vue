@@ -1607,21 +1607,6 @@ export default {
         || String(venta?.id || '').startsWith('cart-')
         || Number(venta?.cartId || 0) > 0;
     },
-    hasProcessedFiscalEvidence(venta) {
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const estadoSufe = String(
-        venta?.respuesta_emision?.estadoSufe
-        || venta?.estadoSufe
-        || venta?.estado_sufe
-        || ''
-      ).trim().toUpperCase();
-
-      return ['PROCESADO', 'PROCESADA', 'FACTURADA'].includes(statusKey)
-        || statusLabel.includes('PROCESAD')
-        || statusLabel.includes('FACTURAD')
-        || estadoSufe === 'PROCESADA';
-    },
     normalizedEstado(venta) {
       if (this.isCartVenta(venta)) {
         return String(venta?.status?.key || venta?.estado || '').toUpperCase();
@@ -1636,7 +1621,6 @@ export default {
     },
     normalizedEstadoEmision(venta) {
       if (this.isCartVenta(venta)) {
-        if (this.hasProcessedFiscalEvidence(venta)) return 'FACTURADA';
         const statusKey = String(venta?.status?.key || '').toUpperCase();
         if (statusKey === 'DESCARTADA') return 'DESCARTADA';
         return String(venta?.estado_emision || '').toUpperCase() || 'SIN_ESTADO';
@@ -2094,7 +2078,7 @@ export default {
     },
     cartStateLabel(venta) {
       if (this.isCartVenta(venta)) {
-        return this.normalizedEstadoEmision(venta).replace(/_/g, ' ');
+        return String(venta?.status?.label || venta?.estado_emision || 'Sin estado');
       }
 
       return String(venta?.status?.key || 'EMITIDO').replace(/_/g, ' ');
@@ -2254,9 +2238,6 @@ export default {
       }
     },
     isRejectedVenta(venta) {
-      if (this.hasProcessedFiscalEvidence(venta) && !this.isAnuladaVenta(venta)) {
-        return false;
-      }
       const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
       const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
       const estadoEmision = this.normalizedEstadoEmision(venta);
