@@ -214,6 +214,12 @@ export default {
          const key = this.model?.status?.key || '';
          const label = String(this.model?.status?.label || '').trim().toUpperCase();
          const estadoEmision = String(this.model?.estado_emision || '').trim().toUpperCase();
+         const estadoSufe = String(
+            this.model?.respuesta_emision?.estadoSufe
+            || this.model?.estadoSufe
+            || this.model?.estado_sufe
+            || ''
+         ).trim().toUpperCase();
          const cuf = this.model?.status?.cuf || this.model?.seguimiento?.cuf;
          const isRejected = key === 'OBSERVADO'
             || key === 'RECHAZADA'
@@ -221,7 +227,13 @@ export default {
             || label.includes('RECHAZAD')
             || estadoEmision === 'RECHAZADA';
 
-         return Boolean(cuf) && (key === 'PROCESADO' || isRejected);
+         const isProcessed = key === 'PROCESADO'
+            || key === 'FACTURADA'
+            || label.includes('PROCESAD')
+            || label.includes('FACTURAD')
+            || estadoSufe === 'PROCESADA';
+
+         return Boolean(cuf) && (isProcessed || isRejected);
       },
    },
    methods: {
