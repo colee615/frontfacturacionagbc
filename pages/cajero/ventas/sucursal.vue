@@ -116,14 +116,24 @@
                   <p class="branch-kicker mb-1">Vista</p>
                   <h3 class="branch-main-title">{{ activeTab === 'fechas' ? 'Fechas seleccionadas' : 'Todas las ventas' }}</h3>
                 </div>
-                <button
-                  type="button"
-                  class="branch-export-btn"
-                  @click="downloadKardexPdfForUser('all')"
-                >
-                  <i class="fas fa-file-pdf"></i>
-                  <span>{{ activeTab === 'todas' ? 'Exportar PDF general' : 'Exportar PDF sucursal' }}</span>
-                </button>
+                <div class="branch-toolbar-actions">
+                  <button
+                    type="button"
+                    class="branch-export-btn"
+                    @click="downloadKardexPdfForUser('all')"
+                  >
+                    <i class="fas fa-file-pdf"></i>
+                    <span>{{ activeTab === 'todas' ? 'Exportar PDF general' : 'Exportar PDF sucursal' }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="branch-export-btn"
+                    @click="downloadDailyTotalsPdf"
+                  >
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Exportar totales por fechas</span>
+                  </button>
+                </div>
               </div>
 
               <div class="branch-tabs">
@@ -3477,6 +3487,219 @@ export default {
         this.load = false;
       }
     },
+    async downloadDailyTotalsPdf() {
+      this.load = true;
+
+      try {
+        const exportVentas = this.filteredVentas;
+        if (!exportVentas.length) {
+          throw new Error('No hay ventas visibles para exportar.');
+        }
+
+        const dailyTotalsMap = new Map();
+        const dailySummaryTotals = {
+          qr: 0,
+          efectivo: 0,
+          total: 0
+        };
+        exportVentas.forEach((venta) => {
+          if (!this.countsTowardCollectedTotal(venta)) {
+            return;
+          }
+
+          const rawDate = String(venta?.fecha || '').trim();
+          const dayKey = rawDate.slice(0, 10) || 'SIN_FECHA';
+          if (!dailyTotalsMap.has(dayKey)) {
+            dailyTotalsMap.set(dayKey, {
+              ventas: 0,
+              qr: 0,
+              efectivo: 0,
+              total: 0
+            });
+          }
+
+          const day = dailyTotalsMap.get(dayKey);
+          const amount = Number(venta?.total || 0);
+          day.ventas += 1;
+          day.total += amount;
+          dailySummaryTotals.total += amount;
+
+          if (this.countsTowardCollectedQrTotal(venta)) {
+            day.qr += amount;
+            dailySummaryTotals.qr += amount;
+          } else if (this.countsTowardCashTotal(venta)) {
+            day.efectivo += amount;
+            dailySummaryTotals.efectivo += amount;
+          }
+        });
+
+        const dailyRows = Array.from(dailyTotalsMap.entries())
+          .sort(([left], [right]) => right.localeCompare(left))
+          .map(([dayKey, day]) => ([
+            dayKey === 'SIN_FECHA' ? dayKey : this.formatShortDate(dayKey),
+            String(day.ventas),
+            this.formatCurrency(day.qr),
+            this.formatCurrency(day.efectivo),
+            this.formatCurrency(day.total)
+          ]));
+
+        if (!dailyRows.length) {
+          throw new Error('No hay ventas cobradas para resumir por fecha.');
+        }
+
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'letter'
+        });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const generatedBy = this.currentPdfUserLabel();
+        const generatedAt = this.currentPdfTimestamp();
+        const rangeLabel = this.activeTab === 'fechas'
+          ? this.currentDateRangeLabel
+          : 'Historial completo';
+
+        await this.drawPdfHeader(doc);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(29, 51, 96);
+        doc.text('TOTALES GENERALES POR FECHA', pageWidth / 2, 31.5, { align: 'center' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.8);
+        doc.setTextColor(107, 114, 128);
+        doc.text(`${this.branchLabel || 'Sin sucursal'} · ${rangeLabel}`, pageWidth / 2, 36.2, { align: 'center' });
+
+        autoTable(doc, {
+          startY: 41,
+          body: [[
+            'Oficina Postal:',
+            this.branchLabel || 'Sin sucursal',
+            'Ventanilla:',
+            `Punto ${this.branchPointLabel || '0'}`
+          ], [
+            'Generado por:',
+            generatedBy,
+            'Rango:',
+            rangeLabel
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2,
+            minCellHeight: 10,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 32, fontStyle: 'bold' },
+            1: { cellWidth: 58 },
+            2: { cellWidth: 32, fontStyle: 'bold' },
+            3: { cellWidth: 58 }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 5,
+          body: [['TOTALES POR FECHA']],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 8.1,
+            fontStyle: 'bold',
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fillColor: [250, 250, 250]
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 2,
+          head: [['Fecha', 'Ventas', 'Total QR', 'Total efectivo', 'Total general']],
+          body: dailyRows,
+          theme: 'grid',
+          tableWidth: 180,
+          headStyles: {
+            fillColor: [248, 250, 252],
+            textColor: [20, 20, 20],
+            fontStyle: 'bold',
+            halign: 'center',
+            lineColor: [90, 90, 90]
+          },
+          styles: {
+            fontSize: 8,
+            cellPadding: 2.2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20]
+          },
+          columnStyles: {
+            0: { cellWidth: 36, halign: 'center' },
+            1: { cellWidth: 24, halign: 'center' },
+            2: { cellWidth: 40, halign: 'right' },
+            3: { cellWidth: 40, halign: 'right' },
+            4: { cellWidth: 40, halign: 'right' }
+          },
+          margin: { left: 15, right: 15 },
+          didDrawPage: () => {
+            this.drawPdfHeader(doc);
+          }
+        });
+
+        autoTable(doc, {
+          startY: doc.lastAutoTable.finalY + 4,
+          body: [[
+            'TOTAL QR',
+            this.formatCurrency(dailySummaryTotals.qr),
+            'TOTAL EFECTIVO',
+            this.formatCurrency(dailySummaryTotals.efectivo),
+            'TOTAL GENERAL',
+            this.formatCurrency(dailySummaryTotals.total)
+          ]],
+          theme: 'grid',
+          tableWidth: 180,
+          styles: {
+            fontSize: 7.2,
+            cellPadding: 2,
+            lineColor: [90, 90, 90],
+            textColor: [20, 20, 20],
+            fontStyle: 'bold'
+          },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 35, halign: 'right' },
+            2: { cellWidth: 31 },
+            3: { cellWidth: 35, halign: 'right' },
+            4: { cellWidth: 25 },
+            5: { cellWidth: 29, halign: 'right' }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        this.drawPdfFooter(doc, generatedBy, generatedAt);
+        const blob = doc.output('blob');
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `totales-por-fecha-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Exportación no disponible',
+          text: error?.message || 'No se pudo generar el PDF de totales por fecha.',
+          confirmButtonText: 'Entendido'
+        });
+      } finally {
+        this.load = false;
+      }
+    },
     async downloadKardexPdfForUser(userId = 'all') {
       this.load = true;
 
@@ -3517,6 +3740,43 @@ export default {
           this.countsTowardCollectedQrTotal(venta) ? sum + Number(venta.total || 0) : sum
         ), 0);
         const totalVentas = exportVentas.filter((venta) => this.countsTowardCollectedTotal(venta)).length;
+        const dailyTotalsMap = new Map();
+        exportVentas.forEach((venta) => {
+          if (!this.countsTowardCollectedTotal(venta)) {
+            return;
+          }
+
+          const rawDate = String(venta?.fecha || '').trim();
+          const dayKey = rawDate.slice(0, 10) || 'SIN_FECHA';
+          if (!dailyTotalsMap.has(dayKey)) {
+            dailyTotalsMap.set(dayKey, {
+              ventas: 0,
+              qr: 0,
+              efectivo: 0,
+              total: 0
+            });
+          }
+
+          const day = dailyTotalsMap.get(dayKey);
+          const amount = Number(venta?.total || 0);
+          day.ventas += 1;
+          day.total += amount;
+
+          if (this.countsTowardCollectedQrTotal(venta)) {
+            day.qr += amount;
+          } else if (this.countsTowardCashTotal(venta)) {
+            day.efectivo += amount;
+          }
+        });
+        const dailyTotalsRows = Array.from(dailyTotalsMap.entries())
+          .sort(([left], [right]) => right.localeCompare(left))
+          .map(([dayKey, day]) => ([
+            dayKey === 'SIN_FECHA' ? dayKey : this.formatShortDate(dayKey),
+            String(day.ventas),
+            this.formatCurrency(day.qr),
+            this.formatCurrency(day.efectivo),
+            this.formatCurrency(day.total)
+          ]));
         const contractExportVentas = exportVentas.filter((venta) => this.isServicioContratoVenta(venta));
         const operationalExportVentas = exportVentas.filter((venta) => !this.isServicioContratoVenta(venta));
         const summaryLabel = userId === 'all' ? 'KARDEX AGRUPADO POR CAJERO' : 'RESUMEN DEL CAJERO';
@@ -3672,6 +3932,59 @@ export default {
             },
             margin: { left: 15, right: 15 }
           });
+
+          if (dailyTotalsRows.length) {
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY + 4,
+              body: [['TOTALES GENERALES POR DÍA']],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 8.1,
+                fontStyle: 'bold',
+                cellPadding: 2.2,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [250, 250, 250]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+
+            autoTable(doc, {
+              startY: doc.lastAutoTable.finalY + 2,
+              head: [['Fecha', 'Ventas', 'Total QR', 'Total efectivo', 'Total general']],
+              body: dailyTotalsRows,
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [248, 250, 252],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.4,
+                cellPadding: 1.9,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20]
+              },
+              columnStyles: {
+                0: { cellWidth: 34, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 41, halign: 'right' },
+                3: { cellWidth: 41, halign: 'right' },
+                4: { cellWidth: 42, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+          }
 
           autoTable(doc, {
             startY: doc.lastAutoTable.finalY + 4,
