@@ -5,19 +5,17 @@
       <div slot="body" class="closure-page">
         <div v-if="!activeConciliationModal" class="closure-shell">
           <section class="hero-card">
-            <div class="hero-copy">
-              <h1>Control de cierre</h1>
-            </div>
+            <BasePageHeading title="Control de cierre" icon="chart" eyebrow="Reportes y control" description="Consulta los cierres por sucursal, revisa diferencias y concilia tus operaciones." />
 
             <div class="toolbar-grid">
               <label class="toolbar-field toolbar-field-date">
                 <i class="far fa-calendar-alt"></i>
-                <input v-model="startDate" type="date" />
+                <input v-model="startDate" type="date" aria-label="Fecha de inicio" />
               </label>
 
               <label class="toolbar-field toolbar-field-date">
                 <i class="far fa-calendar-alt"></i>
-                <input v-model="endDate" type="date" />
+                <input v-model="endDate" type="date" aria-label="Fecha de fin" />
               </label>
 
               <button
@@ -3233,27 +3231,43 @@ export default {
         return {};
       }
 
-      const ventas = await this.fetchReportVentas();
+      const params = new URLSearchParams();
+      const endDate = this.endDate || this.defaultToday();
+      const startDate = this.startDate || endDate;
+      params.append('fechaInicio', startDate);
+      params.append('fechaFin', endDate);
+      const query = params.toString();
+      const path = query
+        ? `ventas/reportes/sucursales/totales?${query}`
+        : 'ventas/reportes/sucursales/totales';
+      const response = await this.$admin.$get(path);
 
       if (requestToken !== this.activeLoadReportToken) {
         return null;
       }
 
-      const ventasByBranch = ventas.reduce((acc, venta) => {
-        const codigoSucursal = venta?.sucursal?.codigoSucursal ?? venta?.codigoSucursal;
-        const puntoVenta = venta?.sucursal?.puntoVenta ?? venta?.puntoVenta ?? venta?.sucursal?.id ?? 0;
-        const key = this.branchKey(codigoSucursal, puntoVenta);
-
-        if (!acc[key]) {
-          acc[key] = [];
-        }
-        acc[key].push(venta);
+      const totalsRows = Array.isArray(response?.totales) ? response.totales : [];
+      const totalsByBranch = totalsRows.reduce((acc, row) => {
+        const key = this.branchKey(row?.codigoSucursal, row?.puntoVenta);
+        acc[key] = row;
         return acc;
       }, {});
 
       return sourceRows.reduce((acc, branch) => {
         const key = this.branchKey(branch?.codigoSucursal, branch?.puntoVenta);
-        acc[key] = this.calculateBranchTotalsFromVentas(ventasByBranch[key] || []);
+        acc[key] = totalsByBranch[key] || {
+          totalVendido: 0,
+          totalQrFacturado: 0,
+          totalQrPagadoPendienteFactura: 0,
+          totalEfectivoFacturado: 0,
+          totalEcaFacturado: 0,
+          totalContratosNoSumados: 0,
+          facturadas: 0,
+          qrFacturadas: 0,
+          ecaFacturadas: 0,
+          electronicasFacturadas: 0,
+          contratosNoSumados: 0
+        };
         return acc;
       }, {});
     },
@@ -3353,30 +3367,6 @@ export default {
       const day = String(now.getDate()).padStart(2, '0');
 
       return `${year}-${month}-${day}`;
-    },
-    async fetchReportVentas() {
-      const cacheKey = ['report', this.startDate || '', this.endDate || ''].join('|');
-      if (Array.isArray(this.branchVentasCache[cacheKey])) {
-        return this.branchVentasCache[cacheKey];
-      }
-
-      const params = new URLSearchParams();
-      if (this.startDate) {
-        params.append('fechaInicio', this.startDate);
-      }
-      if (this.endDate) {
-        params.append('fechaFin', this.endDate);
-      }
-
-      const query = params.toString();
-      const response = await this.$admin.$get(query ? `ventas?${query}` : 'ventas');
-      const ventas = Array.isArray(response) ? response : [];
-      this.branchVentasCache = {
-        ...this.branchVentasCache,
-        [cacheKey]: ventas
-      };
-
-      return ventas;
     },
     async fetchBranchVentas(branch) {
       const cacheKey = [
