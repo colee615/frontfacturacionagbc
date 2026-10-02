@@ -8,298 +8,132 @@
             <div class="card security-hero">
               <div class="card-body">
                 <div class="security-hero-head">
-                  <div class="security-heading">
-                    <span class="security-heading-icon">
-                      <i class="fas fa-user-shield"></i>
-                    </span>
-                    <div>
-                    <p class="security-kicker mb-2">Centro de Accesos</p>
-                    <h4 class="security-title mb-2">Roles y permisos</h4>
-                    <p class="security-subtitle mb-0">
-                      Administra roles, permisos y vistas del sistema desde una matriz clara de acceso operativo.
-                    </p>
-                    </div>
-                  </div>
-                  <div class="security-badge">
-                    <i class="fas fa-user-lock"></i>
-                    <span>{{ roles.length }} roles activos</span>
-                  </div>
-                </div>
-                <div class="row mt-4 g-3">
-                  <div class="col-md-4 col-sm-6">
-                    <div class="security-stat">
-                      <span class="security-stat-label">Roles</span>
-                      <strong>{{ roles.length }}</strong>
-                    </div>
-                  </div>
-                  <div class="col-md-4 col-sm-6">
-                    <div class="security-stat">
-                      <span class="security-stat-label">Permisos</span>
-                      <strong>{{ permissions.length }}</strong>
-                    </div>
-                  </div>
-                  <div class="col-md-4 col-sm-12">
-                    <div class="security-stat">
-                      <span class="security-stat-label">Vistas</span>
-                      <strong>{{ views.length }}</strong>
-                    </div>
-                  </div>
+                  <BasePageHeading title="Roles y permisos" icon="shield" eyebrow="Administración" />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="row">
-          <div class="col-12 mb-4">
-            <div class="card security-action-card">
-              <div class="card-body">
-                <div class="security-action-head">
-                  <div>
-                    <p class="security-section-kicker mb-1">Inicialización</p>
-                    <h6 class="mb-1">Catálogo base RBAC</h6>
-                    <small>No duplica slugs existentes y deja listo el catálogo inicial.</small>
-                  </div>
-                  <button class="btn security-btn security-btn-primary" @click="initializeRbacCatalog">
-                    <i class="fas fa-bolt"></i>
-                    <span>Crear permisos base</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+        <nav class="security-main-nav" aria-label="Secciones de seguridad">
+          <button type="button" :class="{ active: securityView === 'roles' }" :aria-current="securityView === 'roles' ? 'page' : null" @click="securityView = 'roles'; roleDetailOpen = false"><i class="fas fa-user-tag"></i><span>Roles</span></button>
+          <button type="button" :class="{ active: securityView === 'permissions' }" :aria-current="securityView === 'permissions' ? 'page' : null" @click="securityView = 'permissions'"><i class="fas fa-key"></i><span>Permisos</span></button>
+        </nav>
 
-          <div class="col-lg-4">
-            <div class="card security-form-card mb-4">
-              <div class="card-body">
-                <div class="security-card-title">
-                  <div>
-                    <p class="security-section-kicker mb-1">Catálogo</p>
-                    <h6 class="mb-0">{{ roleForm.id ? 'Editar rol' : 'Nuevo rol' }}</h6>
-                  </div>
-                  <button v-if="roleForm.id" class="security-mini-btn" type="button" @click="resetRoleForm" title="Cancelar edición">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
-                <div class="form-group mb-2">
-                  <label>Nombre</label>
-                  <input v-model.trim="roleForm.name" type="text" class="form-control security-input" placeholder="Ej. Supervisor" />
-                </div>
-                <div class="form-group mb-3">
-                  <label>Slug</label>
-                  <input v-model.trim="roleForm.slug" type="text" class="form-control security-input" placeholder="Ej. supervisor" />
-                </div>
-                <button class="btn security-btn security-btn-dark w-100" @click="saveRole">
-                  <i class="fas fa-save"></i>
-                  <span>{{ roleForm.id ? 'Actualizar rol' : 'Guardar rol' }}</span>
-                </button>
-                <div class="security-catalog-list">
-                  <div v-for="role in roles" :key="role.id" class="security-catalog-item">
-                    <div>
-                      <strong>{{ role.name }}</strong>
-                      <small>{{ role.slug }}</small>
-                    </div>
-                    <div class="security-row-actions">
-                      <span v-if="role.is_system" class="security-lock-chip"><i class="fas fa-lock"></i></span>
-                      <button type="button" class="security-icon-btn" @click="editRole(role)" title="Editar rol">
-                        <i class="fas fa-pen"></i>
-                      </button>
-                      <button type="button" class="security-icon-btn security-icon-btn-danger" :disabled="role.is_system" @click="deleteRole(role)" title="Eliminar rol">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <section v-if="securityView === 'permissions'" class="security-setup-card" aria-labelledby="security-catalog-title">
+          <div class="security-setup-copy">
+            <span class="security-section-kicker">Configuración inicial</span>
+            <h2 id="security-catalog-title">Completa el catálogo del sistema</h2>
+            <p>Agrega roles, permisos y vistas estándar que todavía no existan.</p>
           </div>
+          <button type="button" class="btn security-btn security-btn-primary" @click="initializeRbacCatalog">
+            <i class="fas fa-bolt"></i><span>Completar catálogo base</span>
+          </button>
+        </section>
 
-          <div class="col-lg-4">
-            <div class="card security-form-card mb-4">
-              <div class="card-body">
-                <div class="security-card-title">
-                  <div>
-                    <p class="security-section-kicker mb-1">Catálogo</p>
-                    <h6 class="mb-0">{{ permissionForm.id ? 'Editar permiso' : 'Nuevo permiso' }}</h6>
-                  </div>
-                  <button v-if="permissionForm.id" class="security-mini-btn" type="button" @click="resetPermissionForm" title="Cancelar edición">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
-                <div class="form-group mb-2">
-                  <label>Nombre</label>
-                  <input v-model.trim="permissionForm.name" type="text" class="form-control security-input" placeholder="Ej. Usuarios crear" />
-                </div>
-                <div class="form-group mb-3">
-                  <label>Slug</label>
-                  <input v-model.trim="permissionForm.slug" type="text" class="form-control security-input" placeholder="Ej. usuarios.create" />
-                </div>
-                <button class="btn security-btn security-btn-dark w-100" @click="savePermission">
-                  <i class="fas fa-save"></i>
-                  <span>{{ permissionForm.id ? 'Actualizar permiso' : 'Guardar permiso' }}</span>
-                </button>
-                <div class="security-catalog-list">
-                  <div v-for="permission in permissions" :key="permission.id" class="security-catalog-item">
-                    <div>
-                      <strong>{{ permission.name }}</strong>
-                      <small>{{ permission.slug }}</small>
-                    </div>
-                    <div class="security-row-actions">
-                      <button type="button" class="security-icon-btn" @click="editPermission(permission)" title="Editar permiso">
-                        <i class="fas fa-pen"></i>
-                      </button>
-                      <button type="button" class="security-icon-btn security-icon-btn-danger" @click="deletePermission(permission)" title="Eliminar permiso">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-4">
-            <div class="card security-form-card mb-4">
-              <div class="card-body">
-                <div class="security-card-title">
-                  <div>
-                    <p class="security-section-kicker mb-1">Catálogo</p>
-                    <h6 class="mb-0">{{ viewForm.id ? 'Editar vista' : 'Nueva vista' }}</h6>
-                  </div>
-                  <button v-if="viewForm.id" class="security-mini-btn" type="button" @click="resetViewForm" title="Cancelar edición">
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
-                <div class="form-group mb-2">
-                  <label>Nombre</label>
-                  <input v-model.trim="viewForm.name" type="text" class="form-control security-input" placeholder="Ej. Usuarios" />
-                </div>
-                <div class="form-group mb-2">
-                  <label>Slug</label>
-                  <input v-model.trim="viewForm.slug" type="text" class="form-control security-input" placeholder="Ej. usuarios" />
-                </div>
-                <div class="form-group mb-3">
-                  <label>Ruta</label>
-                  <input v-model.trim="viewForm.route" type="text" class="form-control security-input" placeholder="/panel/usuarios/" />
-                </div>
-                <button class="btn security-btn security-btn-dark w-100" @click="saveView">
-                  <i class="fas fa-save"></i>
-                  <span>{{ viewForm.id ? 'Actualizar vista' : 'Guardar vista' }}</span>
-                </button>
-                <div class="security-catalog-list">
-                  <div v-for="view in views" :key="view.id" class="security-catalog-item">
-                    <div>
-                      <strong>{{ view.name }}</strong>
-                      <small>{{ view.slug }} · {{ view.route || 'Sin ruta' }}</small>
-                    </div>
-                    <div class="security-row-actions">
-                      <button type="button" class="security-icon-btn" @click="editView(view)" title="Editar vista">
-                        <i class="fas fa-pen"></i>
-                      </button>
-                      <button type="button" class="security-icon-btn security-icon-btn-danger" @click="deleteView(view)" title="Eliminar vista">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card security-matrix-card">
+        <section v-if="securityView === 'roles' && roleDetailOpen" class="card security-assignment-card" aria-labelledby="security-assignment-title">
           <div class="card-body">
-            <div class="security-matrix-head">
+            <div class="security-section-heading">
               <div>
-                <p class="security-section-kicker mb-1">Asignación</p>
-                <h6 class="mb-1">Matriz por rol</h6>
-                <small>Selecciona un rol y define qué permisos y vistas tendrá habilitados.</small>
+                <p class="security-section-kicker mb-1">Accesos del rol</p>
+                <h2 id="security-assignment-title">{{ selectedRole ? selectedRole.name : 'Configurar rol' }}</h2>
+                <p>Marca las acciones y secciones disponibles para este rol y guarda cada grupo.</p>
               </div>
-              <div class="security-chip" v-if="selectedRole">
-                <i class="fas fa-shield-alt"></i>
-                <span>{{ selectedRole.name }}</span>
-              </div>
+              <button type="button" class="security-back-button" @click="backToRoles"><i class="fas fa-arrow-left"></i> Volver a roles</button>
             </div>
+            <div v-if="selectedRole" class="security-role-context"><i class="fas fa-shield-alt"></i><span>Estás editando los accesos de <strong>{{ selectedRole.name }}</strong> <small>({{ selectedRole.slug }})</small></span></div>
+            <div class="security-global-filter"><label for="security-access-search">Buscar un permiso o una vista</label><div class="security-search-wrap"><i class="fas fa-search"></i><input id="security-access-search" v-model.trim="filterText" type="search" class="form-control security-input security-search" placeholder="Ej. usuarios, crear, ventas.read" /></div></div>
 
-            <div class="row mb-4">
-              <div class="col-lg-4">
-                <label>Rol</label>
-                <select v-model.number="selectedRoleId" class="form-control security-input">
-                  <option :value="0" disabled>Seleccione rol</option>
-                  <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }} ({{ r.slug }})</option>
-                </select>
-              </div>
-              <div class="col-lg-8">
-                <label>Buscar permiso o vista</label>
-                <div class="security-search-wrap">
-                  <i class="fas fa-search"></i>
-                  <input
-                    v-model.trim="filterText"
-                    type="text"
-                    class="form-control security-input security-search"
-                    placeholder="Ej: usuarios.update o notificaciones"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-lg-7">
+            <div class="row security-assignment-panels">
+              <div class="col-lg-7 mb-3 mb-lg-0">
                 <div class="security-panel">
                   <div class="security-panel-head">
-                    <div>
-                      <h6 class="mb-1">Permisos por módulo</h6>
-                      <small>{{ filteredPermissions.length }} permisos filtrados</small>
-                    </div>
-                    <button class="btn security-btn security-btn-primary" :disabled="!selectedRoleId" @click="syncRolePermissions">
-                      <i class="fas fa-save"></i>
-                      <span>Guardar permisos</span>
-                    </button>
+                    <div><span class="security-panel-icon"><i class="fas fa-sliders-h"></i></span><div><h3>Permisos de acciones</h3><small>Controlan tareas como crear, editar o eliminar.</small></div></div>
+                    <button type="button" class="btn security-btn security-btn-primary" :disabled="!selectedRoleId" @click="syncRolePermissions"><i class="fas fa-save"></i><span>Guardar permisos</span></button>
                   </div>
-                  <div class="perm-list security-list">
-                    <div v-for="group in groupedPermissions" :key="group.module" class="security-group">
-                      <div class="security-group-head">
-                        <strong>{{ group.module }}</strong>
-                        <span>{{ group.items.length }}</span>
-                      </div>
-                      <div v-for="p in group.items" :key="p.id" class="security-item-check">
+                  <div class="security-selection-summary"><span><strong>{{ selectedPermissionIds.length }}</strong> seleccionados</span><span>{{ filteredPermissions.length }} visibles</span></div>
+                  <div v-if="groupedPermissions.length" class="security-access-list">
+                    <section v-for="group in groupedPermissions" :key="group.module" class="security-group">
+                      <div class="security-group-head"><strong>{{ moduleLabel(group.module) }}</strong><span>{{ group.items.length }}</span></div>
+                      <label v-for="p in group.items" :key="p.id" class="security-access-row" :for="`perm-${p.id}`">
                         <input :id="`perm-${p.id}`" v-model="selectedPermissionIds" class="form-check-input" type="checkbox" :value="p.id" />
-                        <label class="form-check-label" :for="`perm-${p.id}`">
-                          <span>{{ p.slug }}</span>
-                          <small>{{ p.name }}</small>
-                        </label>
-                      </div>
-                    </div>
+                        <span class="security-access-copy"><strong>{{ p.name }}</strong><small>{{ p.slug }}</small></span><i class="fas fa-check security-check-mark"></i>
+                      </label>
+                    </section>
                   </div>
+                  <div v-else class="security-list-empty"><i class="fas fa-search"></i><strong>No hay permisos con ese nombre</strong><span>Prueba con otra palabra.</span></div>
                 </div>
               </div>
-
               <div class="col-lg-5">
-                <div class="security-panel">
+                <div class="security-panel security-views-panel">
                   <div class="security-panel-head">
-                    <div>
-                      <h6 class="mb-1">Vistas habilitadas</h6>
-                      <small>{{ filteredViews.length }} vistas filtradas</small>
-                    </div>
-                    <button class="btn security-btn security-btn-primary" :disabled="!selectedRoleId" @click="syncRoleViews">
-                      <i class="fas fa-save"></i>
-                      <span>Guardar vistas</span>
-                    </button>
+                    <div><span class="security-panel-icon"><i class="fas fa-window-maximize"></i></span><div><h3>Vistas del sistema</h3><small>Definen qué secciones aparecen para el rol.</small></div></div>
+                    <button type="button" class="btn security-btn security-btn-primary" :disabled="!selectedRoleId" @click="syncRoleViews"><i class="fas fa-save"></i><span>Guardar vistas</span></button>
                   </div>
-                  <div class="perm-list security-list">
-                    <div v-for="v in filteredViews" :key="v.id" class="security-item-check">
+                  <div class="security-selection-summary"><span><strong>{{ selectedViewIds.length }}</strong> seleccionadas</span><span>{{ filteredViews.length }} visibles</span></div>
+                  <div v-if="filteredViews.length" class="security-access-list security-view-list">
+                    <label v-for="v in filteredViews" :key="v.id" class="security-access-row" :for="`view-${v.id}`">
                       <input :id="`view-${v.id}`" v-model="selectedViewIds" class="form-check-input" type="checkbox" :value="v.id" />
-                      <label class="form-check-label" :for="`view-${v.id}`">
-                        <span>{{ v.slug }}</span>
-                        <small>{{ v.route }}</small>
-                      </label>
-                    </div>
+                      <span class="security-access-copy"><strong>{{ v.name }}</strong><small>{{ v.route || v.slug }}</small></span><i class="fas fa-check security-check-mark"></i>
+                    </label>
                   </div>
+                  <div v-else class="security-list-empty"><i class="fas fa-window-maximize"></i><strong>No hay vistas con ese nombre</strong><span>Prueba con otra palabra.</span></div>
+                  <div class="security-note"><i class="fas fa-lightbulb"></i><span>Habilita una vista para que el rol pueda encontrar esa sección en su menú.</span></div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section v-if="(securityView === 'roles' && !roleDetailOpen) || securityView === 'permissions'" class="security-catalog-section" aria-labelledby="security-catalog-manager-title">
+          <div class="security-section-heading security-catalog-heading">
+            <div>
+              <p class="security-section-kicker mb-1">{{ securityView === 'roles' ? 'Administración' : 'Catálogo de accesos' }}</p>
+              <h2 id="security-catalog-manager-title">{{ securityView === 'roles' ? 'Gestiona los roles' : 'Gestiona permisos y vistas' }}</h2>
+              <p v-if="securityView === 'roles'">Un rol agrupa los accesos de un tipo de usuario. Pulsa «Configurar accesos» para elegirlos.</p>
+              <p v-else>Los permisos son acciones; las vistas son secciones del menú que cada rol puede abrir.</p>
+            </div>
+          </div>
+          <div v-if="securityView === 'permissions'" class="security-catalog-tabs" role="tablist" aria-label="Tipo de catálogo">
+            <button type="button" role="tab" :aria-selected="catalogTab === 'permissions'" :class="{ active: catalogTab === 'permissions' }" @click="catalogTab = 'permissions'"><i class="fas fa-key"></i> Permisos</button>
+            <button type="button" role="tab" :aria-selected="catalogTab === 'views'" :class="{ active: catalogTab === 'views' }" @click="catalogTab = 'views'"><i class="fas fa-window-maximize"></i> Vistas</button>
+          </div>
+
+          <div v-if="securityView === 'roles' && !roleDetailOpen" class="card security-catalog-card">
+            <div class="security-catalog-form">
+              <div class="security-card-title"><div><span class="security-form-step">{{ roleForm.id ? 'Editar rol' : 'Nuevo rol' }}</span><h3>{{ roleForm.id ? 'Actualizar rol' : 'Crear un rol' }}</h3></div><button v-if="roleForm.id" class="security-mini-btn" type="button" @click="resetRoleForm" aria-label="Cancelar edición"><i class="fas fa-times"></i></button></div>
+              <label for="role-name">Nombre del rol</label><input id="role-name" v-model.trim="roleForm.name" type="text" class="form-control security-input" placeholder="Ej. Supervisor" />
+              <label for="role-slug">Identificador único</label><input id="role-slug" v-model.trim="roleForm.slug" type="text" class="form-control security-input" placeholder="Ej. supervisor" /><small class="security-field-hint">Sin espacios; se usa internamente para identificar el rol.</small>
+              <button type="button" class="btn security-btn security-btn-primary w-100" @click="saveRole"><i class="fas fa-save"></i><span>{{ roleForm.id ? 'Guardar cambios' : 'Crear rol' }}</span></button>
+            </div>
+            <div class="security-catalog-content"><div class="security-catalog-list-heading"><h3>Roles existentes</h3><span>{{ roles.length }} en total</span></div><div v-if="roles.length" class="security-catalog-list">
+              <div v-for="role in roles" :key="role.id" class="security-catalog-item security-role-item"><div class="security-catalog-item-copy"><strong>{{ role.name }}</strong><small>{{ role.slug }}<span v-if="role.is_system" class="security-system-label"><i class="fas fa-lock"></i> Protegido</span></small><small class="security-role-access-count">{{ (role.permissions || []).length }} permisos · {{ (role.views || []).length }} vistas habilitadas</small></div><div class="security-role-actions"><button type="button" class="security-configure-role" @click="openRoleAccess(role)"><i class="fas fa-sliders-h"></i> Configurar accesos</button><button type="button" class="security-icon-btn" @click="editRole(role)" :aria-label="`Editar rol ${role.name}`" title="Editar rol"><i class="fas fa-pen"></i></button><button v-if="!role.is_system" type="button" class="security-icon-btn security-icon-btn-danger" @click="deleteRole(role)" :aria-label="`Eliminar rol ${role.name}`" title="Eliminar rol"><i class="fas fa-trash"></i></button></div></div>
+            </div><div v-else class="security-list-empty"><strong>Aún no hay roles</strong><span>Crea el primer rol con el formulario.</span></div></div>
+          </div>
+
+          <div v-else-if="securityView === 'permissions' && catalogTab === 'permissions'" class="card security-catalog-card">
+            <div class="security-catalog-form"><div class="security-card-title"><div><span class="security-form-step">{{ permissionForm.id ? 'Editar permiso' : 'Nuevo permiso' }}</span><h3>{{ permissionForm.id ? 'Actualizar permiso' : 'Crear un permiso' }}</h3></div><button v-if="permissionForm.id" class="security-mini-btn" type="button" @click="resetPermissionForm" aria-label="Cancelar edición"><i class="fas fa-times"></i></button></div>
+              <label for="permission-name">Nombre del permiso</label><input id="permission-name" v-model.trim="permissionForm.name" type="text" class="form-control security-input" placeholder="Ej. Crear usuarios" />
+              <label for="permission-slug">Identificador único</label><input id="permission-slug" v-model.trim="permissionForm.slug" type="text" class="form-control security-input" placeholder="Ej. usuarios.create" /><small class="security-field-hint">Usa el formato módulo.acción, por ejemplo ventas.read.</small>
+              <button type="button" class="btn security-btn security-btn-primary w-100" @click="savePermission"><i class="fas fa-save"></i><span>{{ permissionForm.id ? 'Guardar cambios' : 'Crear permiso' }}</span></button>
+            </div>
+            <div class="security-catalog-content"><div class="security-catalog-list-heading"><h3>Permisos existentes</h3><span>{{ permissions.length }} en total</span></div><div v-if="permissions.length" class="security-catalog-list">
+              <div v-for="permission in permissions" :key="permission.id" class="security-catalog-item"><div class="security-catalog-item-copy"><strong>{{ permission.name }}</strong><small>{{ permission.slug }}</small></div><div class="security-row-actions"><button type="button" class="security-icon-btn" @click="editPermission(permission)" :aria-label="`Editar permiso ${permission.name}`" title="Editar permiso"><i class="fas fa-pen"></i></button><button type="button" class="security-icon-btn security-icon-btn-danger" @click="deletePermission(permission)" :aria-label="`Eliminar permiso ${permission.name}`" title="Eliminar permiso"><i class="fas fa-trash"></i></button></div></div>
+            </div><div v-else class="security-list-empty"><strong>Aún no hay permisos</strong><span>Crea permisos para definir acciones disponibles.</span></div></div>
+          </div>
+
+          <div v-else-if="securityView === 'permissions' && catalogTab === 'views'" class="card security-catalog-card">
+            <div class="security-catalog-form"><div class="security-card-title"><div><span class="security-form-step">{{ viewForm.id ? 'Editar vista' : 'Nueva vista' }}</span><h3>{{ viewForm.id ? 'Actualizar vista' : 'Crear una vista' }}</h3></div><button v-if="viewForm.id" class="security-mini-btn" type="button" @click="resetViewForm" aria-label="Cancelar edición"><i class="fas fa-times"></i></button></div>
+              <label for="view-name">Nombre de la vista</label><input id="view-name" v-model.trim="viewForm.name" type="text" class="form-control security-input" placeholder="Ej. Usuarios" />
+              <label for="view-slug">Identificador único</label><input id="view-slug" v-model.trim="viewForm.slug" type="text" class="form-control security-input" placeholder="Ej. usuarios" />
+              <label for="view-route">Ruta de la página</label><input id="view-route" v-model.trim="viewForm.route" type="text" class="form-control security-input" placeholder="/panel/usuarios/" /><small class="security-field-hint">Debe coincidir con la dirección de la página en el sistema.</small>
+              <button type="button" class="btn security-btn security-btn-primary w-100" @click="saveView"><i class="fas fa-save"></i><span>{{ viewForm.id ? 'Guardar cambios' : 'Crear vista' }}</span></button>
+            </div>
+            <div class="security-catalog-content"><div class="security-catalog-list-heading"><h3>Vistas existentes</h3><span>{{ views.length }} en total</span></div><div v-if="views.length" class="security-catalog-list">
+              <div v-for="view in views" :key="view.id" class="security-catalog-item"><div class="security-catalog-item-copy"><strong>{{ view.name }}</strong><small>{{ view.slug }} · {{ view.route || 'Sin ruta' }}</small></div><div class="security-row-actions"><button type="button" class="security-icon-btn" @click="editView(view)" :aria-label="`Editar vista ${view.name}`" title="Editar vista"><i class="fas fa-pen"></i></button><button type="button" class="security-icon-btn security-icon-btn-danger" @click="deleteView(view)" :aria-label="`Eliminar vista ${view.name}`" title="Eliminar vista"><i class="fas fa-trash"></i></button></div></div>
+            </div><div v-else class="security-list-empty"><strong>Aún no hay vistas</strong><span>Crea vistas para controlar las secciones disponibles.</span></div></div>
+          </div>
+        </section>
       </div>
     </AdminTemplate>
   </div>
@@ -316,10 +150,13 @@ export default {
       roles: [],
       permissions: [],
       views: [],
+      securityView: 'roles',
+      roleDetailOpen: false,
       selectedRoleId: 0,
       selectedPermissionIds: [],
       selectedViewIds: [],
       filterText: '',
+      catalogTab: 'permissions',
       roleForm: { id: null, name: '', slug: '' },
       permissionForm: { id: null, name: '', slug: '' },
       viewForm: { id: null, name: '', slug: '', route: '', is_active: true },
@@ -360,7 +197,7 @@ export default {
     filteredViews() {
       const q = (this.filterText || '').toString().toLowerCase();
       if (!q) return this.views;
-      return this.views.filter((v) => ((v && v.slug) ? v.slug : '').toString().toLowerCase().includes(q) || ((v && v.name) ? v.name : '').toString().toLowerCase().includes(q));
+      return this.views.filter((v) => ((v && v.slug) ? v.slug : '').toString().toLowerCase().includes(q) || ((v && v.name) ? v.name : '').toString().toLowerCase().includes(q) || ((v && v.route) ? v.route : '').toString().toLowerCase().includes(q));
     },
     groupedPermissions() {
       const map = {};
@@ -380,6 +217,20 @@ export default {
     }
   },
   methods: {
+    openRoleAccess(role) {
+      this.selectedRoleId = role.id;
+      this.loadSelectedRoleData();
+      this.filterText = '';
+      this.roleDetailOpen = true;
+    },
+    backToRoles() {
+      this.roleDetailOpen = false;
+      this.filterText = '';
+    },
+    moduleLabel(module) {
+      const labels = { dashboard: 'Panel principal', usuarios: 'Usuarios', usuario: 'Usuarios', ventas: 'Ventas', rbac: 'Roles y permisos', empresa: 'Empresa' };
+      return labels[module] || String(module || 'Otros').replace(/_/g, ' ').replace(/^./, (letter) => letter.toUpperCase());
+    },
     async getData(path) {
       return this.$admin.$get(path);
     },
@@ -690,562 +541,149 @@ export default {
 </script>
 
 <style>
-.security-page {
-  color: #344054;
-}
-
-.security-hero {
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  overflow: hidden;
-}
-
-.security-hero .card-body,
-.security-action-card .card-body,
-.security-form-card .card-body,
-.security-matrix-card .card-body {
-  padding: 1.55rem 1.65rem;
-}
-
-.security-hero-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.security-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.security-heading-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: #eef2ff;
-  color: #5967d8;
-  border: 1px solid #e0e7ff;
-}
-
-.security-kicker,
-.security-section-kicker {
-  color: #98a2b3;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.security-title {
-  color: #1f2937;
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-
-.security-subtitle {
-  color: #667085;
-  max-width: 760px;
-  font-size: 0.96rem;
-}
-
-.security-badge,
-.security-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.72rem 0.95rem;
-  border-radius: 999px;
-  background: #f8fafc;
-  border: 1px solid #e6ebf3;
-  color: #4b5565;
-  font-weight: 800;
-  box-shadow: none;
-  white-space: nowrap;
-}
-
-.security-stat {
-  min-height: 94px;
-  padding: 1rem 1.1rem;
-  border-radius: 16px;
-  background: #f8fafc;
-  border: 1px solid #e6ebf3;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.security-stat-label {
-  display: block;
-  color: #667085;
-  font-size: 0.78rem;
-  font-weight: 700;
-  margin-bottom: 0.45rem;
-}
-
-.security-stat strong {
-  color: #1f2937;
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-
-.security-action-card,
-.security-form-card,
-.security-matrix-card {
-  border-radius: 18px;
-  overflow: hidden;
-}
-
-.security-action-head,
-.security-matrix-head,
-.security-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.security-action-head small,
-.security-matrix-head small,
-.security-panel-head small {
-  color: #667085;
-}
-
-.security-matrix-head {
-  margin-bottom: 1.5rem;
-}
-
-.security-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.48rem;
-  min-height: 44px;
-  padding: 0.72rem 1.05rem;
-  border-radius: 14px;
-  border: 1px solid transparent;
-  font-size: 0.82rem;
-  font-weight: 800;
-  box-shadow: none;
-}
-
-.security-btn-primary {
-  background: #1f2937;
-  color: #fff;
-  border-color: rgba(31, 41, 55, 0.16);
-}
-
-.security-btn-dark {
-  background: #1f2937;
-  color: #fff;
-  border-color: rgba(31, 41, 55, 0.16);
-}
-
-.security-input {
-  min-height: 46px;
-  border-radius: 14px !important;
-  font-size: 0.92rem;
-}
-
-.security-form-card label,
-.security-matrix-card label {
-  color: #344054;
-  font-size: 0.83rem;
-  font-weight: 800;
-  margin-bottom: 0.45rem;
-}
-
-.security-card-title {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.85rem;
-  margin-bottom: 1rem;
-}
-
-.security-card-title h6,
-.security-matrix-head h6,
-.security-panel-head h6 {
-  color: #1f2937;
-  font-size: 1rem;
-  font-weight: 800;
-}
-
-.security-mini-btn,
-.security-icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #d9defd;
-  background: #eef2ff;
-  color: #3442a8;
-}
-
-.security-icon-btn-danger {
-  background: #fff1f0;
-  border-color: #f5b3ad;
-  color: #b42318;
-}
-
-.security-icon-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.security-row-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-}
-
-.security-lock-chip {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8fafc;
-  border: 1px solid #e6ebf3;
-  color: #98a2b3;
-}
-
-.security-catalog-list {
-  max-height: 250px;
-  overflow-y: auto;
-  margin-top: 1rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid #eef2f7;
-}
-
-.security-catalog-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.7rem 0;
-}
-
-.security-catalog-item + .security-catalog-item {
-  border-top: 1px solid #eef2f7;
-}
-
-.security-catalog-item strong {
-  display: block;
-  color: #24324d;
-  font-size: 0.9rem;
-  font-weight: 800;
-}
-
-.security-catalog-item small {
-  color: #667085;
-  font-size: 0.78rem;
-  font-weight: 650;
-}
-
-.security-search-wrap {
-  position: relative;
-}
-
-.security-search-wrap i {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.security-search {
-  padding-left: 46px !important;
-}
-
-.security-panel {
-  border: 1px solid #e6ebf3;
-  border-radius: 16px;
-  padding: 1rem;
-  background: #f8fafc;
-}
-
-.perm-list {
-  max-height: 460px;
-  overflow-y: auto;
-  border: 1px solid #e6ebf3;
-  border-radius: 16px;
-  padding: 0.9rem;
-  background: #fff;
-}
-
-.security-list {
-  margin-top: 1rem;
-}
-
-.security-group + .security-group {
-  margin-top: 1rem;
-}
-
-.security-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.45rem;
-  border-bottom: 1px solid #eef2f7;
-  color: #24324d;
-}
-
-.security-group-head span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 0.5rem;
-  border-radius: 999px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.security-item-check {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.7rem 0.2rem;
-}
-
-.security-item-check + .security-item-check {
-  border-top: 1px solid #f1f5f9;
-}
-
-.security-item-check .form-check-input {
-  margin-top: 0.25rem;
-}
-
-.security-item-check .form-check-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  cursor: pointer;
-}
-
-.security-item-check .form-check-label span {
-  color: #24324d;
-  font-weight: 700;
-}
-
-.security-item-check .form-check-label small {
-  color: #7b8aa3;
-}
-
-.security-toast,
-.security-swal {
-  border-radius: 16px !important;
-  background: #ffffff !important;
-  border: 1px solid #e6ebf3 !important;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16) !important;
-}
-
-.security-toast {
-  width: min(420px, calc(100vw - 24px)) !important;
-  padding: 0.95rem 1rem !important;
-}
-
-.security-toast-title,
-.security-swal-title {
-  color: #1f2937 !important;
-  font-weight: 800 !important;
-}
-
-.security-toast-body,
-.security-swal-body {
-  color: #667085 !important;
-  font-weight: 600 !important;
-}
-
-.security-toast-progress {
-  background: rgba(89, 103, 216, 0.22) !important;
-}
-
-.security-swal {
-  width: min(440px, calc(100vw - 28px)) !important;
-  padding: 1.5rem !important;
-}
-
-.security-swal-actions {
-  gap: 0.7rem !important;
-}
-
-.security-swal-button {
-  min-width: 116px;
-  min-height: 42px;
-  border-radius: 13px;
-  border: 1px solid transparent;
-  padding: 0.68rem 1rem;
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.security-swal-cancel {
-  background: #ffffff;
-  border-color: #d8e0ec;
-  color: #4b5565;
-}
-
-.security-swal-confirm-danger {
-  background: #b42318;
-  border-color: #b42318;
-  color: #ffffff;
-}
-
-body.enterprise-dark .security-page .card,
-body.enterprise-dark .security-hero,
-body.enterprise-dark .security-action-card,
-body.enterprise-dark .security-form-card,
-body.enterprise-dark .security-matrix-card,
-body.enterprise-dark .security-toast,
-body.enterprise-dark .security-swal {
-  background: #151e2b !important;
-  border-color: rgba(82, 99, 128, 0.78) !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25) !important;
-}
-
-body.enterprise-dark .security-title,
-body.enterprise-dark .security-stat strong,
-body.enterprise-dark .security-card-title h6,
-body.enterprise-dark .security-matrix-head h6,
-body.enterprise-dark .security-panel-head h6,
-body.enterprise-dark .security-catalog-item strong,
-body.enterprise-dark .security-group-head,
-body.enterprise-dark .security-item-check .form-check-label span,
-body.enterprise-dark .security-toast-title,
-body.enterprise-dark .security-swal-title {
-  color: #f8fafc !important;
-}
-
-body.enterprise-dark .security-subtitle,
-body.enterprise-dark .security-stat-label,
-body.enterprise-dark .security-action-head small,
-body.enterprise-dark .security-matrix-head small,
-body.enterprise-dark .security-panel-head small,
-body.enterprise-dark .security-catalog-item small,
-body.enterprise-dark .security-item-check .form-check-label small,
-body.enterprise-dark .security-toast-body,
-body.enterprise-dark .security-swal-body {
-  color: #94a3b8 !important;
-}
-
-body.enterprise-dark .security-kicker,
-body.enterprise-dark .security-section-kicker {
-  color: #aab4c6 !important;
-}
-
-body.enterprise-dark .security-heading-icon,
-body.enterprise-dark .security-mini-btn,
-body.enterprise-dark .security-icon-btn {
-  background: rgba(89, 103, 216, 0.18) !important;
-  border-color: rgba(129, 140, 248, 0.3) !important;
-  color: #c7d2fe !important;
-}
-
-body.enterprise-dark .security-icon-btn-danger {
-  background: rgba(239, 68, 68, 0.14) !important;
-  border-color: rgba(239, 68, 68, 0.32) !important;
-  color: #fca5a5 !important;
-}
-
-body.enterprise-dark .security-badge,
-body.enterprise-dark .security-chip,
-body.enterprise-dark .security-stat,
-body.enterprise-dark .security-panel,
-body.enterprise-dark .perm-list,
-body.enterprise-dark .security-lock-chip {
-  background: #101827 !important;
-  border-color: rgba(82, 99, 128, 0.78) !important;
-  color: #cbd5e1 !important;
-}
-
-body.enterprise-dark .security-catalog-list,
-body.enterprise-dark .security-catalog-item + .security-catalog-item,
-body.enterprise-dark .security-group-head,
-body.enterprise-dark .security-item-check + .security-item-check {
-  border-color: rgba(82, 99, 128, 0.56) !important;
-}
-
-body.enterprise-dark .security-group-head span {
-  background: rgba(148, 163, 184, 0.12) !important;
-  color: #cbd5e1 !important;
-}
-
-body.enterprise-dark .security-form-card label,
-body.enterprise-dark .security-matrix-card label {
-  color: #e5e7eb !important;
-}
-
-body.enterprise-dark .security-input {
-  background: #0f1726 !important;
-  border-color: rgba(82, 99, 128, 0.86) !important;
-  color: #e5e7eb !important;
-}
-
-body.enterprise-dark .security-input::placeholder {
-  color: #728198 !important;
-}
-
-body.enterprise-dark .security-btn-primary,
-body.enterprise-dark .security-btn-dark {
-  background: #f8fafc !important;
-  border-color: rgba(248, 250, 252, 0.2) !important;
-  color: #111827 !important;
-}
-
-body.enterprise-dark .security-swal-cancel {
-  background: #101827;
-  border-color: rgba(82, 99, 128, 0.78);
-  color: #cbd5e1;
-}
-
+.security-page { padding-bottom: 2rem; color: #344054; }
+.security-page .card { border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; box-shadow: 0 8px 28px rgba(25, 50, 75, .045); }
+.security-hero { margin-bottom: .25rem; }
+.security-hero .card-body { padding: 1.25rem 1.5rem; }
+.security-hero-head { display: flex; align-items: center; justify-content: space-between; }
+.security-main-nav { display: flex; gap: .35rem; width: fit-content; max-width: 100%; margin: 0 0 1.4rem; padding: .3rem; border: 1px solid #dfe7ee; border-radius: 14px; background: #f1f5f8; }
+.security-main-nav button { display: inline-flex; align-items: center; gap: .55rem; min-width: 150px; min-height: 44px; padding: .5rem .9rem; border: 0; border-radius: 11px; background: transparent; color: #52677b; font-size: .87rem; font-weight: 800; text-align: left; }
+.security-main-nav button i { color: #698196; }
+.security-main-nav button.active { background: #fff; color: #087f80; box-shadow: 0 2px 8px rgba(20, 44, 65, .1); }
+.security-main-nav button.active i { color: #087f80; }
+.security-main-nav button.active small { background: #e5f5f2; color: #087f80; }
+.security-setup-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 0 0 1.35rem; padding: 1.1rem 1.35rem; border: 1px solid #dcece9; border-radius: 15px; background: #f3faf8; }
+.security-section-kicker { margin: 0; color: #07868a; font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.security-setup-copy h2 { margin: .2rem 0 .25rem; color: #17324d; font-size: 1rem; font-weight: 800; }
+.security-setup-copy p { margin: 0; color: #66788b; font-size: .84rem; }
+.security-btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 41px; padding: .6rem .9rem; border: 1px solid transparent; border-radius: 11px; font-size: .8rem; font-weight: 800; box-shadow: none; }
+.security-btn-primary { background: #07868a; border-color: #07868a; color: #fff; }
+.security-btn-primary:hover:not(:disabled) { background: #067579; border-color: #067579; color: #fff; }
+.security-btn:disabled { cursor: not-allowed; opacity: .52; }
+.security-catalog-section { margin-top: .25rem; }
+.security-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.security-section-heading h2 { margin: .18rem 0 .25rem; color: #17324d; font-size: 1.25rem; font-weight: 800; }
+.security-section-heading p { margin: 0; color: #66788b; font-size: .86rem; }
+.security-catalog-tabs { display: flex; gap: .3rem; width: fit-content; max-width: 100%; margin-bottom: .75rem; padding: .28rem; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #f1f5f9; }
+.security-catalog-tabs button { display: inline-flex; align-items: center; gap: .45rem; min-height: 38px; padding: .45rem .75rem; border: 0; border-radius: 9px; background: transparent; color: #617286; font-size: .8rem; font-weight: 750; white-space: nowrap; }
+.security-catalog-tabs button.active { background: #fff; color: #087f80; box-shadow: 0 2px 7px rgba(15, 35, 55, .1); }
+.security-catalog-card { display: grid; grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr); overflow: hidden; }
+.security-catalog-form { padding: 1.25rem 1.4rem; border-right: 1px solid #e8edf3; }
+.security-catalog-content { min-width: 0; padding: 1.25rem 1.4rem; }
+.security-card-title { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .9rem; }
+.security-card-title h3 { margin: .18rem 0 0; color: #17324d; font-size: 1rem; font-weight: 800; }
+.security-form-step { color: #07868a; font-size: .66rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.security-catalog-form > label { display: block; margin: .75rem 0 .32rem; color: #42566b; font-size: .77rem; font-weight: 800; }
+.security-input { min-height: 42px; border: 1px solid #dce5ee; border-radius: 10px !important; color: #344054; font-size: .86rem; }
+.security-input:focus { border-color: #64bdb2; box-shadow: 0 0 0 3px rgba(8, 134, 138, .1); }
+.security-field-hint { display: block; margin: .32rem 0 .65rem; color: #8492a3; font-size: .71rem; line-height: 1.4; }
+.security-catalog-form .security-btn { margin-top: .55rem; }
+.security-mini-btn, .security-icon-btn { display: inline-flex; width: 34px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border: 1px solid #d9defd; border-radius: 10px; background: #eef2ff; color: #3442a8; cursor: pointer; }
+.security-mini-btn { width: 30px; height: 30px; }
+.security-icon-btn-danger { border-color: #f5b3ad; background: #fff1f0; color: #b42318; }
+.security-row-actions { display: inline-flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+.security-catalog-list-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .35rem; }
+.security-catalog-list-heading h3 { margin: 0; color: #263d53; font-size: .88rem; font-weight: 800; }
+.security-catalog-list-heading > span { color: #8592a2; font-size: .73rem; }
+.security-catalog-content .security-catalog-list { max-height: 390px; margin: 0; padding: 0; overflow-y: auto; border: 0; }
+.security-catalog-item { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .25rem; }
+.security-catalog-item + .security-catalog-item { border-top: 1px solid #edf1f5; }
+.security-catalog-item-copy { min-width: 0; }
+.security-catalog-item-copy strong { display: block; overflow: hidden; color: #24324d; font-size: .86rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.security-catalog-item-copy small { display: flex; align-items: center; gap: .4rem; margin-top: .15rem; overflow-wrap: anywhere; color: #718197; font-size: .73rem; }
+.security-role-access-count { color: #8090a1 !important; font-size: .69rem !important; }
+.security-system-label { display: inline-flex; align-items: center; gap: .25rem; padding: .12rem .38rem; border-radius: 20px; background: #f1f5f9; color: #64748b; font-size: .65rem; font-weight: 700; }
+.security-role-item { flex-wrap: wrap; }
+.security-role-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: .4rem; flex-shrink: 0; }
+.security-configure-role { display: inline-flex; align-items: center; gap: .38rem; min-height: 34px; padding: .4rem .62rem; border: 1px solid #ccece7; border-radius: 9px; background: #effaf8; color: #087f80; font-size: .72rem; font-weight: 800; white-space: nowrap; }
+.security-configure-role:hover { border-color: #91d3c8; background: #e4f6f2; }
+.security-list-empty { display: flex; min-height: 145px; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; color: #8190a2; text-align: center; }
+.security-list-empty strong { color: #526477; font-size: .86rem; }
+.security-list-empty span { font-size: .76rem; }
+.security-assignment-card { margin-bottom: 1.5rem; padding: 1.4rem; }
+.security-role-context { display: flex; align-items: center; gap: .55rem; margin: -.3rem 0 1rem; padding: .65rem .8rem; border: 1px solid #d9efeb; border-radius: 10px; background: #f2faf8; color: #526f6b; font-size: .8rem; }
+.security-role-context > i { color: #07868a; }
+.security-role-context strong { color: #087f80; }
+.security-back-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 38px; padding: .5rem .75rem; border: 1px solid #dce5ec; border-radius: 10px; background: #fff; color: #52677b; font-size: .78rem; font-weight: 800; }
+.security-global-filter { max-width: 540px; margin-bottom: 1rem; }
+.security-global-filter label { display: block; margin-bottom: .35rem; color: #42566b; font-size: .77rem; font-weight: 800; }
+.security-search-wrap { position: relative; }
+.security-search-wrap > i { position: absolute; top: 50%; left: 14px; z-index: 1; transform: translateY(-50%); color: #94a3b8; }
+.security-search { padding-left: 40px !important; }
+.security-assignment-panels > [class*="col-"] { display: flex; }
+.security-panel { display: flex; flex: 1; flex-direction: column; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 14px; background: #fbfcfe; }
+.security-panel-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding-bottom: .8rem; border-bottom: 1px solid #e8edf3; }
+.security-panel-head > div { display: flex; align-items: center; gap: .65rem; }
+.security-panel-icon { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid #ccece7; border-radius: 11px; background: #e9f8f5; color: #087f80; }
+.security-panel-head h3 { margin: 0 0 .12rem; color: #17324d; font-size: .93rem; font-weight: 800; }
+.security-panel-head small { display: block; color: #748397; font-size: .73rem; }
+.security-selection-summary { display: flex; justify-content: space-between; gap: .7rem; padding: .65rem 0 .5rem; color: #738196; font-size: .73rem; }
+.security-selection-summary strong { color: #087f80; }
+.security-access-list { max-height: 400px; overflow-y: auto; padding: .45rem; border: 1px solid #e6ebf1; border-radius: 11px; background: #fff; }
+.security-group + .security-group { margin-top: .55rem; }
+.security-group-head { position: sticky; top: -.45rem; z-index: 1; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: .55rem .5rem .4rem; background: #fff; color: #526477; }
+.security-group-head strong { font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; }
+.security-group-head span { display: inline-grid; min-width: 23px; height: 23px; place-items: center; border-radius: 20px; background: #edf5f5; color: #087f80; font-size: .7rem; font-weight: 800; }
+.security-access-row { position: relative; display: flex; align-items: center; gap: .65rem; min-height: 52px; margin: 0; padding: .6rem .5rem; border-top: 1px solid #f0f3f7; border-radius: 8px; cursor: pointer; }
+.security-access-row:hover, .security-access-row:has(input:checked) { background: #f0f9f7; }
+.security-access-row .form-check-input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: #07868a; }
+.security-access-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: .12rem; }
+.security-access-copy strong { overflow: hidden; color: #273d53; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+.security-access-copy small { overflow: hidden; color: #8290a1; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.security-check-mark { color: #07868a; font-size: .75rem; opacity: 0; }
+.security-access-row:has(input:checked) .security-check-mark { opacity: 1; }
+.security-note { display: flex; gap: .5rem; margin-top: .7rem; padding: .7rem; border: 1px solid #d8eeea; border-radius: 10px; background: #f1faf8; color: #55736f; font-size: .73rem; line-height: 1.4; }
+.security-note i { color: #07868a; }
+.security-toast, .security-swal { border: 1px solid #e6ebf3 !important; border-radius: 15px !important; background: #fff !important; box-shadow: 0 18px 48px rgba(15, 23, 42, .16) !important; }
+.security-toast { width: min(420px, calc(100vw - 24px)) !important; padding: .9rem 1rem !important; }
+.security-toast-title, .security-swal-title { color: #1f2937 !important; font-weight: 800 !important; }
+.security-toast-body, .security-swal-body { color: #667085 !important; font-weight: 600 !important; }
+.security-toast-progress { background: rgba(8, 134, 138, .25) !important; }
+.security-swal { width: min(440px, calc(100vw - 28px)) !important; padding: 1.4rem !important; }
+.security-swal-actions { gap: .65rem !important; }
+.security-swal-button { min-width: 110px; min-height: 40px; padding: .62rem .9rem; border: 1px solid transparent; border-radius: 11px; font-size: .8rem; font-weight: 800; }
+.security-swal-cancel { border-color: #d8e0ec; background: #fff; color: #4b5565; }
+.security-swal-confirm-danger { border-color: #b42318; background: #b42318; color: #fff; }
+body.enterprise-dark .security-page .card, body.enterprise-dark .security-setup-card, body.enterprise-dark .security-panel, body.enterprise-dark .security-swal, body.enterprise-dark .security-toast { border-color: rgba(82, 99, 128, .75) !important; background: #151e2b !important; color: #dbe4ef; }
+body.enterprise-dark .security-main-nav, body.enterprise-dark .security-catalog-tabs { border-color: rgba(82, 99, 128, .75); background: #101827; }
+body.enterprise-dark .security-main-nav button, body.enterprise-dark .security-catalog-tabs button { color: #aab8c9; }
+body.enterprise-dark .security-main-nav button.active, body.enterprise-dark .security-catalog-tabs button.active { background: #1c2939; color: #7de0d0; }
+body.enterprise-dark .security-setup-card { background: #112a2b !important; }
+body.enterprise-dark .security-setup-copy h2, body.enterprise-dark .security-section-heading h2, body.enterprise-dark .security-card-title h3, body.enterprise-dark .security-catalog-list-heading h3, body.enterprise-dark .security-catalog-item-copy strong, body.enterprise-dark .security-panel-head h3, body.enterprise-dark .security-access-copy strong { color: #f1f5f9; }
+body.enterprise-dark .security-setup-copy p, body.enterprise-dark .security-section-heading p, body.enterprise-dark .security-catalog-item-copy small, body.enterprise-dark .security-panel-head small, body.enterprise-dark .security-access-copy small { color: #9aa8ba; }
+body.enterprise-dark .security-catalog-form { border-color: rgba(82, 99, 128, .56); }
+body.enterprise-dark .security-catalog-form > label, body.enterprise-dark .security-global-filter label { color: #dbe4ef; }
+body.enterprise-dark .security-input { border-color: rgba(82, 99, 128, .86); background: #0f1726; color: #e5e7eb; }
+body.enterprise-dark .security-input::placeholder { color: #728198; }
+body.enterprise-dark .security-catalog-content .security-catalog-item + .security-catalog-item, body.enterprise-dark .security-access-row { border-color: rgba(82, 99, 128, .42); }
+body.enterprise-dark .security-access-list, body.enterprise-dark .security-group-head { border-color: rgba(82, 99, 128, .75); background: #101827; }
+body.enterprise-dark .security-access-row:hover, body.enterprise-dark .security-access-row:has(input:checked) { background: rgba(8, 134, 138, .18); }
+body.enterprise-dark .security-system-label { background: #253347; color: #cbd5e1; }
+body.enterprise-dark .security-role-context, body.enterprise-dark .security-note { border-color: rgba(8, 134, 138, .35); background: rgba(8, 134, 138, .12); color: #a8d8d1; }
+body.enterprise-dark .security-role-context strong { color: #7de0d0; }
+body.enterprise-dark .security-back-button, body.enterprise-dark .security-swal-cancel { border-color: rgba(82, 99, 128, .78); background: #101827; color: #cbd5e1; }
+body.enterprise-dark .security-toast-title, body.enterprise-dark .security-swal-title { color: #f8fafc !important; }
+body.enterprise-dark .security-toast-body, body.enterprise-dark .security-swal-body { color: #94a3b8 !important; }
 @media (max-width: 991px) {
-  .security-hero-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .security-badge {
-    width: fit-content;
-  }
+  .security-catalog-card { grid-template-columns: 1fr; }
+  .security-catalog-form { border-right: 0; border-bottom: 1px solid #e8edf3; }
+  .security-section-heading { flex-direction: column; }
+  .security-section-heading .security-back-button { align-self: flex-start; }
 }
-
 @media (max-width: 767px) {
-  .security-hero .card-body,
-  .security-action-card .card-body,
-  .security-form-card .card-body,
-  .security-matrix-card .card-body {
-    padding: 1.2rem;
-  }
-
-  .security-heading {
-    gap: 0.75rem;
-  }
-
-  .security-heading-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-  }
-
-  .security-btn {
-    width: 100%;
-  }
+  .security-hero .card-body { padding: 1rem; }
+  .security-main-nav { width: 100%; }
+  .security-main-nav button { min-width: 0; flex: 1; }
+  .security-setup-card { align-items: stretch; flex-direction: column; padding: 1rem; }
+  .security-setup-card .security-btn { width: 100%; }
+  .security-catalog-tabs { width: 100%; }
+  .security-catalog-tabs button { flex: 1; justify-content: center; padding-inline: .5rem; }
+  .security-catalog-form, .security-catalog-content { padding: 1rem; }
+  .security-catalog-item { align-items: flex-start; flex-wrap: wrap; }
+  .security-role-item .security-catalog-item-copy { width: 100%; }
+  .security-role-actions { width: 100%; justify-content: flex-start; }
+  .security-assignment-card { padding: 1rem; }
+  .security-panel-head { align-items: stretch; flex-direction: column; }
+  .security-panel-head .security-btn { width: 100%; }
 }
 </style>

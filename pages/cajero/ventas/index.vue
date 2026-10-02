@@ -2,7 +2,8 @@
    <div>
       <JcLoader :load="load" />
       <AdminTemplate :page="page" :modulo="modulo">
-         <div slot="body">
+         <div slot="body" class="safe-sales-page">
+<BasePageHeading title="Nueva venta" icon="plus" eyebrow="Punto de venta" description="Selecciona los servicios, revisa el carrito y registra tu venta." />
             <div class="row justify-content-end">
                <div class="col-12 col-sm-7">
                   <div class="row">
@@ -16,7 +17,7 @@
                                           <i class="ni ni-archive-2 text-lg" aria-hidden="true"></i>
                                        </span>
                                        <input type="text" class="form-control bg-transparent border-0 gold-search-input"
-                                          placeholder="Buscar..." />
+                                          v-model.trim="serviceSearch" aria-label="Buscar servicio" placeholder="Buscar servicio o código..." />
                                     </div>
                                  </div>
                               </div>
@@ -24,6 +25,7 @@
                         </div>
                      </div>
                      <div class="col-12 py-2" style="min-height: 60vh; max-height: 60vh; overflow-y: scroll;">
+                        <div v-if="!serviciosServicio.length" class="safe-sales-empty"><BaseIcon name="search" :size="28" /><p class="mt-3">No se encontraron servicios para esta búsqueda.</p></div>
                         <div class="row">
                            <div class="col-6 col-md-4 col-lg-3 mb-3" v-for="m in serviciosServicio" :key="m.id">
                               <PostServicio :servicio="m" @AddCarrito="AddCarritoPrimeraSeccion" />
@@ -36,7 +38,7 @@
                      <div class="card card-pricing gold-pricing-card">
                      <div class="card-header gold-pricing-header text-center pt-4 pb-5 position-relative">
                         <div class="z-index-1 position-relative">
-                           <h1 class="gold-pricing-amount mt-2 mb-0"><small></small>{{ totalCarrito }}</h1>
+                           <h2 class="gold-pricing-amount mt-2 mb-0">{{ totalCarrito }} <small>Bs</small></h2>
                            <h6 class="gold-pricing-label">Total</h6>
                         </div>
                      </div>
@@ -277,6 +279,7 @@ export default {
 
    data() {
          return {
+            serviceSearch: '',
             formatoFactura: 'rollo', // Valor predeterminado
             montoDescuentoAdicional: 0,
             filtroDocumentoIdentidad: "",
@@ -319,7 +322,8 @@ export default {
 
    computed: {
       serviciosServicio() {
-         return this.servicios.filter(servicio => !servicio.tipo || servicio.tipo === 'servicio');
+         const query = this.serviceSearch.toLocaleLowerCase('es');
+         return this.servicios.filter(servicio => (!servicio.tipo || servicio.tipo === 'servicio') && [servicio.descripcion, servicio.codigo].some(value => String(value || '').toLocaleLowerCase('es').includes(query)));
       },
       isCISelected() {
          return this.model.tipoDocumentoIdentidad === "1";

@@ -7,12 +7,7 @@
                <div class="card-body">
                   <div class="row align-items-center">
                      <div class="col-12 col-xl-7 mb-3 mb-xl-0">
-                        <p class="eyebrow mb-2">Facturación Empresarial</p>
-                        <h2 class="hero-title mb-2">Operar Ventas y Contingencias</h2>
-                        <p class="hero-copy mb-0">
-                           Esta pantalla separa el envío normal del día a día y la regularización manual. Usa CAFC solo
-                           cuando ya hubo facturación manual fuera de línea.
-                        </p>
+                        <BasePageHeading title="Operaciones de envío" icon="send" eyebrow="Gestión de ventas" description="Envía tus ventas, consulta su estado y regulariza las facturas manuales." />
                      </div>
                      <div class="col-12 col-xl-5">
                         <div class="row g-3">
@@ -46,7 +41,7 @@
                </div>
             </div>
 
-            <div class="card mb-4 guide-card">
+            <details class="card mb-4 guide-card"><summary><span>Guía de envío y contingencias</span><BaseIcon name="chevron" :size="18" /></summary>
                <div class="card-body">
                   <div class="contingency-explainer mb-4">
                      <div class="contingency-card contingency-card-auto">
@@ -90,8 +85,7 @@
                      </div>
                   </div>
                </div>
-            </div>
-
+            </details>
             <div class="row mb-4">
                <div class="col-12 col-xl-8 mb-3 mb-xl-0">
                   <div class="card h-100">

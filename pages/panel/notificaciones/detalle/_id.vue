@@ -5,13 +5,7 @@
          <div slot="body" class="enterprise-page-shell">
             <section class="report-sheet">
                <div class="report-sheet-head">
-                  <div class="report-head-copy">
-                     <p class="report-kicker mb-2">Reporte de notificación</p>
-                     <h2 class="report-title mb-2">Notificación #{{ model.id || '-' }}</h2>
-                     <p class="report-subtitle mb-0">
-                        Tipo de emisión: <strong>{{ parsedDetalle.tipoEmision || 'SIN TIPO' }}</strong>
-                     </p>
-                  </div>
+                  <BasePageHeading :title="'Notificación #' + (model.id || '—')" icon="bell" eyebrow="Detalle de seguimiento" :description="'Tipo de emisión: ' + (parsedDetalle.tipoEmision || 'Sin tipo')" />
 
                   <button type="button" class="report-back-btn" @click="$router.back()">
                      <i class="fas fa-arrow-left"></i>

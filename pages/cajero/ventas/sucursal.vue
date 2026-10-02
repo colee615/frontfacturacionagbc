@@ -18,10 +18,7 @@
         <template v-else>
           <section class="branch-hero-card enterprise-content-card">
             <div class="branch-hero-head">
-              <div class="branch-hero-copy">
-                <h1>Kardex de sucursal · {{ branchLabel }}</h1>
-                <p>{{ branchHeroSubtitle }}</p>
-              </div>
+              <BasePageHeading :title="'Kardex · ' + branchLabel" icon="store" eyebrow="Detalle de sucursal" :description="branchHeroSubtitle" />
               <div class="branch-hero-meta">
                 <div class="branch-context-chip">
                   <i class="fas fa-store"></i>
@@ -36,19 +33,34 @@
             </div>
 
             <div class="branch-hero-toolbar">
-              <div class="branch-toolbar-group">
-                <div v-if="activeTab === 'fechas'" class="branch-date-inline-group">
-                  <label class="branch-date-inline">
-                    <i class="far fa-calendar-alt"></i>
-                    <input v-model="filters.fechaInicio" type="date" aria-label="Fecha inicio" />
-                  </label>
-
-                  <label class="branch-date-inline">
-                    <i class="far fa-calendar-alt"></i>
-                    <input v-model="filters.fechaFin" type="date" aria-label="Fecha fin" />
-                  </label>
+              <div v-if="activeTab === 'fechas'" class="branch-toolbar-group branch-period-group">
+                <div class="branch-period-copy">
+                  <span class="branch-period-label">Periodo del reporte</span>
+                  <span class="branch-period-hint">Selecciona las fechas para actualizar el kardex</span>
                 </div>
+                <div class="branch-date-inline-group">
+                  <label class="branch-date-inline">
+                    <i class="far fa-calendar-alt"></i>
+                    <input v-model="dateDraft.fechaInicio" type="date" aria-label="Fecha inicio" />
+                  </label>
 
+                  <span class="branch-date-separator" aria-hidden="true">hasta</span>
+
+                  <label class="branch-date-inline">
+                    <i class="far fa-calendar-alt"></i>
+                    <input v-model="dateDraft.fechaFin" type="date" aria-label="Fecha fin" />
+                  </label>
+
+                  <button
+                    type="button"
+                    class="branch-filter-btn"
+                    :disabled="load || isDateDraftInvalid"
+                    @click="applyDateFilters"
+                  >
+                    <i class="fas fa-filter"></i>
+                    <span>Filtrar</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -84,7 +96,7 @@
             <div class="stat-card stat-card-yellow">
               <div class="stat-icon"><i class="fas fa-clock"></i></div>
               <div class="stat-copy">
-                <span>ECA / depositos</span>
+                <span>ECA / depósitos</span>
                 <strong>{{ formatCurrency(branchOverview.totalEca) }}</strong>
                 <small>{{ branchOverview.ecaConfirmados }} venta(s) ECA por depositar</small>
               </div>
@@ -199,7 +211,7 @@
                   <div class="detail-filters">
                     <label class="detail-filter-field detail-filter-field-search">
                       <i class="fas fa-search"></i>
-                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por código, cliente o seguimiento..." />
+                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por orden, factura, cliente o seguimiento..." />
                     </label>
                     <label class="detail-filter-field">
                       <span>Estado</span>
@@ -232,7 +244,8 @@
                     </label>
                   </div>
 
-                  <table class="sales-table enterprise-table sales-table-detail">
+                  <div class="sales-table-scroll">
+                    <table class="sales-table enterprise-table sales-table-detail">
                     <thead>
                       <tr>
                         <th>Fecha</th>
@@ -309,94 +322,113 @@
                               v-if="ventaActionKeys(venta).includes('view_qr')"
                               class="action-secondary-btn"
                               type="button"
+                              aria-label="Ver código QR"
+                              title="Ver código QR"
                               @click="verQrVenta(venta)"
                             >
                               <i class="fas fa-qrcode"></i>
-                              <span>Ver QR</span>
+                              <span class="table-action-label">Ver QR</span>
                             </button>
                             <button
                               v-else-if="ventaActionKeys(venta).includes('consult')"
                               class="action-secondary-btn"
                               type="button"
+                              aria-label="Consultar estado del QR"
+                              title="Consultar estado del QR"
                               @click="consultarQrVenta(venta, false)"
                             >
                               <i class="fas fa-sync-alt"></i>
-                              <span>Consultar</span>
+                              <span class="table-action-label">Consultar</span>
                             </button>
                             <button
                               v-else-if="ventaActionKeys(venta).includes('invoice_qr')"
                               class="action-secondary-btn"
                               type="button"
+                              aria-label="Facturar venta QR"
+                              title="Facturar venta QR"
                               @click="consultarQrVenta(venta, true)"
                             >
                               <i class="fas fa-file-invoice"></i>
-                              <span>Facturar venta</span>
+                              <span class="table-action-label">Facturar venta</span>
                             </button>
                             <button
                               v-if="ventaActionKeys(venta).includes('cancel_qr')"
                               class="action-danger-btn"
                               type="button"
+                              :aria-label="qrCancelActionLabel(venta)"
+                              :title="qrCancelActionLabel(venta)"
                               @click="cancelarPagoQrVenta(venta)"
                             >
                               <i class="fas fa-ban"></i>
-                              <span>{{ qrCancelActionLabel(venta) }}</span>
+                              <span class="table-action-label">{{ qrCancelActionLabel(venta) }}</span>
                             </button>
                             <button
                               v-if="ventaActionKeys(venta).includes('anular')"
                               class="action-danger-btn"
                               type="button"
+                              :aria-label="isRejectedVenta(venta) && isCartVenta(venta) ? 'Anular venta' : 'Anular'"
+                              :title="isRejectedVenta(venta) && isCartVenta(venta) ? 'Anular venta' : 'Anular'"
                               @click="anularVenta(venta)"
                             >
                               <i class="fas fa-ban"></i>
-                              <span>{{ isRejectedVenta(venta) && isCartVenta(venta) ? 'Anular venta' : 'Anular' }}</span>
+                              <span class="table-action-label">{{ isRejectedVenta(venta) && isCartVenta(venta) ? 'Anular venta' : 'Anular' }}</span>
                             </button>
-                            <button class="action-view-btn" type="button" @click="openVentaDetail(venta)">
+                            <button class="action-view-btn" type="button" aria-label="Ver detalle de venta" title="Ver detalle de venta" @click="openVentaDetail(venta)">
                               <i class="fas fa-eye"></i>
-                              <span>Detalle</span>
+                              <span class="table-action-label">Detalle</span>
                             </button>
                             <button
                               v-if="isServicioContratoVenta(venta) && !isAnuladaVenta(venta)"
                               class="action-secondary-btn"
                               type="button"
+                              :aria-label="contractPdfUploadingVentaId === venta.id ? 'Subiendo PDF de contrato' : (contractPdfUrl(venta) ? 'Reemplazar PDF de contrato' : 'Subir PDF de contrato')"
+                              :title="contractPdfUploadingVentaId === venta.id ? 'Subiendo PDF de contrato' : (contractPdfUrl(venta) ? 'Reemplazar PDF de contrato' : 'Subir PDF de contrato')"
                               :disabled="contractPdfUploadingVentaId === venta.id"
                               @click="openContractPdfPicker(venta)"
                             >
                               <i class="fas fa-upload"></i>
-                              <span>{{ contractPdfUploadingVentaId === venta.id ? 'Subiendo...' : (contractPdfUrl(venta) ? 'Reemplazar PDF' : 'Subir PDF') }}</span>
+                              <span class="table-action-label">{{ contractPdfUploadingVentaId === venta.id ? 'Subiendo...' : (contractPdfUrl(venta) ? 'Reemplazar PDF' : 'Subir PDF') }}</span>
                             </button>
                             <button
                               v-if="contractPdfUrl(venta)"
                               class="action-secondary-btn"
                               type="button"
+                              aria-label="Abrir PDF del contrato"
+                              title="Abrir PDF del contrato"
                               @click="openContractPdf(venta)"
                             >
                               <i class="fas fa-file-pdf"></i>
-                              <span>PDF contrato</span>
+                              <span class="table-action-label">PDF contrato</span>
                             </button>
                             <a
                               v-if="pdfOriginalUrl(venta)"
                               class="action-secondary-btn"
+                              aria-label="Abrir PDF de venta"
+                              title="Abrir PDF de venta"
                               :href="pdfOriginalUrl(venta)"
                               target="_blank"
                               rel="noopener"
                             >
                               <i class="fas fa-file-pdf"></i>
-                              <span>PDF</span>
+                              <span class="table-action-label">PDF</span>
                             </a>
                             <button
                               v-else-if="ventaActionKeys(venta).includes('open_invoice')"
                               class="action-secondary-btn"
                               type="button"
+                              aria-label="Ver factura"
+                              title="Ver factura"
                               @click="$router.push(`/cajero/ventas/invoice/${venta.id}`)"
                             >
                               <i class="fas fa-receipt"></i>
-                              <span>Ver</span>
+                              <span class="table-action-label">Ver</span>
                             </button>
                           </div>
                         </td>
                       </tr>
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
 
                   <div class="table-footer">
                     <p class="footer-copy">
@@ -404,22 +436,36 @@
                     </p>
 
                     <div class="pager">
-                      <button class="pager-btn" type="button" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
+                      <span class="pager-count">Página {{ currentPage }} de {{ totalPages }}</span>
+                      <button class="pager-btn" type="button" aria-label="Página anterior" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
                         <i class="fa fa-angle-left"></i>
                       </button>
 
-                      <button
-                        v-for="page in visiblePages"
-                        :key="page"
-                        type="button"
-                        class="pager-btn"
-                        :class="{ active: page === currentPage }"
-                        @click="goToPage(page)"
-                      >
-                        {{ page }}
-                      </button>
+                      <template v-for="item in paginationItems">
+                        <button
+                          v-if="item.type === 'page'"
+                          :key="item.key"
+                          type="button"
+                          class="pager-btn"
+                          :class="{ active: item.value === currentPage }"
+                          :aria-label="`Ir a la página ${item.value}`"
+                          :aria-current="item.value === currentPage ? 'page' : null"
+                          @click="goToPage(item.value)"
+                        >
+                          {{ item.value }}
+                        </button>
+                        <button
+                          v-else
+                          :key="item.key"
+                          type="button"
+                          class="pager-ellipsis"
+                          :aria-label="item.label"
+                          :title="item.label"
+                          @click="goToPage(item.target)"
+                        >…</button>
+                      </template>
 
-                      <button class="pager-btn" type="button" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
+                      <button class="pager-btn" type="button" aria-label="Página siguiente" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
                         <i class="fa fa-angle-right"></i>
                       </button>
                     </div>
@@ -441,7 +487,7 @@
 
               <label class="selector-search">
                 <i class="fas fa-search"></i>
-                <input v-model.trim="userSearch" type="text" placeholder="Buscar usuario..." />
+                <input v-model.trim="userSearch" type="text" placeholder="Buscar usuario..." aria-label="Buscar usuario en el resumen" />
               </label>
 
               <div ref="selectorList" class="selector-list">
@@ -514,27 +560,30 @@
         </template>
 
         <div v-if="activeDetailVenta" class="detail-modal-backdrop" @click.self="activeDetailVenta = null">
-          <div class="detail-modal-card">
+          <div class="detail-modal-card" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
             <div class="detail-modal-head">
               <div>
                 <p class="detail-kicker mb-1">Detalle de venta</p>
-                <h3>{{ activeDetailVenta.codigoOrden || `Venta ${activeDetailVenta.id}` }}</h3>
+                <h3 id="detail-modal-title">{{ activeDetailVenta.codigoOrden || `Venta ${activeDetailVenta.id}` }}</h3>
                 <p class="detail-copy mb-0">{{ activeDetailVenta.cliente?.razonSocial || 'Sin cliente registrado' }}</p>
               </div>
-              <button type="button" class="detail-modal-close" @click="activeDetailVenta = null">
-                <i class="fas fa-times"></i>
+              <button type="button" class="detail-modal-close" aria-label="Cerrar detalle de venta" @click="activeDetailVenta = null">
+                <i class="fas fa-times" aria-hidden="true"></i>
               </button>
             </div>
 
             <div class="detail-modal-meta">
-              <span>{{ formatDate(activeDetailVenta.fecha) }}</span>
-              <span>{{ deliveryChannelLabel(activeDetailVenta) }}</span>
-              <span>{{ emissionStateLabel(activeDetailVenta) }}</span>
-              <strong>{{ formatCurrency(activeDetailVenta.total) }}</strong>
+              <span class="detail-meta-chip"><i class="far fa-calendar-alt" aria-hidden="true"></i>{{ formatDate(activeDetailVenta.fecha) }}</span>
+              <span class="detail-meta-chip detail-payment-chip" :class="`detail-payment-${paymentChannelKey(activeDetailVenta)}`">
+                <span class="detail-payment-icon"><i :class="paymentChannelIcon(activeDetailVenta)" aria-hidden="true"></i></span>
+                <span class="detail-payment-copy"><small>Forma de pago</small><strong>{{ paymentOriginLabel(activeDetailVenta) }}</strong></span>
+              </span>
+              <span class="detail-meta-chip detail-meta-status"><i class="fas fa-circle" aria-hidden="true"></i>{{ emissionStateLabel(activeDetailVenta) }}</span>
+              <div class="detail-total-block"><small>Total de la venta</small><strong>{{ formatCurrency(activeDetailVenta.total) }}</strong></div>
             </div>
 
             <div v-if="detailVentaHistory(activeDetailVenta).length" class="detail-audit-card">
-              <h4>Historial de venta QR</h4>
+              <h4><i class="fas fa-history" aria-hidden="true"></i> Historial de venta <span v-if="isQrPaymentVenta(activeDetailVenta)">QR</span></h4>
               <div class="detail-history-list">
                 <article
                   v-for="(historyVenta, historyIndex) in detailVentaHistory(activeDetailVenta)"
@@ -621,7 +670,12 @@
             </div>
 
             <div class="detail-modal-body">
-              <table class="sales-table enterprise-table">
+              <div class="detail-items-heading">
+                <div><h4>Artículos</h4><span>{{ (activeDetailVenta.detalle || []).length }} {{ (activeDetailVenta.detalle || []).length === 1 ? 'artículo' : 'artículos' }}</span></div>
+                <strong>{{ formatCurrency(activeDetailVenta.total) }}</strong>
+              </div>
+              <div class="detail-items-scroll">
+              <table class="sales-table enterprise-table detail-items-table">
                 <thead>
                   <tr>
                     <th>Código</th>
@@ -644,6 +698,7 @@
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </div>
@@ -671,6 +726,10 @@ export default {
         codigoSucursal: '',
         puntoVenta: '',
         q: ''
+      },
+      dateDraft: {
+        fechaInicio: '',
+        fechaFin: ''
       },
       userSearch: '',
       activeUserId: 'all',
@@ -702,6 +761,13 @@ export default {
     },
     hasDateRange() {
       return Boolean(this.filters.fechaInicio || this.filters.fechaFin);
+    },
+    isDateDraftInvalid() {
+      return Boolean(
+        this.dateDraft.fechaInicio
+        && this.dateDraft.fechaFin
+        && this.dateDraft.fechaInicio > this.dateDraft.fechaFin
+      );
     },
     currentDateRangeLabel() {
       if (!this.filters.fechaInicio && !this.filters.fechaFin) {
@@ -1003,18 +1069,50 @@ export default {
     rangeEnd() {
       return Math.min(this.currentPage * this.pageSize, this.filteredVentas.length);
     },
-    visiblePages() {
+    paginationItems() {
       const total = this.totalPages;
       const current = this.currentPage;
-      const start = Math.max(1, current - 2);
-      const end = Math.min(total, start + 4);
-      const pages = [];
+      const items = [];
+      const addPage = (value) => items.push({ type: 'page', value, key: `page-${value}` });
+      const addEllipsis = (key, target) => items.push({
+        type: 'ellipsis',
+        key,
+        target,
+        label: key === 'ellipsis-start' ? 'Retroceder cinco páginas' : 'Avanzar cinco páginas'
+      });
 
-      for (let page = start; page <= end; page += 1) {
-        pages.push(page);
+      if (total <= 7) {
+        for (let page = 1; page <= total; page += 1) {
+          addPage(page);
+        }
+
+        return items;
       }
 
-      return pages;
+      let start = Math.max(2, current - 1);
+      let end = Math.min(total - 1, current + 1);
+
+      if (current <= 4) {
+        start = 2;
+        end = 5;
+      } else if (current >= total - 3) {
+        start = total - 4;
+        end = total - 1;
+      }
+
+      addPage(1);
+      if (start > 2) {
+        addEllipsis('ellipsis-start', Math.max(2, current - 5));
+      }
+      for (let page = start; page <= end; page += 1) {
+        addPage(page);
+      }
+      if (end < total - 1) {
+        addEllipsis('ellipsis-end', Math.min(total - 1, current + 5));
+      }
+      addPage(total);
+
+      return items;
     }
   },
   mounted() {
@@ -1034,20 +1132,6 @@ export default {
       this.currentPage = 1;
       this.activeUserId = 'all';
       this.scheduleLoadVentas();
-    },
-    'filters.fechaInicio'() {
-      this.currentPage = 1;
-      const synced = this.syncFiltersToRoute();
-      if (!synced && this.activeTab === 'fechas') {
-        this.scheduleLoadVentas();
-      }
-    },
-    'filters.fechaFin'() {
-      this.currentPage = 1;
-      const synced = this.syncFiltersToRoute();
-      if (!synced && this.activeTab === 'fechas') {
-        this.scheduleLoadVentas();
-      }
     },
     'detailFilters.q'() {
       this.currentPage = 1;
@@ -1130,6 +1214,8 @@ export default {
 
       this.filters.fechaInicio = fechaInicio;
       this.filters.fechaFin = fechaFin;
+      this.dateDraft.fechaInicio = fechaInicio;
+      this.dateDraft.fechaFin = fechaFin;
       this.filters.codigoSucursal = this.$route.query.codigoSucursal || '';
       this.filters.puntoVenta = this.$route.query.puntoVenta || '';
       this.branchName = this.$route.query.nombre || '';
@@ -1171,6 +1257,20 @@ export default {
 
       this.$router.replace({ query: nextQuery });
       return true;
+    },
+    applyDateFilters() {
+      if (this.isDateDraftInvalid) {
+        return;
+      }
+
+      this.filters.fechaInicio = this.dateDraft.fechaInicio;
+      this.filters.fechaFin = this.dateDraft.fechaFin;
+      this.currentPage = 1;
+
+      const routeUpdated = this.syncFiltersToRoute();
+      if (!routeUpdated) {
+        this.loadVentas();
+      }
     },
     formatShortDate(value) {
       if (!value) {
@@ -1670,6 +1770,7 @@ export default {
         venta?.codigoOrden,
         venta?.codigoSeguimiento,
         venta?.qr_transaction_id,
+        this.numeroFacturaValue(venta),
         venta?.cliente?.razonSocial,
         venta?.cliente?.documentoIdentidad,
         venta?.usuario?.nombre,
@@ -1792,6 +1893,17 @@ export default {
       }
 
       return this.resolveDeliveryType(venta).label;
+    },
+    paymentChannelIcon(venta) {
+      if (this.isServicioContratoVenta(venta)) {
+        return 'fas fa-file-contract';
+      }
+
+      if (this.isEcaServiceVenta(venta)) {
+        return 'fas fa-file-invoice-dollar';
+      }
+
+      return this.isQrPaymentVenta(venta) ? 'fas fa-qrcode' : 'fas fa-money-bill-wave';
     },
     paymentOriginLabel(venta) {
       if (this.isServicioContratoVenta(venta)) {
@@ -3163,6 +3275,8 @@ export default {
         puntoVenta: this.$route.query.puntoVenta || '',
         q: ''
       };
+      this.dateDraft.fechaInicio = this.filters.fechaInicio;
+      this.dateDraft.fechaFin = this.filters.fechaFin;
 
       this.loadVentas();
     },
@@ -5707,6 +5821,331 @@ export default {
   color: #1d3360;
 }
 
+.detail-modal-card {
+  width: min(980px, 100%);
+  padding: 1.5rem;
+  color: #17345c;
+}
+
+.detail-modal-head {
+  align-items: flex-start;
+}
+
+.detail-kicker {
+  color: #7386a3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.detail-modal-head h3 {
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
+}
+
+.detail-copy {
+  margin-top: 0.35rem;
+  color: #667b99;
+}
+
+.detail-modal-close {
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.detail-modal-close:hover {
+  border-color: #b8cbe1;
+  background: #f4f8fc;
+  color: #087f8c;
+}
+
+.detail-modal-meta {
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.15rem 0 1.25rem;
+}
+
+.detail-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 34px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #e3eaf2;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #526782;
+  font-size: 0.82rem;
+}
+
+.detail-meta-chip i {
+  color: #8293aa;
+}
+
+.detail-payment-chip {
+  min-height: 46px;
+  gap: 0.6rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.4rem;
+  border-color: #cce9e2;
+  background: linear-gradient(135deg, #f0fbf8, #e7f7f3);
+  color: #12695d;
+}
+
+.detail-payment-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: #c9eee5;
+  color: #087f71;
+}
+
+.detail-payment-icon i {
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+.detail-payment-copy {
+  display: grid;
+  gap: 0.02rem;
+  line-height: 1.15;
+}
+
+.detail-payment-copy small {
+  color: #64877f;
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-payment-copy strong {
+  color: #12695d;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.detail-payment-qr {
+  border-color: #ddd5fb;
+  background: linear-gradient(135deg, #f7f4ff, #eeeaff);
+  color: #5e45b4;
+}
+
+.detail-payment-qr .detail-payment-icon {
+  background: #e1d9ff;
+  color: #6549c4;
+}
+
+.detail-payment-qr .detail-payment-copy small { color: #8172b1; }
+.detail-payment-qr .detail-payment-copy strong { color: #5039a2; }
+
+.detail-payment-contrato {
+  border-color: #f0dfbb;
+  background: linear-gradient(135deg, #fffaf0, #fff4dc);
+}
+
+.detail-payment-contrato .detail-payment-icon {
+  background: #f8e7bc;
+  color: #996712;
+}
+
+.detail-payment-contrato .detail-payment-copy small { color: #947c50; }
+.detail-payment-contrato .detail-payment-copy strong { color: #83590a; }
+
+.detail-payment-eca {
+  border-color: #d4e4f4;
+  background: linear-gradient(135deg, #f3f9ff, #eaf3fc);
+}
+
+.detail-payment-eca .detail-payment-icon {
+  background: #d8e9fb;
+  color: #356fa9;
+}
+
+.detail-payment-eca .detail-payment-copy small { color: #7188a0; }
+.detail-payment-eca .detail-payment-copy strong { color: #285e93; }
+
+.detail-meta-status {
+  border-color: #c8e8dc;
+  background: #f0faf5;
+  color: #237657;
+}
+
+.detail-meta-status i {
+  color: #28a174;
+  font-size: 0.48rem;
+}
+
+.detail-total-block {
+  display: grid;
+  gap: 0.05rem;
+  margin-left: auto;
+  padding: 0.35rem 0.2rem 0.35rem 0.8rem;
+  text-align: right;
+}
+
+.detail-total-block small {
+  color: #71839c;
+  font-size: 0.72rem;
+}
+
+.detail-total-block strong {
+  color: #087f8c;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.detail-audit-card {
+  padding: 1rem;
+  border-color: #dfE9f5;
+  background: linear-gradient(135deg, #f7faff 0%, #f3f8fc 100%);
+}
+
+.detail-audit-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.98rem;
+  font-weight: 750;
+}
+
+.detail-audit-card h4 i {
+  color: #087f8c;
+}
+
+.detail-history-item {
+  padding: 0.9rem 1rem;
+  border-color: #e0e9f3;
+  box-shadow: 0 2px 6px rgba(20, 43, 77, 0.025);
+}
+
+.detail-history-head strong {
+  overflow-wrap: anywhere;
+}
+
+.detail-audit-grid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.detail-modal-body {
+  margin-top: 1.2rem;
+  overflow: hidden;
+  border: 1px solid #e2e9f2;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.detail-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.detail-items-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.detail-items-heading h4 {
+  margin: 0;
+  color: #1d3360;
+  font-size: 0.98rem;
+  font-weight: 750;
+}
+
+.detail-items-heading span {
+  color: #8290a5;
+  font-size: 0.78rem;
+}
+
+.detail-items-heading > strong {
+  color: #1d3360;
+  font-size: 0.96rem;
+  white-space: nowrap;
+}
+
+.detail-items-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.detail-items-table {
+  width: 100%;
+  min-width: 620px;
+  margin: 0;
+}
+
+.detail-items-table th,
+.detail-items-table td {
+  padding: 0.9rem 1rem;
+  vertical-align: middle;
+}
+
+.detail-items-table td:last-child,
+.detail-items-table th:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .detail-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .detail-modal-card {
+    width: 100%;
+    max-height: 92vh;
+    padding: 1.15rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+  }
+
+  .detail-modal-meta {
+    gap: 0.45rem;
+  }
+
+  .detail-meta-chip {
+    font-size: 0.76rem;
+  }
+
+  .detail-total-block {
+    width: 100%;
+    margin: 0.25rem 0 0;
+    padding: 0.75rem 0 0;
+    border-top: 1px solid #e7edf4;
+    text-align: left;
+  }
+
+  .detail-audit-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .detail-audit-full {
+    grid-column: auto;
+  }
+
+  .detail-items-table {
+    min-width: 560px;
+  }
+}
+
 @media (max-width: 1199px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5785,4 +6224,766 @@ export default {
     grid-template-columns: 1fr;
   }
 }
+
+/* Kardex layout refresh */
+.branch-dashboard-page {
+  --kardex-ink: #142b4d;
+  --kardex-muted: #64748b;
+  --kardex-line: #e2e9f2;
+  --kardex-accent: #087f8c;
+  padding: 0.65rem 0 1.5rem;
+  color: var(--kardex-ink);
+}
+
+.branch-hero-card,
+.branch-selector-card,
+.branch-main-card {
+  border-color: var(--kardex-line);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(20, 43, 77, 0.045);
+}
+
+.branch-hero-card {
+  padding: 1.35rem 1.45rem 1.15rem;
+  background: linear-gradient(115deg, #fff 0%, #fff 68%, #f3fafb 100%);
+  margin-bottom: 1.1rem;
+}
+
+.branch-hero-head {
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.branch-hero-meta {
+  align-self: flex-start;
+  padding-top: 0.15rem;
+}
+
+.branch-context-chip,
+.branch-status-chip {
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.78rem;
+}
+
+.branch-context-chip {
+  background: #f7f9fc;
+}
+
+.branch-hero-toolbar {
+  justify-content: flex-start;
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #edf1f5;
+}
+
+.branch-period-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.branch-period-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.branch-period-label {
+  color: #314563;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.branch-period-hint {
+  color: var(--kardex-muted);
+  font-size: 0.76rem;
+}
+
+.branch-date-inline-group {
+  gap: 0.55rem;
+}
+
+.branch-date-inline {
+  min-height: 42px;
+  padding: 0 0.75rem;
+  border-color: #d8e2ec;
+  border-radius: 11px;
+  box-shadow: 0 1px 2px rgba(20, 43, 77, 0.025);
+}
+
+.branch-date-inline:focus-within {
+  border-color: #72b8bf;
+  box-shadow: 0 0 0 3px rgba(8, 127, 140, 0.1);
+}
+
+.branch-date-inline i {
+  color: var(--kardex-accent);
+}
+
+.branch-date-separator {
+  color: #8a98aa;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.branch-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-width: 142px;
+  min-height: 42px;
+  padding: 0 1.2rem;
+  border: 1px solid #087f8c;
+  border-radius: 10px;
+  background: #087f8c;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.branch-filter-btn:hover:not(:disabled) {
+  background: #066d78;
+  box-shadow: 0 5px 14px rgba(8, 127, 140, 0.18);
+  transform: translateY(-1px);
+}
+
+.branch-filter-btn:focus-visible {
+  outline: 3px solid rgba(8, 127, 140, 0.22);
+  outline-offset: 2px;
+}
+
+.branch-filter-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.branch-overview-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0 0 1.05rem;
+}
+
+.stat-card {
+  min-width: 0;
+  min-height: 106px;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-color: var(--kardex-line);
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(20, 43, 77, 0.035);
+}
+
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+}
+
+.stat-copy {
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.stat-copy span {
+  color: #738198;
+  font-size: 0.66rem;
+  letter-spacing: 0.075em;
+}
+
+.stat-copy strong {
+  color: var(--kardex-ink);
+  font-size: clamp(0.94rem, 1vw, 1.12rem);
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.stat-copy small {
+  color: var(--kardex-muted);
+  font-size: 0.73rem;
+  line-height: 1.35;
+}
+
+.branch-alert {
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.05rem;
+}
+
+.branch-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
+  gap: 1rem;
+}
+
+.branch-main-card,
+.branch-selector-card {
+  padding: 1.15rem;
+}
+
+.branch-main-head {
+  align-items: flex-start;
+  margin-bottom: 0.9rem;
+}
+
+.branch-kicker {
+  color: #75849a;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+}
+
+.branch-main-title {
+  color: var(--kardex-ink);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.branch-tabs {
+  margin: 0 0 1rem;
+  padding-bottom: 0;
+}
+
+.branch-tabs-group {
+  gap: 1.25rem;
+}
+
+.branch-tab {
+  min-height: 40px;
+  padding: 0.35rem 0.1rem 0.6rem;
+  color: #718096;
+  font-size: 0.82rem;
+}
+
+.branch-tab.active {
+  color: #087f8c;
+  border-bottom-color: #087f8c;
+}
+
+.branch-toolbar-actions {
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.branch-export-btn,
+.selector-export-btn {
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border-color: #f0d49b;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #9a6200;
+  box-shadow: none;
+  font-size: 0.75rem;
+}
+
+.branch-export-btn:hover,
+.selector-export-btn:hover {
+  border-color: #e5be70;
+  background: #fff4d9;
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+.table-wrap {
+  min-width: 0;
+  overflow: hidden;
+  border-color: var(--kardex-line);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.sales-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.detail-filters {
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(105px, 0.8fr));
+  gap: 0.65rem;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.detail-filter-field span {
+  color: #64748b;
+  font-size: 0.68rem;
+  letter-spacing: 0.025em;
+}
+
+.detail-filter-field input,
+.detail-filter-field select,
+.selector-search input {
+  border-color: #dce4ed;
+  border-radius: 10px;
+  color: #243954;
+}
+
+.detail-filter-field input:focus,
+.detail-filter-field select:focus,
+.selector-search input:focus {
+  outline: 0;
+  border-color: #72b8bf;
+  box-shadow: 0 0 0 3px rgba(8, 127, 140, 0.1);
+}
+
+.sales-table {
+  min-width: 1080px;
+}
+
+.sales-table-detail {
+  min-width: 1260px;
+}
+
+.sales-table-detail th:nth-child(1),
+.sales-table-detail td:nth-child(1) { width: 14%; }
+.sales-table-detail th:nth-child(2),
+.sales-table-detail td:nth-child(2) { width: 11%; }
+.sales-table-detail th:nth-child(3),
+.sales-table-detail td:nth-child(3) { width: 14%; }
+.sales-table-detail th:nth-child(4),
+.sales-table-detail td:nth-child(4) { width: 10%; }
+.sales-table-detail th:nth-child(5),
+.sales-table-detail td:nth-child(5) { width: 10%; }
+.sales-table-detail th:nth-child(6),
+.sales-table-detail td:nth-child(6) { width: 11%; text-align: left; }
+.sales-table-detail th:nth-child(7),
+.sales-table-detail td:nth-child(7) { width: 5%; }
+.sales-table-detail th:nth-child(8),
+.sales-table-detail td:nth-child(8) { width: 13%; }
+.sales-table-detail th:nth-child(9),
+.sales-table-detail td:nth-child(9) { width: 12%; min-width: 150px; }
+
+.sales-table thead th {
+  padding: 0.78rem 0.72rem;
+  color: #65758c;
+  background: #f8fafc;
+  font-size: 0.71rem;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sales-table tbody td {
+  padding: 0.82rem 0.72rem;
+  border-bottom-color: #edf1f5;
+  color: #47566d;
+  font-size: 0.84rem;
+}
+
+.sales-table tbody tr:hover td {
+  background: #fbfdff;
+}
+
+.cell-stack strong,
+.amount-text {
+  color: #203754;
+}
+
+.cell-stack small {
+  color: #586a83;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.status-pill {
+  min-height: 25px;
+  padding: 0.18rem 0.52rem;
+  font-size: 0.68rem;
+}
+
+.table-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.action-view-btn,
+.action-secondary-btn,
+.action-danger-btn {
+  min-width: 0;
+  width: 34px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.table-actions > button,
+.table-actions > a {
+  position: relative;
+}
+
+.table-action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.table-actions > button:focus-visible,
+.table-actions > a:focus-visible {
+  outline: 3px solid rgba(8, 127, 140, 0.25);
+  outline-offset: 2px;
+}
+
+.table-footer {
+  padding: 0.8rem 0.95rem;
+  background: #fff;
+}
+
+.pager-count {
+  margin-right: 0.35rem;
+  color: #65758c;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pager-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 32px;
+  padding: 0 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #738198;
+  text-align: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pager-ellipsis:hover,
+.pager-ellipsis:focus-visible {
+  border-color: #dce4ed;
+  background: #f8fafc;
+  color: #087f8c;
+  outline: 0;
+}
+
+.pager-btn {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.selector-head {
+  min-height: 36px;
+}
+
+.selector-head h3 {
+  color: var(--kardex-ink);
+  font-size: 1.02rem;
+}
+
+.selector-search {
+  margin: 0.9rem 0 0.7rem;
+}
+
+.selector-search input {
+  height: 40px;
+}
+
+.selector-list {
+  max-height: min(620px, calc(100vh - 390px));
+  padding: 1px 3px 3px 1px;
+  gap: 0.55rem;
+}
+
+.selector-item {
+  padding: 0.82rem 3rem 0.85rem 0.85rem;
+  border-color: #e5eaf1;
+  border-radius: 12px;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.selector-item:hover {
+  transform: none;
+  border-color: #b8d8dc;
+}
+
+.selector-item.active {
+  border-color: #a9d2d6;
+  background: #f2fafb;
+  box-shadow: inset 3px 0 #087f8c;
+}
+
+.selector-name {
+  color: #203754;
+  font-size: 0.84rem;
+}
+
+.selector-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.38rem 0.5rem;
+}
+
+.selector-item small {
+  font-size: 0.7rem;
+}
+
+.selector-metric-chip {
+  min-height: 22px;
+  padding: 0.13rem 0.42rem;
+  font-size: 0.67rem;
+}
+
+.selector-card-export-btn {
+  top: 0.65rem;
+  right: 0.65rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  border: 1px dashed #d8e2ec;
+  border-radius: 13px;
+  background: #fbfcfe;
+}
+
+@media (max-width: 1450px) {
+  .branch-overview-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .branch-workspace {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .detail-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .detail-filter-field-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1199px) {
+  .branch-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .branch-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-selector-card {
+    position: static;
+  }
+
+  .selector-head {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .selector-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .selector-list {
+    max-height: 440px;
+  }
+}
+
+@media (max-width: 767px) {
+  .branch-dashboard-page {
+    padding-top: 0.25rem;
+  }
+
+  .branch-hero-card,
+  .branch-main-card,
+  .branch-selector-card {
+    padding: 0.9rem;
+    border-radius: 14px;
+  }
+
+  .branch-period-group {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .branch-date-inline-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .branch-date-inline {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .branch-date-inline input {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.75rem;
+  }
+
+  .branch-filter-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .branch-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: 88px;
+  }
+
+  .branch-main-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .branch-toolbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .branch-export-btn {
+    width: 100%;
+  }
+
+  .detail-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-filter-field-search {
+    grid-column: auto;
+  }
+}
+/* Sales detail and user summary surfaces in night mode */
+body.enterprise-dark .branch-dashboard-page .branch-selector-card {
+  background: #192638;
+  border-color: #304056;
+  color: #e5edf6;
+}
+
+body.enterprise-dark .branch-dashboard-page .selector-name,
+body.enterprise-dark .branch-dashboard-page .selector-item small strong,
+body.enterprise-dark .branch-dashboard-page .selector-head h3 {
+  color: #e5edf6 !important;
+}
+
+body.enterprise-dark .branch-dashboard-page .selector-item {
+  background: #202f43;
+  border-color: #35475d;
+}
+
+body.enterprise-dark .branch-dashboard-page .selector-item:hover {
+  background: #25374c;
+  border-color: #52717e;
+}
+
+body.enterprise-dark .branch-dashboard-page .selector-item.active {
+  background: #203844;
+  border-color: #4a9d9a;
+  box-shadow: inset 3px 0 #54c4b6;
+}
+
+body.enterprise-dark .branch-dashboard-page .selector-item small { color: #a8b8ca !important; }
+body.enterprise-dark .branch-dashboard-page .selector-search input { color: #e5edf6; border-color: #3a4d64; background: #111d2c; }
+body.enterprise-dark .branch-dashboard-page .selector-search input::placeholder { color: #8193a9; }
+body.enterprise-dark .branch-dashboard-page .selector-metric-chip-info { background: #243956; border-color: #38577f; color: #a9c8ff; }
+body.enterprise-dark .branch-dashboard-page .selector-metric-chip-neutral { background: #2a3748; border-color: #45566c; color: #c1cddd; }
+body.enterprise-dark .branch-dashboard-page .selector-metric-chip-warning { background: #423723; border-color: #6c5935; color: #f2ca7b; }
+body.enterprise-dark .branch-dashboard-page .selector-metric-chip-contract { background: #392f4d; border-color: #594979; color: #d2baff; }
+body.enterprise-dark .branch-dashboard-page .selector-card-export-btn { background: #423723; border-color: #785d2a; color: #ffd27d; }
+body.enterprise-dark .branch-dashboard-page .table-wrap { background: #192638; border-color: #304056; }
+body.enterprise-dark .branch-dashboard-page .detail-filters { background: #202f43; border-color: #34475f; }
+body.enterprise-dark .branch-dashboard-page .detail-filter-field span { color: #a8b8ca; }
+body.enterprise-dark .branch-dashboard-page .detail-filter-field input,
+body.enterprise-dark .branch-dashboard-page .detail-filter-field select { color: #e5edf6; border-color: #3a4d64; background-color: #111d2c; }
+body.enterprise-dark .branch-dashboard-page .detail-filter-field input::placeholder { color: #8193a9; }
+body.enterprise-dark .branch-dashboard-page .table-footer { background: #192638; border-color: #304056; }
+body.enterprise-dark .branch-dashboard-page .footer-copy,
+body.enterprise-dark .branch-dashboard-page .pager-count { color: #a8b8ca; }
+body.enterprise-dark .branch-dashboard-page .pager-btn { color: #d5e0ed; border-color: #40536c; background: #202f43; }
+body.enterprise-dark .branch-dashboard-page .pager-btn:hover:not(:disabled) { border-color: #528a8b; background: #263b4d; }
+body.enterprise-dark .branch-dashboard-page .pager-btn.active { color: #102b35; border-color: #75d7cd; background: #75d7cd; box-shadow: none; }
+body.enterprise-dark .branch-dashboard-page .pager-ellipsis { color: #b6c5d7; }
+body.enterprise-dark .branch-dashboard-page .pager-ellipsis:hover,
+body.enterprise-dark .branch-dashboard-page .pager-ellipsis:focus-visible { color: #8be1d5; border-color: #40536c; background: #263b4d; }
+body.enterprise-dark .branch-dashboard-page .sales-table-scroll { scrollbar-color: #617287 #192638; }
+body.enterprise-dark .branch-dashboard-page .sales-table-scroll::-webkit-scrollbar { height: 11px; }
+body.enterprise-dark .branch-dashboard-page .sales-table-scroll::-webkit-scrollbar-track { background: #192638; }
+body.enterprise-dark .branch-dashboard-page .sales-table-scroll::-webkit-scrollbar-thumb { border: 2px solid #192638; border-radius: 999px; background: #617287; }
+
+body.enterprise-dark .detail-modal-backdrop { background: rgba(3, 9, 18, 0.76); backdrop-filter: blur(5px); }
+body.enterprise-dark .detail-modal-card { background: #172538; border-color: #34475f; color: #e5edf6; box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48); }
+body.enterprise-dark .detail-modal-head h3,
+body.enterprise-dark .detail-history-head,
+body.enterprise-dark .detail-items-heading h4,
+body.enterprise-dark .detail-items-heading > strong,
+body.enterprise-dark .detail-total-block strong { color: #edf4fb; }
+body.enterprise-dark .detail-kicker,
+body.enterprise-dark .detail-copy,
+body.enterprise-dark .detail-total-block small { color: #a6b6c9; }
+body.enterprise-dark .detail-modal-close { color: #d8e4f1; border-color: #40536c; background: #202f43; }
+body.enterprise-dark .detail-modal-close:hover { color: #8be1d5; border-color: #528a8b; background: #263b4d; }
+body.enterprise-dark .detail-meta-chip { color: #c1cede; border-color: #3b4d63; background: #202f43; }
+body.enterprise-dark .detail-meta-chip i { color: #9fb0c4; }
+body.enterprise-dark .detail-meta-status { color: #9be2bc; border-color: #32644f; background: #1c3a34; }
+body.enterprise-dark .detail-meta-status i { color: #5fc592; }
+body.enterprise-dark .detail-total-block { border-color: #34475f; }
+body.enterprise-dark .detail-total-block strong { color: #75d7cd; }
+
+body.enterprise-dark .detail-payment-efectivo { border-color: #32685f; background: linear-gradient(135deg, #1d3a38, #203e3a); }
+body.enterprise-dark .detail-payment-efectivo .detail-payment-icon { background: #28564e; color: #83dbc7; }
+body.enterprise-dark .detail-payment-efectivo .detail-payment-copy small { color: #9bc7bb; }
+body.enterprise-dark .detail-payment-efectivo .detail-payment-copy strong { color: #a5ead7; }
+body.enterprise-dark .detail-payment-qr { border-color: #51487e; background: linear-gradient(135deg, #302c50, #342e58); }
+body.enterprise-dark .detail-payment-qr .detail-payment-icon { background: #484075; color: #c5b5ff; }
+body.enterprise-dark .detail-payment-qr .detail-payment-copy small { color: #b6a9df; }
+body.enterprise-dark .detail-payment-qr .detail-payment-copy strong { color: #d1c5ff; }
+body.enterprise-dark .detail-payment-contrato { border-color: #6a5736; background: linear-gradient(135deg, #3c3426, #433821); }
+body.enterprise-dark .detail-payment-contrato .detail-payment-icon { background: #5a482b; color: #f3ce83; }
+body.enterprise-dark .detail-payment-contrato .detail-payment-copy small { color: #d2bb8c; }
+body.enterprise-dark .detail-payment-contrato .detail-payment-copy strong { color: #f2d694; }
+body.enterprise-dark .detail-payment-eca { border-color: #3d5a7a; background: linear-gradient(135deg, #25374b, #283e56); }
+body.enterprise-dark .detail-payment-eca .detail-payment-icon { background: #344f6c; color: #a8d0ff; }
+body.enterprise-dark .detail-payment-eca .detail-payment-copy small { color: #a4bbd4; }
+body.enterprise-dark .detail-payment-eca .detail-payment-copy strong { color: #c2ddfb; }
+
+body.enterprise-dark .detail-audit-card { border-color: #344960; background: linear-gradient(135deg, #1b2b40, #1d3045); }
+body.enterprise-dark .detail-audit-card h4,
+body.enterprise-dark .detail-audit-grid { color: #d8e4f1; }
+body.enterprise-dark .detail-audit-card h4 i { color: #75d7cd; }
+body.enterprise-dark .detail-history-item { border-color: #3a4e66; background: #202f43; }
+body.enterprise-dark .detail-items-heading { border-color: #34475f; }
+body.enterprise-dark .detail-items-heading span { color: #9aacc1; }
+body.enterprise-dark .detail-modal-body { border-color: #34475f; background: #172538; }
+body.enterprise-dark .detail-items-table,
+body.enterprise-dark .detail-items-table tbody,
+body.enterprise-dark .detail-items-table tr,
+body.enterprise-dark .detail-items-table td { background: #172538; color: #dce7f3; }
+body.enterprise-dark .detail-items-table thead th { background: #202f43; color: #b7c7d9; border-color: #34475f; }
+body.enterprise-dark .detail-items-table tbody tr:hover td { background: #203247; }
+body.enterprise-dark .detail-items-table .cell-stack strong { color: #edf4fb; }
+body.enterprise-dark .detail-items-table .cell-stack small { color: #a6b6c9 !important; }
+
 </style>

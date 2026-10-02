@@ -21,12 +21,12 @@ export default {
   head: {
     title: 'SAFE',
     htmlAttrs: {
-      lang: 'en'
+      lang: 'es'
     },
     meta: [
       { charset: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { hid: 'description', name: 'description', content: '' },
+      { hid: 'description', name: 'description', content: 'SAFE · Sistema de facturación de Correos de Bolivia' },
       { name: 'format-detection', content: 'telephone=no' }
     ],
     link: [
@@ -34,6 +34,7 @@ export default {
       { rel: 'stylesheet', href: '/assets/css/nucleo-icons.css' },
       { rel: 'stylesheet', href: '/assets/css/nucleo-svg.css' },
       { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700' },
+      { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700;750&display=swap' },
       { rel: 'stylesheet', href: '/assets/css/soft-ui-dashboard.min.css' },
       { rel: 'stylesheet', href: '/assets/css/enterprise-tables.css' },
       { rel: 'stylesheet', href: '/assets/css/enterprise-pages.css' },

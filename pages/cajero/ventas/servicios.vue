@@ -5,14 +5,7 @@
       <div slot="body" class="service-report-page">
         <div class="service-report-shell">
           <section class="service-hero-card">
-            <div class="service-hero-copy">
-              <p class="service-kicker">Kardex</p>
-              <h1>Ventas agrupadas por servicio</h1>
-              <p>
-                Consolidado por descripción base. Si la descripción tiene un guion, se agrupa por el texto anterior al
-                <b>-</b>; si no lo tiene, se muestra tal como llega.
-              </p>
-            </div>
+            <BasePageHeading title="Ventas por servicio" icon="layers" eyebrow="Reportes y control" description="Consulta cantidades e importes consolidados de cada servicio." />
 
             <div class="service-toolbar">
               <label class="service-field service-field-search">
@@ -21,7 +14,7 @@
               </label>
 
               <label class="service-field">
-                <span>Maximo filas</span>
+                <span>Máximo de filas</span>
                 <select v-model.number="filters.limite">
                   <option :value="50">50</option>
                   <option :value="100">100</option>

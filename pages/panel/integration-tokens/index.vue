@@ -5,13 +5,7 @@
       <div slot="body" class="enterprise-page-shell">
         <section class="enterprise-filter-card tokens-header-card">
           <div class="enterprise-page-header tokens-page-header">
-            <div>
-              <p class="enterprise-page-kicker">Centro de integracion</p>
-              <h2 class="enterprise-page-title">Tokens de integracion</h2>
-              <p class="enterprise-page-copy">
-                Crea credenciales para sistemas externos. Si no envias fecha de expiracion, el token no vence.
-              </p>
-            </div>
+            <BasePageHeading title="Tokens de integración" icon="key" eyebrow="Administración" description="Gestiona las credenciales de conexión con sistemas externos y su vigencia." />
             <div class="tokens-header-actions">
               <div class="tokens-badge">
                 <i class="fas fa-key"></i>

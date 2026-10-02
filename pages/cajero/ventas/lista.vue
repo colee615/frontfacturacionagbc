@@ -322,50 +322,58 @@
         </div>
 
         <div v-if="activeIncidentsModal" class="detail-modal-backdrop" @click.self="closeIncidentsModal">
-          <div class="detail-modal-card users-modal-card incidents-modal-card">
+          <div class="detail-modal-card users-modal-card incidents-modal-card" :class="{ 'incidents-modal-card-compact': !activeIncidentsModal.loading && activeIncidentsModal.items.length <= 1 }">
             <div class="detail-modal-head">
               <div class="users-modal-head-copy">
-                <p class="detail-kicker mb-1">Incidencias de la sucursal</p>
+                <p class="detail-kicker mb-1">{{ activeIncidentsModal.filterLabel }}</p>
                 <h3>{{ activeIncidentsModal.title }}</h3>
                 <p class="detail-copy mb-0">{{ activeIncidentsModal.subtitle }}</p>
               </div>
-              <button type="button" class="detail-modal-close" @click="closeIncidentsModal">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-
-            <div class="users-modal-summary">
-              <div class="users-summary-pill users-summary-pill-accent">
-                <span>Incidencias</span>
-                <strong>{{ activeIncidentsModal.items.length }}</strong>
+              <div class="incidents-modal-head-actions">
+                <span v-if="!activeIncidentsModal.loading" class="incidents-modal-count">{{ filteredIncidentModalItems.length }} {{ filteredIncidentModalItems.length === 1 ? 'caso' : 'casos' }}</span>
+                <button type="button" class="detail-modal-close" aria-label="Cerrar incidencias" @click="closeIncidentsModal"><i class="fas fa-times"></i></button>
               </div>
             </div>
+
+            <div v-if="!activeIncidentsModal.loading && activeIncidentsModal.categories.length > 1" class="incident-filter-tabs" aria-label="Filtrar incidencias">
+              <button type="button" :class="{ active: activeIncidentsModal.selectedCategory === 'all' }" @click="selectIncidentCategory('all')">Todas</button>
+              <button v-for="category in activeIncidentsModal.categories" :key="category.key" type="button" :class="{ active: activeIncidentsModal.selectedCategory === category.key }" @click="selectIncidentCategory(category.key)">{{ category.label }} <span>{{ category.count }}</span></button>
+            </div>
+            <button v-else-if="!activeIncidentsModal.loading && activeIncidentsModal.allItems.length > activeIncidentsModal.items.length" type="button" class="incident-show-all" @click="selectIncidentCategory('all')">Ver todos los casos del periodo ({{ activeIncidentsModal.allItems.length }})</button>
 
             <div v-if="activeIncidentsModal.loading" class="empty-state users-modal-empty">
               <h3>Cargando incidencias</h3>
               <p>Estamos consultando el detalle de los casos detectados para esta sucursal.</p>
             </div>
 
-            <div v-else-if="activeIncidentsModal.items.length" class="users-modal-list incidents-modal-list">
-              <div v-for="incident in activeIncidentsModal.items" :key="incident.key" class="users-modal-item incidents-modal-item">
+            <div v-else-if="filteredIncidentModalItems.length" class="users-modal-list incidents-modal-list">
+              <div class="incidents-toolbar">
+                <label class="incidents-search-wrap"><i class="fas fa-search"></i><input v-model.trim="incidentSearchQuery" type="search" placeholder="Buscar por factura, cliente o mensaje" aria-label="Buscar incidencias" /></label>
+              </div>
+              <div v-for="incident in filteredIncidentModalItems" :key="incident.key" class="users-modal-item incidents-modal-item">
                 <div class="users-modal-item-main">
-                  <strong>{{ incident.title }}</strong>
-                  <small>{{ incident.code }}<span v-if="incident.tracking"> · {{ incident.tracking }}</span></small>
-                  <small>{{ incident.customer }}</small>
-                  <small>{{ incident.message }}</small>
+                  <div class="incident-item-heading">
+                    <span class="incident-type-icon"><i :class="incidentIcon(incident)"></i></span>
+                    <div class="incident-item-title">
+                      <strong>{{ incident.title }}</strong>
+                      <span class="incident-status" :class="incidentStatusClass(incident.status)">{{ incident.status }}</span>
+                    </div>
+                  </div>
+                  <small class="incident-code">{{ incident.code }}<span v-if="incident.tracking"> · {{ incident.tracking }}</span></small>
+                  <small class="incident-customer">{{ incident.customer }}</small>
+                  <p class="incident-message">{{ incident.message }}</p>
                 </div>
                 <div class="users-modal-item-meta incidents-modal-meta">
-                  <span>{{ formatCurrency(incident.amount) }}</span>
-                  <small>{{ incident.user }}</small>
-                  <small>{{ formatDate(incident.createdAt) }}</small>
-                  <small>{{ incident.status }}</small>
+                  <span class="incident-amount">{{ formatCurrency(incident.amount) }}</span>
+                  <small class="incident-meta-date">{{ formatDate(incident.createdAt) }}</small>
+                  <small class="incident-meta-user">{{ incident.user }}</small>
                 </div>
               </div>
             </div>
 
             <div v-else class="empty-state users-modal-empty">
-              <h3>Sin incidencias</h3>
-              <p>{{ activeIncidentsModal.error || 'No encontramos incidencias para esta sucursal.' }}</p>
+              <h3>{{ incidentSearchQuery ? 'No encontramos coincidencias' : (activeIncidentsModal.selectedCategory === 'all' ? 'Sin incidencias' : 'Sin casos para esta categoría') }}</h3>
+              <p>{{ incidentSearchQuery ? 'Prueba con otro número de factura, cliente o término.' : (activeIncidentsModal.error || 'No encontramos incidencias para esta sucursal.') }}</p>
             </div>
           </div>
         </div>
@@ -832,6 +840,7 @@ export default {
       userCountsByBranch: {},
       activeUsersModal: null,
       activeIncidentsModal: null,
+      incidentSearchQuery: '',
       activeConciliationModal: null
     };
   },
@@ -1048,6 +1057,20 @@ export default {
       }
 
       return 'Todas las sucursales visibles estan sin observaciones.';
+    },
+    filteredIncidentModalItems() {
+      const items = this.activeIncidentsModal?.items || [];
+      const query = String(this.incidentSearchQuery || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+      if (!query) return items;
+
+      return items.filter(incident => [
+        incident?.title, incident?.code, incident?.tracking, incident?.customer,
+        incident?.message, incident?.user, incident?.status
+      ].filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(query));
     }
   },
   mounted() {
@@ -3824,6 +3847,20 @@ export default {
         || item?.qrPendiente
       );
     },
+    incidentIcon(incident) {
+      const title = String(incident?.title || '').toLowerCase();
+      if (title.includes('qr')) return 'fas fa-qrcode';
+      if (title.includes('factura')) return 'fas fa-file-invoice';
+      return 'fas fa-exclamation-circle';
+    },
+    incidentStatusClass(status) {
+      const value = String(status || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      if (value.includes('PEND')) return 'is-pending';
+      if (value.includes('ANUL') || value.includes('CANCEL')) return 'is-canceled';
+      if (value.includes('OBSERV') || value.includes('RECHAZ')) return 'is-observed';
+      if (value.includes('EXITO') || value.includes('PAGAD')) return 'is-success';
+      return 'is-neutral';
+    },
     goToSucursal(item) {
       const codigoSucursal = String(item?.codigoSucursal ?? '').trim();
       const fechaInicio = this.startDate || this.defaultToday();
@@ -3860,6 +3897,7 @@ export default {
     },
     closeIncidentsModal() {
       this.activeIncidentsModal = null;
+      this.incidentSearchQuery = '';
     },
     closeConciliationModal() {
       this.releaseConciliationQrBitmap(this.activeConciliationModal?.qrScanner?.sourceBitmap || null);
@@ -4281,13 +4319,94 @@ export default {
         this.load = false;
       }
     },
+    getIncidentCategories(item) {
+      const categories = [
+        { key: 'observadas', label: 'Observadas', count: Number(item?.observadas || 0) },
+        { key: 'pendientes', label: 'Pendientes', count: Number(item?.pendientes || 0) },
+        { key: 'conCufOtroEstado', label: 'Facturas anuladas', count: Number(item?.conCufOtroEstado || 0) },
+        { key: 'qrPagadoPendienteFactura', label: 'QR pagado sin factura', count: Number(item?.qrPagadoPendienteFactura || 0) },
+        { key: 'qrCancelado', label: 'QR anulados', count: Number(item?.qrCancelado || 0) },
+        { key: 'qrPendiente', label: 'QR pendientes', count: Number(item?.qrPendiente || 0) }
+      ];
+
+      return categories.filter(category => category.count > 0);
+    },
+    matchesIncidentCategory(incident, categoryKey) {
+      const text = [incident?.title, incident?.message, incident?.status, incident?.code]
+        .filter(Boolean)
+        .join(' ')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      const isQr = /\bqr\b/.test(text);
+      const isPending = /pendient/.test(text);
+      const mentionsInvoice = /factura|cuf/.test(text);
+      const isCanceled = /anulad|cancelad/.test(text);
+
+      switch (categoryKey) {
+        case 'observadas':
+          return /observad|observacion|rechazad|error/.test(text);
+        case 'pendientes':
+          return isPending && !isQr;
+        case 'conCufOtroEstado':
+          return !isQr && (isCanceled || /otro estado|estado invalido/.test(text));
+        case 'qrPagadoPendienteFactura':
+          return isQr && mentionsInvoice && (/pagad|cobrad|sin factura|pendient/.test(text));
+        case 'qrCancelado':
+          return isQr && isCanceled;
+        case 'qrPendiente':
+          return isQr && isPending && !mentionsInvoice && !/pagad|cobrad/.test(text);
+        default:
+          return true;
+      }
+    },
+    filterIncidentItems(items, categoryKey) {
+      const start = this.startDate ? new Date(`${this.startDate}T00:00:00`).getTime() : null;
+      const end = this.endDate ? new Date(`${this.endDate}T23:59:59.999`).getTime() : null;
+      const inSelectedPeriod = items.filter(incident => {
+        const dateValue = incident?.createdAt || incident?.fecha || incident?.created_at;
+        let incidentDate = dateValue ? new Date(dateValue) : null;
+        const localDate = String(dateValue || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const displayedDate = String(dateValue || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (localDate) {
+          incidentDate = new Date(Number(localDate[1]), Number(localDate[2]) - 1, Number(localDate[3]));
+        } else if (displayedDate) {
+          incidentDate = new Date(Number(displayedDate[3]), Number(displayedDate[2]) - 1, Number(displayedDate[1]));
+        }
+        const timestamp = incidentDate ? incidentDate.getTime() : NaN;
+        if (Number.isNaN(timestamp)) return true;
+        return (start === null || timestamp >= start) && (end === null || timestamp <= end);
+      });
+
+      if (categoryKey === 'all') return inSelectedPeriod;
+      return inSelectedPeriod.filter(incident => this.matchesIncidentCategory(incident, categoryKey));
+    },
+    selectIncidentCategory(categoryKey) {
+      if (!this.activeIncidentsModal) return;
+      const category = this.activeIncidentsModal.categories.find(item => item.key === categoryKey);
+      this.activeIncidentsModal = {
+        ...this.activeIncidentsModal,
+        selectedCategory: categoryKey,
+        filterLabel: category ? category.label : 'Todas en el periodo',
+        items: this.filterIncidentItems(this.activeIncidentsModal.allItems, categoryKey),
+        error: ''
+      };
+    },
     async loadIncidentsModal(item) {
       const modalKey = `${item.codigoSucursal ?? 0}-${item.puntoVenta ?? 0}`;
+      const categories = this.getIncidentCategories(item);
+      const selectedCategory = categories.length === 1 ? categories[0].key : 'all';
+      const selectedCategoryInfo = categories.find(category => category.key === selectedCategory);
+      this.incidentSearchQuery = '';
       this.load = true;
       this.activeIncidentsModal = {
         title: item.departamento || item.nombre || 'Sucursal',
         subtitle: `Cód. ${item.codigoSucursal ?? 0} · Punto ${item.puntoVenta ?? 0}`,
         items: [],
+        allItems: [],
+        categories,
+        selectedCategory,
+        filterLabel: selectedCategoryInfo ? selectedCategoryInfo.label : 'Todas en el periodo',
         loading: true,
         error: '',
         key: modalKey
@@ -4303,11 +4422,18 @@ export default {
           : (Array.isArray(response?.data?.incidencias) ? response.data.incidencias : []);
 
         if (this.activeIncidentsModal && this.activeIncidentsModal.key === modalKey) {
+          const periodItems = this.filterIncidentItems(source, 'all');
+          const items = this.filterIncidentItems(periodItems, selectedCategory);
           this.activeIncidentsModal = {
             ...this.activeIncidentsModal,
-            items: source,
+            allItems: periodItems,
+            items,
             loading: false,
-            error: source.length ? '' : 'La API no devolvió incidencias para esta sucursal.'
+            error: items.length
+              ? ''
+              : (selectedCategory === 'all'
+                ? 'No hay incidencias para esta sucursal dentro del periodo seleccionado.'
+                : `No encontramos casos de «${selectedCategoryInfo?.label || 'esta categoría'}» dentro del periodo. Puedes revisar todas las incidencias del periodo.`)
           };
         }
       } catch (err) {
@@ -6481,6 +6607,84 @@ export default {
   width: min(920px, 100%);
 }
 
+.incidents-modal-card-compact {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 4rem);
+}
+
+.incidents-modal-card-compact .incidents-modal-list {
+  max-height: none;
+}
+
+.incidents-modal-count {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid #d7eee9;
+  border-radius: 999px;
+  background: #f0faf8;
+  color: #087f80;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.incident-show-all {
+  margin: 0 0 0.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #087f80;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.incident-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.85rem;
+}
+
+.incident-filter-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 34px;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #e1e8f1;
+  border-radius: 999px;
+  background: #fff;
+  color: #596b83;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.incident-filter-tabs button span {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #53657d;
+  font-size: 0.67rem;
+}
+
+.incident-filter-tabs button.active {
+  border-color: #b8e2db;
+  background: #effaf8;
+  color: #087f80;
+}
+
+.incident-filter-tabs button.active span {
+  background: #d9f1ec;
+  color: #087f80;
+}
+
 .incidents-modal-list {
   max-height: min(62vh, 560px);
 }
@@ -6493,6 +6697,106 @@ export default {
 
 .incidents-modal-meta {
   gap: 0.2rem;
+}
+
+.incidents-modal-meta .incident-amount {
+  margin-bottom: 0.15rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #40536b;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.incidents-modal-meta .incident-meta-user,
+.incidents-modal-meta .incident-meta-date {
+  color: #718197;
+}
+
+.incidents-modal-meta .incident-status {
+  margin-top: 0.1rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #fff6e8;
+  color: #a45b00;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.incidents-modal-card {
+  width: min(980px, calc(100vw - 3rem));
+  max-height: min(88vh, 900px);
+  padding: 0;
+  border-radius: 22px;
+}
+
+.incidents-modal-card .detail-modal-head {
+  align-items: center;
+  padding: 1.2rem 1.35rem 1rem;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.incidents-modal-head-actions { display: flex; align-items: center; gap: .7rem; }
+.incidents-modal-count { margin: 0; padding: .4rem .65rem; background: #f1f5f9; border-color: #e3eaf2; color: #52657c; white-space: nowrap; }
+.incidents-modal-card .detail-kicker { margin-bottom: .25rem !important; color: #07868a; letter-spacing: .12em; }
+.incidents-modal-card .detail-modal-head h3 { font-size: 1.35rem; }
+.incidents-modal-card .detail-copy { margin-top: .15rem; }
+.incident-filter-tabs { gap: .45rem; margin: .85rem 1.35rem .4rem; padding-bottom: .8rem; border-bottom: 1px solid #edf1f6; }
+.incident-filter-tabs button { min-height: 36px; padding: .4rem .72rem; }
+.incidents-toolbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; padding: .75rem 0; background: #fff; }
+.incidents-search-wrap { position: relative; display: block; width: min(420px, 100%); }
+.incidents-search-wrap > i { position: absolute; top: 50%; left: .8rem; transform: translateY(-50%); color: #8a99ac; font-size: .8rem; }
+.incidents-search-wrap input { width: 100%; height: 38px; padding: .45rem .75rem .45rem 2.25rem; border: 1px solid #e1e8f0; border-radius: 10px; outline: none; background: #f9fbfd; color: #344054; font-size: .78rem; }
+.incidents-search-wrap input:focus { border-color: #8acfc4; background: #fff; box-shadow: 0 0 0 3px rgba(8, 134, 138, .1); }
+.incidents-modal-list { flex: 1; min-height: 0; max-height: none; margin: 0; padding: 0 1.35rem 1.35rem; overflow-y: auto; }
+.incidents-modal-card-compact { width: min(700px, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); }
+.incidents-modal-card-compact .incidents-modal-list { flex: 0 1 auto; overflow: visible; }
+.incidents-modal-list .incidents-modal-item { align-items: center; gap: 1rem; padding: .9rem 1rem; border-color: #e8edf3; border-radius: 14px; background: #fff; }
+.incidents-modal-item .users-modal-item-main { gap: .28rem; }
+.incident-item-heading { display: flex; align-items: center; gap: .65rem; margin-bottom: .15rem; }
+.incident-type-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 1px solid #dce9f8; border-radius: 10px; background: #f2f7fd; color: #37618e; font-size: .85rem; }
+.incident-item-title { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.incidents-modal-item .incident-item-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.incidents-modal-item .incident-status { display: inline-flex; flex: 0 0 auto; margin: 0; padding: .2rem .48rem; border: 1px solid transparent; border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .03em; }
+.incidents-modal-item .incident-status.is-pending { border-color: #f4dfb2; background: #fff8e8; color: #986200; }
+.incidents-modal-item .incident-status.is-canceled { border-color: #f3d1d1; background: #fff1f1; color: #a33d3d; }
+.incidents-modal-item .incident-status.is-observed { border-color: #f4dfb2; background: #fff8e8; color: #986200; }
+.incidents-modal-item .incident-status.is-success { border-color: #cce9dc; background: #effaf4; color: #287550; }
+.incidents-modal-item .incident-status.is-neutral { border-color: #e2e8f0; background: #f4f6f8; color: #64748b; }
+.incidents-modal-item .incident-code { color: #718197; font-family: Consolas, Monaco, monospace; font-size: .7rem; }
+.incidents-modal-item .incident-customer { color: #52657c; font-size: .73rem; font-weight: 700; }
+.incidents-modal-item .incident-message { margin: .05rem 0 0; color: #6f7c92; font-size: .73rem; line-height: 1.4; }
+.incidents-modal-list .incidents-modal-meta { min-width: 170px; align-items: flex-end; gap: .28rem; margin: 0; }
+.incidents-modal-meta .incident-amount { padding: .34rem .62rem; background: #eff4fa; color: #334b68; font-size: .78rem; }
+.incidents-modal-meta .incident-meta-date { color: #536982; font-size: .7rem; font-weight: 700; }
+.incidents-modal-meta .incident-meta-user { max-width: 190px; overflow: hidden; text-overflow: ellipsis; color: #8390a2; font-size: .68rem; }
+.incident-show-all { margin: .8rem 1.35rem 0; }
+
+body.enterprise-dark .incidents-modal-card .detail-modal-head,
+body.enterprise-dark .incident-filter-tabs { border-color: rgba(82, 99, 128, .55); }
+body.enterprise-dark .incidents-modal-count,
+body.enterprise-dark .incident-type-icon { border-color: rgba(82, 99, 128, .65); background: #1b293b; color: #b9c8da; }
+body.enterprise-dark .incidents-toolbar { background: #151e2b; }
+body.enterprise-dark .incidents-search-wrap input { border-color: rgba(82, 99, 128, .7); background: #101827; color: #e5e7eb; }
+body.enterprise-dark .incidents-modal-list .incidents-modal-item { border-color: rgba(82, 99, 128, .6); background: #101827; }
+body.enterprise-dark .incidents-modal-item .incident-customer { color: #cbd5e1; }
+body.enterprise-dark .incidents-modal-item .incident-message,
+body.enterprise-dark .incidents-modal-item .incident-code,
+body.enterprise-dark .incidents-modal-meta .incident-meta-user { color: #9aa8ba; }
+body.enterprise-dark .incidents-modal-meta .incident-amount { background: #1b293b; color: #dbeafe; }
+
+@media (max-width: 767px) {
+  .incidents-modal-card { width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); border-radius: 16px; }
+  .incidents-modal-card .detail-modal-head { padding: 1rem; }
+  .incidents-modal-list { padding: 0 .75rem .75rem; }
+  .incident-filter-tabs { margin-inline: .75rem; }
+  .incidents-modal-list .incidents-modal-item { flex-direction: column; align-items: stretch; }
+  .incidents-modal-list .incidents-modal-meta { width: 100%; align-items: flex-start; }
+  .incidents-modal-head-actions { align-items: flex-start; }
+  .incidents-modal-count { display: none; }
+  .incident-item-title { align-items: flex-start; flex-direction: column; gap: .2rem; }
 }
 
 .users-modal-empty {

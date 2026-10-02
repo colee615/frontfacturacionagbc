@@ -5,11 +5,7 @@
          <div slot="body" class="users-page enterprise-page-shell">
             <section class="enterprise-filter-card users-directory-shell">
                <div class="enterprise-page-header users-page-header">
-                  <div>
-                     <p class="enterprise-page-kicker">Centro de accesos</p>
-                     <h2 class="enterprise-page-title">Gestión de usuarios</h2>
-                     <p class="enterprise-page-copy">Administra credenciales, roles y estado operativo en una sola vista ordenada.</p>
-                  </div>
+                  <BasePageHeading title="Gestión de usuarios" icon="users" eyebrow="Administración" description="Organiza tu equipo, sus credenciales y el estado de cada cuenta." />
                   <div class="users-badge users-badge-soft">
                      <i class="fas fa-users"></i>
                      <span>{{ filteredList.length }} registros</span>

@@ -5,14 +5,7 @@
       <div slot="body" class="service-report-page">
         <div class="service-report-shell">
           <section class="service-hero-card">
-            <div class="service-hero-copy">
-              <p class="service-kicker">Kardex</p>
-              <h1>Servicios contrato por cliente</h1>
-              <p>
-                Consolidado exclusivo de servicios contrato. Se agrupa por <b>NIT</b> y <b>raz&oacute;n social</b> para ver
-                cu&aacute;nto se vendi&oacute; a cada cliente.
-              </p>
-            </div>
+            <BasePageHeading title="Servicios contrato" icon="file" eyebrow="Reportes y control" description="Explora las ventas por cliente, NIT y razón social. Exporta el detalle cuando lo necesites." />
 
             <div class="service-toolbar">
               <label class="service-field service-field-search">

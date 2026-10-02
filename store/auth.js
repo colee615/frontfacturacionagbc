@@ -8,17 +8,20 @@ const safeJsonParse = (value, fallback) => {
   }
 };
 
-const getStorageValue = (key) => {
+const getStorageValue = (key, rememberMe = false) => {
   if (!process.client) return null;
-  const sessionValue = sessionStorage.getItem(key);
-  if (sessionValue !== null) return sessionValue;
-  return localStorage.getItem(key);
+  const primaryStorage = rememberMe ? localStorage : sessionStorage;
+  const secondaryStorage = rememberMe ? sessionStorage : localStorage;
+  const primaryValue = primaryStorage.getItem(key);
+  return primaryValue !== null ? primaryValue : secondaryStorage.getItem(key);
 };
 
-const setStorageValue = (key, value) => {
+const setStorageValue = (key, value, rememberMe = false) => {
   if (!process.client) return;
-  sessionStorage.setItem(key, value);
-  localStorage.removeItem(key);
+  const targetStorage = rememberMe ? localStorage : sessionStorage;
+  const otherStorage = rememberMe ? sessionStorage : localStorage;
+  targetStorage.setItem(key, value);
+  otherStorage.removeItem(key);
 };
 
 const clearStorage = () => {
@@ -81,12 +84,13 @@ export const actions = {
   loadAuthFromStorage({ commit }) {
     if (!process.client) return;
 
-    const token = getStorageValue('token');
-    const user = getStorageValue('user');
-    const role = getStorageValue('role');
-    const rolesRaw = getStorageValue('roles');
-    const permissionsRaw = getStorageValue('permissions');
-    const viewsRaw = getStorageValue('views');
+    const rememberMe = localStorage.getItem('token') !== null;
+    const token = getStorageValue('token', rememberMe);
+    const user = getStorageValue('user', rememberMe);
+    const role = getStorageValue('role', rememberMe);
+    const rolesRaw = getStorageValue('roles', rememberMe);
+    const permissionsRaw = getStorageValue('permissions', rememberMe);
+    const viewsRaw = getStorageValue('views', rememberMe);
 
     const roles = rolesRaw ? safeJsonParse(rolesRaw, []) : [];
     const permissions = permissionsRaw ? safeJsonParse(permissionsRaw, []) : [];
@@ -94,16 +98,16 @@ export const actions = {
 
     if (token) {
       commit('setToken', token);
-      setStorageValue('token', token);
+      setStorageValue('token', token, rememberMe);
     }
 
     commit('setRoles', roles);
     commit('setPermissions', permissions);
     commit('setViews', views);
 
-    setStorageValue('roles', JSON.stringify(roles));
-    setStorageValue('permissions', JSON.stringify(permissions));
-    setStorageValue('views', JSON.stringify(views));
+    setStorageValue('roles', JSON.stringify(roles), rememberMe);
+    setStorageValue('permissions', JSON.stringify(permissions), rememberMe);
+    setStorageValue('views', JSON.stringify(views), rememberMe);
 
     const normalizedRole = role
       ? (role === 'admin' ? 'admin' : role)
@@ -114,30 +118,33 @@ export const actions = {
       if (parsedUser) {
         const enrichedUser = { ...parsedUser, role: parsedUser.role || normalizedRole };
         commit('setUser', enrichedUser);
-        setStorageValue('user', JSON.stringify(enrichedUser));
+        setStorageValue('user', JSON.stringify(enrichedUser), rememberMe);
       }
     }
 
     if (normalizedRole) {
       commit('setRole', normalizedRole);
-      setStorageValue('role', normalizedRole);
+      setStorageValue('role', normalizedRole, rememberMe);
     }
   },
-  login({ commit }, { token, user, roles = [], permissions = [], views = [] }) {
+  login({ commit }, { token, user, roles = [], permissions = [], views = [], rememberMe }) {
     if (!process.client) return;
 
+    const persistAcrossSessions = typeof rememberMe === 'boolean'
+      ? rememberMe
+      : localStorage.getItem('token') !== null;
     const normalizedRoles = Array.isArray(roles) ? roles : [];
     const roleLabel = normalizedRoles.includes('admin')
       ? 'admin'
       : (normalizedRoles[0] || 'usuario');
     const enrichedUser = { ...user, role: roleLabel };
 
-    setStorageValue('token', token);
-    setStorageValue('user', JSON.stringify(enrichedUser));
-    setStorageValue('role', roleLabel);
-    setStorageValue('roles', JSON.stringify(normalizedRoles));
-    setStorageValue('permissions', JSON.stringify(permissions));
-    setStorageValue('views', JSON.stringify(views));
+    setStorageValue('token', token, persistAcrossSessions);
+    setStorageValue('user', JSON.stringify(enrichedUser), persistAcrossSessions);
+    setStorageValue('role', roleLabel, persistAcrossSessions);
+    setStorageValue('roles', JSON.stringify(normalizedRoles), persistAcrossSessions);
+    setStorageValue('permissions', JSON.stringify(permissions), persistAcrossSessions);
+    setStorageValue('views', JSON.stringify(views), persistAcrossSessions);
 
     commit('setToken', token);
     commit('setUser', enrichedUser);

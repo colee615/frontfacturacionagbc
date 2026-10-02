@@ -6,7 +6,7 @@
                <div class="login-content">
                   <transition name="fade-slide" mode="out-in">
                      <form v-if="isLogin" key="login-form" class="auth-form" @submit.prevent="submit">
-                        <h2 class="auth-title auth-title-typing">Iniciar sesión</h2>
+                        <h1 class="auth-title">Iniciar sesión</h1>
 
                         <div class="field-group">
                            <label for="email">Correo electrónico</label>
@@ -48,12 +48,14 @@
                            </div>
                         </div>
 
-                        <label class="remember-row">
-                           <input type="checkbox">
+                        <label class="remember-row" for="remember-me">
+                           <input id="remember-me" v-model="model.rememberMe" type="checkbox">
                            <span>Recordarme</span>
                         </label>
 
-                        <button type="submit" class="btn btn-login-primary w-100">Ingresar</button>
+                        <button type="button" class="btn-link-clean recovery-link" @click="toggleMode('forgot')">¿Olvidaste tu contraseña?</button>
+
+                        <button type="submit" class="btn btn-login-primary w-100" :disabled="submitting"><span>{{ submitting ? 'Ingresando…' : 'Ingresar' }}</span></button>
                      </form>
 
                      <form v-else key="forgot-form" class="auth-form" @submit.prevent="submitForgotPassword">
@@ -78,6 +80,8 @@
 
                         <button type="submit" class="btn btn-login-primary w-100">Enviar correo de recuperación</button>
 
+                        <button type="button" class="btn-link-clean" @click="abrirModalCita">Ya tengo un token de recuperación</button>
+
                         <button type="button" class="btn-link-clean" @click="toggleMode('login')">
                            Volver al inicio de sesión
                         </button>
@@ -85,17 +89,13 @@
                   </transition>
 
                   <p class="auth-footer">
-                     2026•@CorreosdeBolivia
+                     © {{ new Date().getFullYear() }} Correos de Bolivia · AGBC
                   </p>
                </div>
             </div>
 
-            <div class="launch-login-right" aria-hidden="true">
-               <img
-                  src="/assets/imagenes/banner.png"
-                  alt=""
-                  class="side-banner"
-               >
+            <div class="launch-login-right">
+               <img src="/assets/imagenes/banner.png" alt="Bienvenido a Correos de Bolivia: servicios postales y plataforma de gestión." class="login-welcome-banner">
             </div>
          </section>
       </main>
@@ -160,10 +160,12 @@ export default {
       return {
          apiUrl2: 'reset-password',
          isLogin: true,
+         submitting: false,
          forgotPasswordEmail: '',
          model: {
             email: '',
-            password: ''
+            password: '',
+            rememberMe: false
          },
          modalCitas: false,
          showPassword: false,
@@ -239,6 +241,7 @@ export default {
          this.showPassword = !this.showPassword;
       },
       async submit() {
+         if (this.submitting) return;
          if (!this.model.email || !this.model.password) {
             this.$swal.fire({
                toast: true,
@@ -252,7 +255,12 @@ export default {
          }
 
          try {
-            const res = await this.$admin.post('login', this.model);
+            this.submitting = true;
+            const res = await this.$admin.post('login', {
+               email: this.model.email,
+               password: this.model.password,
+               remember_me: this.model.rememberMe
+            });
 
             if (res.data.token) {
                const loginUser = res.data.usuario || null;
@@ -265,7 +273,8 @@ export default {
                   user: loginUser,
                   roles: loginRoles,
                   permissions: loginPermissions,
-                  views: loginViews
+                  views: loginViews,
+                  rememberMe: this.model.rememberMe
                });
 
                try {
@@ -280,7 +289,8 @@ export default {
                      user,
                      roles,
                      permissions,
-                     views
+                     views,
+                     rememberMe: this.model.rememberMe
                   });
                } catch (meError) {
                   console.error('Error loading full session from me:', meError);
@@ -357,6 +367,8 @@ export default {
                   icon: 'error'
                });
             }
+         } finally {
+            this.submitting = false;
          }
       },
       async submitForgotPassword() {
@@ -415,346 +427,40 @@ export default {
 </script>
 
 <style scoped>
-.launch-login-page {
-   min-height: 100vh;
-   background:
-      radial-gradient(circle at 10% 18%, rgba(255, 208, 84, 0.12) 0%, rgba(255, 208, 84, 0) 20%),
-      radial-gradient(circle at 90% 84%, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0) 24%),
-      linear-gradient(145deg, #f7f9fd 0%, #eef3fb 52%, #ebf1fa 100%);
-}
 
-.launch-login-main {
-   min-height: 100vh;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   padding: 2.75rem;
-}
+.launch-login-page { min-height: 100vh; background: #f1f5f8; color: #21384d; font-family: 'Inter', 'Segoe UI', sans-serif; }
+.launch-login-main { min-height: 100vh; display: grid; place-items: center; padding: 12px; }
+.launch-login-shell { width: 100%; max-width: 980px; min-height: 630px; display: grid; grid-template-columns: minmax(290px, 32%) minmax(0, 68%); border: 1px solid #e1e9f1; border-radius: 30px; background: #fff; box-shadow: 0 20px 56px #153d6813; overflow: hidden; }
+.launch-login-left { padding: 24px 26px; display: flex; flex-direction: column; background: linear-gradient(180deg, #fff 0%, #fbfdff 100%); }
+.login-content { display: flex; flex: 1; flex-direction: column; justify-content: center; padding-top: 12px; }
+.auth-form { width: 100%; display: grid; gap: 16px; margin: auto 0; }
+.auth-title { font-size: 28px; font-weight: 700; letter-spacing: -.04em; color: #102d56; margin: 0 0 4px; }
+.auth-subtitle { font-size: 12px; color: #8290a4; line-height: 1.8; margin-bottom: 8px; }
+.field-group label { font-size: 11px; font-weight: 700; letter-spacing: .035em; color: #183961; display: block; margin-bottom: 8px; text-transform: uppercase; }
+.input-shell { position: relative; }
+.input-shell > i { position: absolute; top: 50%; left: 14px; transform: translateY(-50%); color: #8da0ba; font-size: 14px; }
+.input-shell .form-control { height: 50px; background: #fff; border: 1px solid #d2deec; border-radius: 10px; padding: 0 42px; font-size: 12px; color: #263e5c; box-shadow: none; }
+.input-shell .form-control:focus { border-color: #2b70bd; box-shadow: 0 0 0 3px #2b70bd17; }
+.launch-login-page :focus-visible { outline: 2px solid #2b70bd; outline-offset: 2px; }
+.toggle-pass { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: 0; background: transparent; color: #617995; border-radius: 5px; }
+.remember-row { display: flex; align-items: center; gap: 8px; margin: -1px 0 0; color: #384d68; font-size: 12px; font-weight: 600; cursor: pointer; }
+.remember-row input { accent-color: #155da6; width: 14px; height: 14px; margin: 0; }
+.btn-link-clean { padding: 0; background: transparent; border: 0; color: #185eaa; font-size: 11px; font-weight: 600; }
+.recovery-link { justify-self: end; margin-top: -14px; }
+.btn-login-primary { height: 52px; background: #ffd956; color: #16375e; border-radius: 14px; border: 1px solid #f5c83e; display: flex; align-items: center; justify-content: center; gap: 24px; font-size: 12px; font-weight: 750; text-transform: uppercase; box-shadow: 0 8px 18px #dfaa221b; margin: 0; }
+.btn-login-primary:hover { color: #16375e; background: #ffce32; border-color: #f0be26; transform: none; }
+.btn-login-primary:disabled { opacity: .6; }
+.auth-footer { margin: auto 0 0; padding-top: 28px; color: #7189a7; font-size: 10px; text-align: center; }
+.launch-login-right { position: relative; min-width: 0; min-height: 100%; overflow: hidden; background: #fff; }
+.login-welcome-banner { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.clean-modal-backdrop { background: #132c4480; backdrop-filter: blur(4px); }
+.clean-modal-content { border: 0; border-radius: 16px; }
+.modal-close-btn { background: transparent; border: 0; font-size: 24px; color: #738195; }
+.modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.fade-slide-enter-active, .fade-slide-leave-active { transition: opacity .15s; }
+.fade-slide-enter, .fade-slide-leave-to { opacity: 0; }
+@media (max-width: 900px) { .launch-login-shell { grid-template-columns: minmax(275px, 40%) minmax(0, 60%); } .launch-login-left { padding: 22px; } }
+@media (max-width: 700px) { .launch-login-main { padding: 16px; } .launch-login-shell { grid-template-columns: 1fr; min-height: 0; max-width: 460px; border-radius: 22px; } .launch-login-right { display: none; } .launch-login-left { padding: 26px 24px 20px; } .login-content { flex: 0 1 auto; justify-content: flex-start; padding-top: 0; } .auth-footer { margin: 34px 0 0; padding-top: 0; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-.launch-login-shell {
-   width: 100%;
-   max-width: 980px;
-   min-height: 600px;
-   background: #ffffff;
-   border: 1px solid #e2e8f0;
-   border-radius: 32px;
-   box-shadow: 0 28px 64px rgba(15, 23, 42, 0.1);
-   overflow: hidden;
-   display: grid;
-   grid-template-columns: 315px minmax(0, 1fr);
-}
-
-.launch-login-left {
-   display: flex;
-   flex-direction: column;
-   padding: 2rem 1.6rem 1.35rem;
-   background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 100%);
-   border-right: 1px solid #edf2f7;
-}
-
-.login-content {
-   display: flex;
-   flex: 1;
-   flex-direction: column;
-   justify-content: center;
-   gap: 1.4rem;
-   align-items: center;
-}
-
-.auth-form {
-   display: grid;
-   gap: 1rem;
-   width: 100%;
-   max-width: 270px;
-   margin: 0 auto;
-}
-
-.auth-title {
-   margin: 0 0 0.35rem;
-   font-size: 1.8rem;
-   font-weight: 800;
-   color: #14213d;
-   letter-spacing: -0.04em;
-   line-height: 1.05;
-   display: inline-block;
-   position: relative;
-}
-
-.auth-title-typing {
-   white-space: nowrap;
-   clip-path: inset(0 100% 0 0);
-   animation: typing-login 1.8s steps(14, end) 0.15s 1 forwards;
-}
-
-.auth-title-typing::after {
-   content: '';
-   position: absolute;
-   top: 0.08em;
-   right: -0.12em;
-   width: 2px;
-   height: 0.9em;
-   background: rgba(20, 33, 61, 0.55);
-   animation:
-      typing-login 1.8s steps(14, end) 0.15s 1 forwards,
-      caret-blink 0.75s step-end 5;
-}
-
-.auth-subtitle {
-   margin: -0.15rem 0 1rem;
-   color: #70819b;
-   font-size: 0.92rem;
-}
-
-.field-group label {
-   display: inline-block;
-   margin-bottom: 0.38rem;
-   font-size: 0.84rem;
-   font-weight: 700;
-   color: #31445f;
-   letter-spacing: 0.01em;
-   text-transform: uppercase;
-}
-
-.input-shell {
-   position: relative;
-}
-
-.input-shell > i {
-   position: absolute;
-   left: 0.9rem;
-   top: 50%;
-   transform: translateY(-50%);
-   color: #94a3b8;
-}
-
-.input-shell .form-control {
-   min-height: 50px;
-   border-radius: 14px;
-   border: 1px solid #d8e2f0;
-   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-   padding-left: 2.35rem;
-   padding-right: 2.35rem;
-   box-shadow: none;
-   color: #1f2937;
-   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-}
-
-.input-shell .form-control:focus {
-   border-color: #f2be22;
-   background: #fff;
-   box-shadow: 0 0 0 0.16rem rgba(242, 190, 34, 0.11);
-}
-
-.toggle-pass {
-   position: absolute;
-   right: 0.55rem;
-   top: 50%;
-   transform: translateY(-50%);
-   border: none;
-   background: transparent;
-   color: #64748b;
-   width: 32px;
-   height: 32px;
-   border-radius: 50%;
-}
-
-.toggle-pass:hover {
-   background: rgba(148, 163, 184, 0.16);
-}
-
-.remember-row {
-   display: inline-flex;
-   align-items: center;
-   gap: 0.45rem;
-   color: #475569;
-   font-size: 0.88rem;
-   user-select: none;
-   margin-top: 0.2rem;
-   width: fit-content;
-}
-
-.btn-login-primary {
-   min-height: 52px;
-   border-radius: 15px;
-   border: 1px solid rgba(201, 154, 35, 0.24);
-   background: linear-gradient(135deg, #ffe38a 0%, #ffd54f 100%);
-   color: #5a4006;
-   font-weight: 800;
-   letter-spacing: 0.01em;
-   box-shadow: 0 10px 22px rgba(201, 154, 35, 0.16);
-   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-}
-
-.btn-login-primary:hover {
-   color: #5a4006;
-   filter: brightness(0.99);
-   transform: translateY(-1px);
-   box-shadow: 0 18px 34px rgba(201, 154, 35, 0.22);
-}
-
-.btn-link-clean {
-   border: none;
-   background: none;
-   color: #2d5cae;
-   font-weight: 700;
-   width: fit-content;
-   margin: 0.7rem auto 0;
-   padding: 0;
-}
-
-.btn-link-clean:hover {
-   color: #0f172a;
-   text-decoration: underline;
-   text-underline-offset: 0.16rem;
-}
-
-.auth-footer {
-   margin: 0 auto;
-   color: #93a4c0;
-   font-size: 0.76rem;
-   line-height: 1.5;
-   text-align: center;
-   padding-top: 0.8rem;
-   width: 100%;
-   max-width: 270px;
-}
-
-.launch-login-right {
-   position: relative;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   overflow: hidden;
-   background:
-      radial-gradient(circle at top right, rgba(255, 209, 102, 0.1) 0%, rgba(255, 209, 102, 0) 22%),
-      linear-gradient(180deg, #f8fbff 0%, #f4f8ff 100%);
-   padding: 0.15rem;
-}
-
-.side-banner {
-   display: block;
-   width: 100%;
-   height: 100%;
-   max-width: none;
-   max-height: none;
-   object-fit: cover;
-   object-position: center;
-}
-
-.clean-modal-backdrop {
-   background: rgba(15, 23, 42, 0.5);
-}
-
-.clean-modal-content {
-   border-radius: 18px;
-   border: 1px solid rgba(226, 232, 240, 0.92);
-   box-shadow: 0 20px 36px rgba(15, 23, 42, 0.2);
-}
-
-.clean-modal-content .modal-title {
-   color: #1f2937;
-   font-weight: 700;
-}
-
-.clean-modal-content .form-control {
-   border-radius: 12px;
-   min-height: 46px;
-}
-
-.clean-modal-content .form-control:focus {
-   border-color: #f2be22;
-   box-shadow: 0 0 0 0.2rem rgba(242, 190, 34, 0.18);
-}
-
-.modal-close-btn {
-   border: none;
-   background: transparent;
-   color: #64748b;
-   font-size: 1.6rem;
-   line-height: 1;
-   padding: 0.15rem 0.35rem;
-}
-
-.modal-close-btn:hover {
-   color: #0f172a;
-}
-
-.modal-actions {
-   display: flex;
-   justify-content: flex-end;
-   gap: 0.7rem;
-   margin-top: 0.4rem;
-}
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-   transition: all 0.22s ease;
-}
-
-.fade-slide-enter,
-.fade-slide-leave-to {
-   opacity: 0;
-   transform: translateY(6px);
-}
-
-@keyframes typing-login {
-   from {
-      clip-path: inset(0 100% 0 0);
-   }
-   to {
-      clip-path: inset(0 0 0 0);
-   }
-}
-
-@keyframes caret-blink {
-   0%,
-   100% {
-      border-right-color: rgba(20, 33, 61, 0.55);
-   }
-   50% {
-      border-right-color: transparent;
-   }
-}
-
-@media (max-width: 1000px) {
-   .launch-login-shell {
-      grid-template-columns: 1fr;
-      min-height: auto;
-   }
-
-   .launch-login-left {
-      padding: 1.75rem 1.3rem 1.1rem;
-   }
-
-   .launch-login-right {
-      min-height: 340px;
-      padding: 1rem;
-   }
-
-   .launch-login-left {
-      border-right: none;
-      border-bottom: 1px solid #e6edf8;
-   }
-}
-
-@media (max-width: 576px) {
-   .launch-login-main {
-      padding: 0.75rem;
-   }
-
-   .auth-title {
-      font-size: 1.75rem;
-    }
-
-   .launch-login-right {
-      min-height: 240px;
-      padding: 0.8rem;
-   }
-
-   .side-banner {
-      max-width: none;
-      max-height: none;
-   }
-}
 </style>

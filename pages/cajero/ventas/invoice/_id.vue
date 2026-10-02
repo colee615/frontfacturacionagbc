@@ -14,7 +14,7 @@
                               </span>
                               <div>
                                  <p class="invoice-kicker mb-2">Detalle de venta</p>
-                                 <h4 class="mb-1">Invoice</h4>
+                                 <h1 class="safe-invoice-title">Detalle de factura</h1>
                                  <p class="invoice-subtitle mb-0">
                                     Venta no. <b>{{ model.id || '-' }}</b> · {{ model.fecha || 'Sin fecha' }}
                                  </p>
@@ -163,7 +163,7 @@ export default {
          },
          apiUrl: "ventas",
          page: "Ventas",
-         modulo: "Invoice",
+         modulo: "Facturas",
       };
    },
    computed: {
