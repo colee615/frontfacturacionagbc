@@ -8,6 +8,9 @@
             <BasePageHeading title="Ventas por servicio" icon="layers" eyebrow="Reportes y control" description="Consulta cantidades e importes consolidados de cada servicio." />
 
             <div class="service-toolbar">
+              <label class="service-field"><span>Desde</span><input v-model="filters.fechaInicio" type="date" /></label>
+              <label class="service-field"><span>Hasta</span><input v-model="filters.fechaFin" type="date" /></label>
+              <label class="service-field"><span>Regional</span><select v-model="filters.codigoSucursal"><option value="">Todas</option><option v-for="(label, code) in regionales" :key="code" :value="code">{{ label }}</option></select></label>
               <label class="service-field service-field-search">
                 <span>Buscar servicio</span>
                 <input v-model.trim="searchTerm" type="text" placeholder="Courier, contratos, express..." />
@@ -59,11 +62,14 @@
                   <strong>{{ formatNumber(summary.totalCantidad) }}</strong>
                 </article>
                 <article class="service-summary-card service-summary-card-money">
-                  <span>Total</span>
-                  <strong>{{ formatCurrency(summary.totalMonto) }}</strong>
+                  <span>Total vendido · efectivo + QR confirmado</span>
+                  <strong>{{ formatCurrency(summary.totalMontoVendido) }}</strong>
                 </article>
               </div>
 
+              <p class="service-financial-note">Anuladas: {{ formatCurrency(summary.totalMontoAnulado) }} · Otros importes excluidos: {{ formatCurrency(summary.totalMontoNoIncluidoEnTotalVendido) }}. No se suman al total vendido.
+                <nuxt-link :to="{ path: '/cajero/ventas/auditoria', query: appliedFilters }">Ver auditoría financiera</nuxt-link>
+              </p>
               <section class="service-table-card">
                 <div class="service-table-head">
                   <div>
@@ -82,7 +88,7 @@
                     <thead>
                       <tr>
                         <th>Servicio agrupado</th>
-                        <th>Total</th>
+                        <th>Total vendido</th><th>Otros excluidos</th><th>Anuladas</th>
                         <th>Cantidad</th>
                         <th>Ventas</th>
                         <th>Detalles</th>
@@ -97,7 +103,7 @@
                             <small v-if="item.descripcionMuestra">{{ item.descripcionMuestra }}</small>
                           </button>
                         </td>
-                        <td class="service-amount">{{ formatCurrency(item.totalMonto) }}</td>
+                        <td class="service-amount">{{ formatCurrency(item.totalMontoVendido) }}</td><td>{{ formatCurrency(item.totalMontoNoIncluidoEnTotalVendido) }}</td><td>{{ formatCurrency(item.totalMontoAnulado) }}</td>
                         <td>{{ formatNumber(item.totalCantidad) }}</td>
                         <td>{{ item.cantidadVentas }}</td>
                         <td>{{ item.cantidadDetalles }}</td>
@@ -125,7 +131,7 @@
                       <thead>
                         <tr>
                           <th>Venta ID</th>
-                          <th>Detalle ID</th>
+                          <th>Factura / estado</th>
                           <th>Descripción</th>
                           <th>Orden</th>
                           <th>Seguimiento</th>
@@ -142,7 +148,7 @@
                         </tr>
                         <tr v-for="(row, index) in activeService.rows" :key="`${row.ventaId || 'sin-venta'}-${row.detalleId || index}`">
                           <td>{{ row.ventaId || '-' }}</td>
-                          <td>{{ row.detalleId || '-' }}</td>
+                          <td>{{ row.numeroFactura || '-' }} · {{ row.estadoFiscal }}<small class="service-row-status">{{ row.incluidaEnTotalVendido ? 'Incluida en total vendido' : row.motivoNoIncluidaEnTotalVendido }}</small></td>
                           <td>{{ row.descripcion || '-' }}</td>
                           <td>{{ row.codigoOrden || '-' }}</td>
                           <td>{{ row.codigoSeguimiento || '-' }}</td>
@@ -171,7 +177,10 @@ export default {
       modulo: 'Kardex',
       page: 'Ventas por servicio',
       searchTerm: '',
+      appliedFilters: {},
+      regionales: ["La Paz", "Santa Cruz", "Cochabamba", "Oruro", "Potosí", "Sucre", "Tarija", "Cobija", "Trinidad"],
       filters: {
+        fechaInicio: "", fechaFin: "", codigoSucursal: "",
         limite: 200
       },
       activeService: null,
@@ -214,6 +223,7 @@ export default {
     }
   },
   mounted() {
+    Object.keys(this.filters).forEach(key => { if (this.$route.query[key] != null) this.filters[key] = this.$route.query[key]; });
     this.loadReport();
   },
   methods: {
@@ -272,6 +282,7 @@ export default {
 
       try {
         const params = new URLSearchParams();
+        Object.entries(this.appliedFilters).forEach(([key,value]) => { if(value !== '' && value != null) params.set(key,value); });
         params.append('servicio', String(item.servicio));
         const response = await this.$admin.$get(`ventas/reportes/servicios/detalle?${params.toString()}`);
         this.activeService = response?.servicio
@@ -297,15 +308,18 @@ export default {
 
       try {
         const params = new URLSearchParams();
-        params.append('limite', String(Number(this.filters.limite || 200)));
+        if(this.filters.fechaInicio && this.filters.fechaFin && this.filters.fechaInicio > this.filters.fechaFin) throw new Error('La fecha inicial debe ser anterior a la final.');
+        Object.entries(this.filters).forEach(([key,value]) => { if(value !== '' && value != null) params.set(key,value); });
 
         const response = await this.$admin.$get(`ventas/reportes/servicios?${params.toString()}`);
+        this.appliedFilters = { ...this.filters };
+        this.activeService = null;
         this.report = {
           resumen: response?.resumen || this.report.resumen,
           servicios: Array.isArray(response?.servicios) ? response.servicios : []
         };
       } catch (err) {
-        this.error = err?.response?.data?.message || 'No se pudo consultar el consolidado por servicio.';
+        this.error = err?.response?.data?.message || err.message || 'No se pudo consultar el consolidado por servicio.';
       } finally {
         this.load = false;
       }
@@ -315,6 +329,8 @@ export default {
 </script>
 
 <style scoped>
+.service-financial-note { padding: 1rem; background: #edf6f7; color: #224e58; border-radius: 12px; }
+.service-row-status { display: block; margin-top: 4px; }
 .service-report-page {
   padding: 1rem 0 1.6rem;
 }

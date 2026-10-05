@@ -780,6 +780,7 @@
 </template>
 
 <script>
+import { financialState, addMoney } from "~/utils/financial";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import jsQR from 'jsqr';
@@ -2882,120 +2883,36 @@ export default {
       };
     },
     isAnuladaVenta(venta) {
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const estadoSufe = String(
-        venta?.respuesta_emision?.estadoSufe
-        || venta?.estadoSufe
-        || venta?.estado_sufe
-        || ''
-      ).trim().toUpperCase();
-
-      return [
-        statusKey,
-        estadoEmision,
-        estadoSufe
-      ].some((value) => ['ANULADA', 'ANULADO', 'ANULACION_SOLICITADA', 'DESCARTADA'].includes(value));
+      const f = financialState(venta);
+      return f.anulada;
     },
     isQrPaymentVenta(venta) {
-      const codigoOrden = String(venta?.codigoOrden || '').trim().toUpperCase();
-      const metodoPago = String(venta?.metodo_pago || venta?.metodoPago || '').trim().toLowerCase();
-      const canalEmision = String(venta?.canal_emision || venta?.canalEmision || '').trim().toLowerCase();
-
-      return codigoOrden.startsWith('VQ-')
-        || codigoOrden.startsWith('VQC-')
-        || metodoPago === 'qr'
-        || canalEmision === 'qr';
+      const f = financialState(venta);
+      return f.medioPago === 'QR';
     },
     hasFacturaEmitidaEvidence(venta) {
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const cuf = String(
-        venta?.cuf
-        || venta?.status?.cuf
-        || venta?.seguimiento?.cuf
-        || venta?.respuesta_emision?.factura?.cuf
-        || venta?.respuesta_emision?.cuf
-        || ''
-      ).trim();
-      const pdfUrl = String(
-        venta?.seguimiento?.urlPdf
-        || venta?.respuesta_emision?.factura?.pdfUrl
-        || venta?.respuesta_emision?.pdfUrl
-        || ''
-      ).trim();
-      const numeroFactura = String(
-        venta?.numeroFactura
-        || venta?.respuesta_emision?.factura?.nroFactura
-        || ''
-      ).trim();
-
-      return estadoEmision === 'FACTURADA'
-        || statusKey === 'FACTURADA'
-        || statusLabel.includes('FACTURADA')
-        || cuf !== ''
-        || pdfUrl !== ''
-        || numeroFactura !== '';
+      const f = financialState(venta);
+      return f.facturaVigente;
     },
     isQrFacturadoVenta(venta) {
-      return this.isQrPaymentVenta(venta)
-        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
-        && !this.isAnuladaVenta(venta)
-        && this.hasFacturaEmitidaEvidence(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'QR';
     },
     countsTowardCashTotal(venta) {
-      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      const estado = String(venta?.estado || '').trim().toLowerCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
-
-      if (estadoPago === 'pagado') {
-        return true;
-      }
-
-      if (['FACTURADA', 'EMITIDO'].includes(statusKey)) {
-        return true;
-      }
-
-      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
-        return true;
-      }
-
-      if (estadoEmision === 'FACTURADA') {
-        return true;
-      }
-
-      return estado === 'emitido';
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'EFECTIVO';
     },
     countsTowardCollectedTotal(venta) {
-      if (this.isAnuladaVenta(venta)) {
-        return false;
-      }
-
-      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      if (this.isQrPaymentVenta(venta)) {
-        return this.isQrFacturadoVenta(venta);
-      }
-
-      return this.countsTowardCashTotal(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido;
     },
     countsTowardCollectedQrTotal(venta) {
-      return this.isQrFacturadoVenta(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'QR';
     },
     countsTowardPendingFacturaQrTotal(venta) {
-      return this.isQrPaymentVenta(venta)
-        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
-        && !this.isAnuladaVenta(venta)
-        && !this.isQrFacturadoVenta(venta);
+      const f = financialState(venta);
+      return f.medioPago === 'QR' && f.pagoConfirmado && !f.facturaVigente && !f.anulada;
     },
     isContratoChannelVenta(venta) {
       const canalOperativo = String(
@@ -3024,58 +2941,12 @@ export default {
         || empresaSigla.length > 0;
     },
     isServicioContratoVenta(venta) {
-      if (this.isContratoChannelVenta(venta)) {
-        return true;
-      }
-
-      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
-      if (!detalle.length) {
-        return false;
-      }
-
-      return detalle.some((item) => {
-        const labels = [
-          item?.titulo,
-          item?.nombre_servicio,
-          item?.servicio,
-          item?.descripcion,
-          item?.detalle,
-          item?.nombre
-        ]
-          .filter(Boolean)
-          .map((value) => String(value).trim().toLowerCase());
-
-        return labels.some((value) => (
-          value.includes('servicio contratos')
-          || value.includes('servicio contrato')
-          || value === 'contratos'
-          || value === 'contrato'
-        ));
-      });
+      const f = financialState(venta);
+      return f.categoria === 'CONTRATO';
     },
     isEcaServiceVenta(venta) {
-      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
-      if (!detalle.length) {
-        return false;
-      }
-
-      return detalle.some((item) => {
-        const labels = [
-          item?.titulo,
-          item?.nombre_servicio,
-          item?.servicio,
-          item?.descripcion,
-          item?.detalle,
-          item?.nombre
-        ]
-          .filter(Boolean)
-          .map((value) => String(value).trim().toLowerCase());
-
-        return labels.some((value) => (
-          value.includes('servicio eca')
-          || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)
-        ));
-      });
+      const f = financialState(venta);
+      return f.categoria === 'ECA';
     },
     isExcludedServiceVenta(venta) {
       return this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta);
@@ -3172,64 +3043,39 @@ export default {
       return labels.some((value) => value.includes('servicio eca') || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)) ? 'ECA' : 'Contrato';
     },
     countsTowardEcaTotal(venta) {
-      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || !this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      const estado = String(venta?.estado || '').trim().toLowerCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
-
-      if (estadoPago === 'pagado') {
-        return true;
-      }
-
-      if (['FACTURADA', 'EMITIDO', 'PROCESADO'].includes(statusKey)) {
-        return true;
-      }
-
-      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
-        return true;
-      }
-
-      if (estadoEmision === 'FACTURADA') {
-        return true;
-      }
-
-      return estado === 'emitido';
+      const f = financialState(venta);
+      return f.categoria === 'ECA' && f.facturaVigente && !f.anulada;
     },
     calculateBranchTotalsFromVentas(ventas = []) {
       return ventas.reduce((acc, venta) => {
         if (this.isServicioContratoVenta(venta)) {
           const total = Number(venta?.total || 0);
-          acc.totalContratosNoSumados += total;
+          acc.totalContratosNoSumados = addMoney(acc.totalContratosNoSumados, total);
           acc.contratosNoSumados += 1;
           return acc;
         }
 
         if (this.isEcaServiceVenta(venta)) {
           const total = Number(venta?.total || 0);
-          acc.totalEcaFacturado += total;
+          acc.totalEcaFacturado = addMoney(acc.totalEcaFacturado, total);
           acc.ecaFacturadas += 1;
           return acc;
         }
 
         const total = Number(venta?.total || 0);
         if (this.countsTowardCollectedTotal(venta)) {
-          acc.totalVendido += total;
+          acc.totalVendido = addMoney(acc.totalVendido, total);
         }
         if (this.countsTowardCollectedQrTotal(venta)) {
-          acc.totalQrFacturado += total;
+          acc.totalQrFacturado = addMoney(acc.totalQrFacturado, total);
           acc.qrFacturadas += 1;
           acc.facturadas += 1;
         }
         if (this.countsTowardPendingFacturaQrTotal(venta)) {
-          acc.totalQrPagadoPendienteFactura += total;
+          acc.totalQrPagadoPendienteFactura = addMoney(acc.totalQrPagadoPendienteFactura, total);
         }
         if (this.countsTowardCashTotal(venta)) {
-          acc.totalEfectivoFacturado += total;
+          acc.totalEfectivoFacturado = addMoney(acc.totalEfectivoFacturado, total);
           acc.electronicasFacturadas += 1;
           acc.facturadas += 1;
         }
@@ -3259,6 +3105,7 @@ export default {
       const startDate = this.startDate || endDate;
       params.append('fechaInicio', startDate);
       params.append('fechaFin', endDate);
+      Object.entries(this.filters).forEach(([key, value]) => { if (value !== '' && value != null) params.set(key, value); });
       const query = params.toString();
       const path = query
         ? `ventas/reportes/sucursales/totales?${query}`
@@ -3461,7 +3308,8 @@ export default {
       return estado.includes('PENDIENT');
     },
     countsTowardCashVenta(venta) {
-      return !this.isQrVenta(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'EFECTIVO';
     },
     numeroFacturaFromVenta(venta) {
       return String(
@@ -3750,7 +3598,10 @@ export default {
           resumen: response && response.resumen ? response.resumen : this.report.resumen,
           sucursales: response && response.sucursales ? response.sucursales : []
         };
-        const nextBranchTotals = await this.buildBranchTotalsMap(nextReport.sucursales, requestToken);
+        const nextBranchTotals = nextReport.sucursales.reduce((map, row) => {
+          map[this.branchKey(row.codigoSucursal, row.puntoVenta)] = row;
+          return map;
+        }, {});
 
         if (requestToken !== this.activeLoadReportToken) {
           console.warn('[ventas/lista] loadReport:stale-verification-ignored', {
@@ -3810,9 +3661,20 @@ export default {
           data: err?.response?.data || null,
           message: err?.message || null
         });
-        const message = err && err.response && err.response.data && err.response.data.message
-          ? err.response.data.message
-          : 'Verifica el endpoint del consolidado o los permisos de lectura.';
+        const status = Number(err?.response?.status || 0);
+        const message = err?.response?.data?.message
+          || err?.response?.data?.error
+          || (status === 401
+            ? 'La sesión venció. Vuelve a iniciar sesión para consultar el reporte.'
+            : status === 403
+              ? 'Tu usuario no tiene permiso para leer el reporte de ventas.'
+              : status === 404
+                ? 'No se encontró el endpoint del reporte de ventas.'
+                : err?.code === 'ECONNABORTED'
+                  ? 'El servidor tardó demasiado en cargar el reporte. Intenta nuevamente.'
+                  : err?.message === 'Network Error'
+                    ? 'No se pudo conectar con el servidor de facturación.'
+                    : `No se pudo cargar el reporte${status ? ` (HTTP ${status})` : ''}. Revisa la conexión con el servidor.`);
 
         this.error = message;
       } finally {

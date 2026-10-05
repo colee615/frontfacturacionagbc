@@ -1,0 +1,35 @@
+{
+  "AdminTemplate": {
+    "description": "Auto imported from components/AdminTemplate.vue"
+  },
+  "JcLoader": {
+    "description": "Auto imported from components/JcLoader.vue"
+  },
+  "BaseAside": {
+    "description": "Auto imported from components/base/Aside.vue"
+  },
+  "BaseFooter": {
+    "description": "Auto imported from components/base/Footer.vue"
+  },
+  "BaseIcon": {
+    "description": "Auto imported from components/base/Icon.vue"
+  },
+  "BaseNav": {
+    "description": "Auto imported from components/base/Nav.vue"
+  },
+  "BasePageHeading": {
+    "description": "Auto imported from components/base/PageHeading.vue"
+  },
+  "CrudCreate": {
+    "description": "Auto imported from components/crud/Create.vue"
+  },
+  "CrudUpdate": {
+    "description": "Auto imported from components/crud/Update.vue"
+  },
+  "PostCasillas": {
+    "description": "Auto imported from components/post/Casillas.vue"
+  },
+  "PostServicio": {
+    "description": "Auto imported from components/post/Servicio.vue"
+  }
+}

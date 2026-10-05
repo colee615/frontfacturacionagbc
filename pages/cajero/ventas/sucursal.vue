@@ -708,6 +708,7 @@
 </template>
 
 <script>
+import { financialState, addMoney } from "~/utils/financial";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -840,7 +841,7 @@ export default {
           const nombre = this.usuarioNombre(venta);
           const sectionKey = this.resolveSectionKey(venta);
           const total = Number(venta.total || 0);
-          const isContrato = this.isServicioContratoVenta(venta);
+          const isContrato = this.isServicioContratoVenta(venta) && !this.isAnuladaVenta(venta) && financialState(venta).facturaVigente;
 
         if (!map.has(id)) {
           map.set(id, {
@@ -865,24 +866,24 @@ export default {
         const current = map.get(id);
         if (isContrato) {
           current.countContratos += 1;
-          current.totalContratos += total;
+          current.totalContratos = addMoney(current.totalContratos, total);
         } else {
           current.ventas += 1;
         }
         if (this.countsTowardCollectedTotal(venta)) {
           current.countCobrado += 1;
-          current.total += total;
-          current.totalCobrado += total;
+          current.total = addMoney(current.total, total);
+          current.totalCobrado = addMoney(current.totalCobrado, total);
         }
         if (this.countsTowardCashTotal(venta)) {
-          current.totalCaja += total;
+          current.totalCaja = addMoney(current.totalCaja, total);
         }
         if (this.countsTowardCollectedQrTotal(venta)) {
-          current.totalQr += total;
+          current.totalQr = addMoney(current.totalQr, total);
         }
         if (this.countsTowardEcaTotal(venta)) {
           current.countEca += 1;
-          current.totalEca += total;
+          current.totalEca = addMoney(current.totalEca, total);
         }
         current.deliveries[sectionKey].count += 1;
         current.deliveries[sectionKey].total += total;
@@ -917,26 +918,26 @@ export default {
         const reviewedQrIncident = this.isReviewedQrIncident(venta);
 
         if (this.countsTowardCollectedTotal(venta)) {
-          acc.totalGeneral += total;
+          acc.totalGeneral = addMoney(acc.totalGeneral, total);
           acc.countCobrado += 1;
         }
 
         if (this.countsTowardCashTotal(venta)) {
-          acc.totalCaja += total;
+          acc.totalCaja = addMoney(acc.totalCaja, total);
         }
 
         if (this.countsTowardEcaTotal(venta)) {
-          acc.totalEca += total;
+          acc.totalEca = addMoney(acc.totalEca, total);
           acc.ecaConfirmados += 1;
         }
 
         if (sectionKey === 'qr_facturado' && this.countsTowardCollectedQrTotal(venta)) {
-          acc.totalQrConfirmado += total;
+          acc.totalQrConfirmado = addMoney(acc.totalQrConfirmado, total);
           acc.qrConfirmados += 1;
         }
 
         if (sectionKey === 'qr_pagado_pendiente_factura' || sectionKey === 'qr_pendiente') {
-          acc.totalQrPendiente += total;
+          acc.totalQrPendiente = addMoney(acc.totalQrPendiente, total);
           acc.qrPendientes += 1;
         }
 
@@ -961,29 +962,29 @@ export default {
     branchGlobalOverview() {
       return this.visibleVentas.reduce((acc, venta) => {
         const total = Number(venta.total || 0);
-        const isContrato = this.isServicioContratoVenta(venta);
+        const isContrato = this.isServicioContratoVenta(venta) && !this.isAnuladaVenta(venta) && financialState(venta).facturaVigente;
 
         if (isContrato) {
           acc.countContratos += 1;
-          acc.totalContratos += total;
+          acc.totalContratos = addMoney(acc.totalContratos, total);
         }
 
         if (this.countsTowardCollectedTotal(venta)) {
           acc.countCobrado += 1;
-          acc.totalGeneral += total;
+          acc.totalGeneral = addMoney(acc.totalGeneral, total);
         }
 
         if (this.countsTowardCollectedQrTotal(venta)) {
-          acc.totalQr += total;
+          acc.totalQr = addMoney(acc.totalQr, total);
         }
 
         if (this.countsTowardCashTotal(venta)) {
-          acc.totalEf += total;
+          acc.totalEf = addMoney(acc.totalEf, total);
         }
 
         if (this.countsTowardEcaTotal(venta)) {
           acc.countEca += 1;
-          acc.totalEca += total;
+          acc.totalEca = addMoney(acc.totalEca, total);
         }
 
         acc.countResumen = Number(acc.countCobrado || 0) + Number(acc.countEca || 0) + Number(acc.countContratos || 0);
@@ -1338,119 +1339,28 @@ export default {
       };
     },
     isQrPaymentVenta(venta) {
-      return String(venta?.metodo_pago || '').trim().toLowerCase() === 'qr'
-        || String(venta?.canal_emision || '').trim().toLowerCase() === 'qr';
+      const f = financialState(venta);
+      return f.medioPago === 'QR';
     },
     hasFacturaEmitidaEvidence(venta) {
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      if (
-        this.isQrPaymentVenta(venta)
-        && statusKey === 'QR_PAGADO'
-        && this.hasAnulacionAudit(venta)
-      ) {
-        return false;
-      }
-
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const cuf = String(
-        venta?.cuf
-        || venta?.status?.cuf
-        || venta?.seguimiento?.cuf
-        || venta?.respuesta_emision?.factura?.cuf
-        || venta?.respuesta_emision?.cuf
-        || ''
-      ).trim();
-      const pdfUrl = String(
-        venta?.seguimiento?.urlPdf
-        || venta?.respuesta_emision?.factura?.pdfUrl
-        || venta?.respuesta_emision?.pdfUrl
-        || ''
-      ).trim();
-      const numeroFactura = String(
-        venta?.numeroFactura
-        || venta?.respuesta_emision?.factura?.nroFactura
-        || ''
-      ).trim();
-
-      return estadoEmision === 'FACTURADA'
-        || statusKey === 'FACTURADA'
-        || statusLabel.includes('FACTURADA')
-        || cuf !== ''
-        || pdfUrl !== ''
-        || numeroFactura !== '';
+      const f = financialState(venta);
+      return f.facturaVigente;
     },
     isQrFacturadoVenta(venta) {
-      return this.isQrPaymentVenta(venta)
-        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
-        && !this.isAnuladaVenta(venta)
-        && this.hasFacturaEmitidaEvidence(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'QR';
     },
     isAnuladaVenta(venta) {
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const estadoSufe = String(
-        venta?.respuesta_emision?.estadoSufe
-        || venta?.estadoSufe
-        || venta?.estado_sufe
-        || ''
-      ).trim().toUpperCase();
-
-      return [
-        statusKey,
-        estadoEmision,
-        estadoSufe
-      ].some((value) => ['ANULADA', 'ANULADO', 'ANULACION_SOLICITADA', 'DESCARTADA'].includes(value));
+      const f = financialState(venta);
+      return f.anulada;
     },
     isServicioContratoVenta(venta) {
-      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
-      if (!detalle.length) {
-        return false;
-      }
-
-      return detalle.some((item) => {
-        const labels = [
-          item?.titulo,
-          item?.nombre_servicio,
-          item?.servicio,
-          item?.descripcion,
-          item?.detalle,
-          item?.nombre
-        ]
-          .filter(Boolean)
-          .map((value) => String(value).trim().toLowerCase());
-
-        return labels.some((value) => (
-          value.includes('servicio contratos')
-          || value.includes('servicio contrato')
-          || value === 'contratos'
-          || value === 'contrato'
-        ));
-      });
+      const f = financialState(venta);
+      return f.categoria === 'CONTRATO';
     },
     isEcaServiceVenta(venta) {
-      const detalle = Array.isArray(venta?.detalle) ? venta.detalle : [];
-      if (!detalle.length) {
-        return false;
-      }
-
-      return detalle.some((item) => {
-        const labels = [
-          item?.titulo,
-          item?.nombre_servicio,
-          item?.servicio,
-          item?.descripcion,
-          item?.detalle,
-          item?.nombre
-        ]
-          .filter(Boolean)
-          .map((value) => String(value).trim().toLowerCase());
-
-        return labels.some((value) => (
-          value.includes('servicio eca')
-          || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)
-        ));
-      });
+      const f = financialState(venta);
+      return f.categoria === 'ECA';
     },
     isExcludedServiceVenta(venta) {
       return this.isServicioContratoVenta(venta);
@@ -1516,88 +1426,20 @@ export default {
       return labels.some((value) => value.includes('servicio eca') || /(^|[^a-z0-9])eca([^a-z0-9]|$)/.test(value)) ? 'ECA' : 'Contrato';
     },
     countsTowardEcaTotal(venta) {
-      if (this.isAnuladaVenta(venta) || this.isQrPaymentVenta(venta) || !this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      const estado = String(venta?.estado || '').trim().toLowerCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
-
-      if (estadoPago === 'pagado') {
-        return true;
-      }
-
-      if (['FACTURADA', 'EMITIDO', 'PROCESADO'].includes(statusKey)) {
-        return true;
-      }
-
-      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
-        return true;
-      }
-
-      if (estadoEmision === 'FACTURADA') {
-        return true;
-      }
-
-      return estado === 'emitido';
+      const f = financialState(venta);
+      return f.categoria === 'ECA' && f.facturaVigente && !f.anulada;
     },
     countsTowardCashTotal(venta) {
-      if (this.isAnuladaVenta(venta)) {
-        return false;
-      }
-
-      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      if (this.isQrPaymentVenta(venta)) {
-        return false;
-      }
-
-      const estado = String(venta?.estado || '').trim().toLowerCase();
-      const estadoEmision = String(venta?.estado_emision || '').trim().toUpperCase();
-      const statusKey = String(venta?.status?.key || '').trim().toUpperCase();
-      const statusLabel = String(venta?.status?.label || '').trim().toUpperCase();
-      const estadoPago = String(venta?.estado_pago || '').trim().toLowerCase();
-
-      if (estadoPago === 'pagado') {
-        return true;
-      }
-
-      if (['FACTURADA', 'EMITIDO'].includes(statusKey)) {
-        return true;
-      }
-
-      if (statusLabel.includes('FACTURADA') || statusLabel.includes('EMITIDO')) {
-        return true;
-      }
-
-      if (estadoEmision === 'FACTURADA') {
-        return true;
-      }
-
-      return estado === 'emitido';
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'EFECTIVO';
     },
     countsTowardCollectedTotal(venta) {
-      if (this.isAnuladaVenta(venta)) {
-        return false;
-      }
-
-      if (this.isServicioContratoVenta(venta) || this.isEcaServiceVenta(venta)) {
-        return false;
-      }
-
-      if (this.isQrPaymentVenta(venta)) {
-        return String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado';
-      }
-
-      return this.countsTowardCashTotal(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido;
     },
     countsTowardCollectedQrTotal(venta) {
-      return this.countsTowardCollectedTotal(venta) && this.isQrPaymentVenta(venta);
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && f.medioPago === 'QR';
     },
     resolveSectionKey(venta) {
       if (this.isQrPaymentVenta(venta)) {
@@ -1730,6 +1572,10 @@ export default {
       return 'EMITIDO';
     },
     normalizedEstadoEmision(venta) {
+      if (venta.financiero) {
+        const state = venta.financiero.estadoFiscal;
+        return ['PROCESADA', 'PROCESADO'].includes(state) ? 'FACTURADA' : state;
+      }
       if (this.isCartVenta(venta)) {
         const statusKey = String(venta?.status?.key || '').toUpperCase();
         if (statusKey === 'DESCARTADA') return 'DESCARTADA';
@@ -3226,9 +3072,20 @@ export default {
           data: err?.response?.data || null,
           message: err?.message || null
         });
+        const status = Number(err?.response?.status || 0);
         this.error = err?.response?.data?.message
-          ? err.response.data.message
-          : 'No se pudo cargar el detalle de ventas de la sucursal.';
+          || err?.response?.data?.error
+          || (status === 401
+            ? 'La sesión venció. Vuelve a iniciar sesión para consultar las ventas.'
+            : status === 403
+              ? 'Tu usuario no tiene permiso para leer las ventas.'
+              : status === 404
+                ? 'No se encontró el endpoint de ventas.'
+                : err?.code === 'ECONNABORTED'
+                  ? 'La consulta de ventas tardó demasiado. Intenta nuevamente o usa un rango de fechas.'
+                  : err?.message === 'Network Error'
+                    ? 'No se pudo conectar con el servidor de facturación.'
+                    : `No se pudo cargar el detalle de ventas${status ? ` (HTTP ${status})` : ''}. Revisa la conexión con el servidor.`);
       } finally {
         this.load = false;
       }

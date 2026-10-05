@@ -4,6 +4,7 @@ export const navigation = [
     { title: 'Notificaciones', to: '/panel/notificaciones/', icon: 'bell', permission: 'dashboard.view', view: 'dashboard', description: 'Revisa los avisos y el seguimiento de facturación.' }
   ] },
   { label: 'Reportes y control', items: [
+    { title: 'Auditoría financiera', to: '/cajero/ventas/auditoria', icon: 'chart', permission: 'ventas.read', view: 'ventas', description: 'Concilia efectivo, QR, anulaciones e importes excluidos.' },
     { title: 'Control de cierre', to: '/cajero/ventas/lista', icon: 'chart', permission: 'ventas.read', view: 'ventas', description: 'Consulta cierres, conciliaciones y resultados por sucursal.' },
     { title: 'Ventas por servicio', to: '/cajero/ventas/servicios', icon: 'layers', permission: 'ventas.read', view: 'ventas', description: 'Explora el consolidado de ventas de cada servicio.' },
     { title: 'Servicios contrato', to: '/cajero/ventas/servicios-contrato', icon: 'file', permission: 'ventas.read', view: 'ventas', description: 'Consulta los servicios contratados por cliente.' }

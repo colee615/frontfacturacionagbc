@@ -1,0 +1,114 @@
+[
+  {
+    "name": "auth-login",
+    "path": "/auth/login",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\auth\\\\login.vue",
+    "chunkName": "pages/auth/login",
+    "_name": "_4664bc5c"
+  },
+  {
+    "name": "auth-register",
+    "path": "/auth/register",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\auth\\\\register.vue",
+    "chunkName": "pages/auth/register",
+    "_name": "_4819646c"
+  },
+  {
+    "name": "cajero-ventas",
+    "path": "/cajero/ventas",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\index.vue",
+    "chunkName": "pages/cajero/ventas/index",
+    "_name": "_6057bec6"
+  },
+  {
+    "name": "panel-integration-tokens",
+    "path": "/panel/integration-tokens",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\panel\\\\integration-tokens\\\\index.vue",
+    "chunkName": "pages/panel/integration-tokens/index",
+    "_name": "_132aa67a"
+  },
+  {
+    "name": "panel-notificaciones",
+    "path": "/panel/notificaciones",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\panel\\\\notificaciones\\\\index.vue",
+    "chunkName": "pages/panel/notificaciones/index",
+    "_name": "_44099b03"
+  },
+  {
+    "name": "panel-seguridad",
+    "path": "/panel/seguridad",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\panel\\\\seguridad\\\\index.vue",
+    "chunkName": "pages/panel/seguridad/index",
+    "_name": "_df517592"
+  },
+  {
+    "name": "panel-usuarios",
+    "path": "/panel/usuarios",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\panel\\\\usuarios\\\\index.vue",
+    "chunkName": "pages/panel/usuarios/index",
+    "_name": "_865b60b0"
+  },
+  {
+    "name": "cajero-ventas-auditoria",
+    "path": "/cajero/ventas/auditoria",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\auditoria.vue",
+    "chunkName": "pages/cajero/ventas/auditoria",
+    "_name": "_d2042aec"
+  },
+  {
+    "name": "cajero-ventas-lista",
+    "path": "/cajero/ventas/lista",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\lista.vue",
+    "chunkName": "pages/cajero/ventas/lista",
+    "_name": "_479138f7"
+  },
+  {
+    "name": "cajero-ventas-protocolo",
+    "path": "/cajero/ventas/protocolo",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\protocolo.vue",
+    "chunkName": "pages/cajero/ventas/protocolo",
+    "_name": "_01dec24b"
+  },
+  {
+    "name": "cajero-ventas-servicios",
+    "path": "/cajero/ventas/servicios",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\servicios.vue",
+    "chunkName": "pages/cajero/ventas/servicios",
+    "_name": "_5efa54d1"
+  },
+  {
+    "name": "cajero-ventas-servicios-contrato",
+    "path": "/cajero/ventas/servicios-contrato",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\servicios-contrato.vue",
+    "chunkName": "pages/cajero/ventas/servicios-contrato",
+    "_name": "_4489ca48"
+  },
+  {
+    "name": "cajero-ventas-sucursal",
+    "path": "/cajero/ventas/sucursal",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\sucursal.vue",
+    "chunkName": "pages/cajero/ventas/sucursal",
+    "_name": "_3ee91188"
+  },
+  {
+    "name": "cajero-ventas-invoice-id",
+    "path": "/cajero/ventas/invoice/:id?",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\cajero\\\\ventas\\\\invoice\\\\_id.vue",
+    "chunkName": "pages/cajero/ventas/invoice/_id",
+    "_name": "_2cbe812e"
+  },
+  {
+    "name": "panel-notificaciones-detalle-id",
+    "path": "/panel/notificaciones/detalle/:id?",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\panel\\\\notificaciones\\\\detalle\\\\_id.vue",
+    "chunkName": "pages/panel/notificaciones/detalle/_id",
+    "_name": "_389f64fc"
+  },
+  {
+    "name": "index",
+    "path": "/",
+    "component": "C:\\\\xampp\\\\htdocs\\\\Git proyectos\\\\frontfacturacionagbc\\\\pages\\\\index.vue",
+    "chunkName": "pages/index",
+    "_name": "_75f51fa3"
+  }
+]
