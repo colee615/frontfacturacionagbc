@@ -67,7 +67,7 @@
                 </article>
               </div>
 
-              <p class="service-financial-note">Anuladas: {{ formatCurrency(summary.totalMontoAnulado) }} · Otros importes excluidos: {{ formatCurrency(summary.totalMontoNoIncluidoEnTotalVendido) }}. No se suman al total vendido.
+              <p class="service-financial-note"><strong>Alcance:</strong> {{ appliedScope }}. Anuladas: {{ formatCurrency(summary.totalMontoAnulado) }} · Otros importes excluidos: {{ formatCurrency(summary.totalMontoNoIncluidoEnTotalVendido) }}. No se suman al total vendido.
                 <nuxt-link :to="{ path: '/cajero/ventas/auditoria', query: appliedFilters }">Ver auditoría financiera</nuxt-link>
               </p>
               <section class="service-table-card">
@@ -201,6 +201,21 @@ export default {
     summary() {
       return this.report?.resumen || {};
     },
+    appliedScope() {
+      const start = this.appliedFilters.fechaInicio || '';
+      const end = this.appliedFilters.fechaFin || '';
+      let period = 'Todo el historial';
+      if (start || end) {
+        const from = start || end;
+        const to = end || start;
+        period = from === to ? this.formatDateLabel(from) : `${this.formatDateLabel(from)} al ${this.formatDateLabel(to)}`;
+      }
+      const branchCode = this.appliedFilters.codigoSucursal;
+      const branch = branchCode !== '' && branchCode != null
+        ? (this.regionales[Number(branchCode)] || `Sucursal ${branchCode}`)
+        : 'Todas las regionales';
+      return `${period} · ${branch}`;
+    },
     filteredServices() {
       const term = this.normalizeText(this.searchTerm);
       const rows = Array.isArray(this.report?.servicios) ? this.report.servicios : [];
@@ -224,9 +239,31 @@ export default {
   },
   mounted() {
     Object.keys(this.filters).forEach(key => { if (this.$route.query[key] != null) this.filters[key] = this.$route.query[key]; });
+    if (this.$route.query.fechaInicio == null && this.$route.query.fechaFin == null) {
+      const today = this.todayInBolivia();
+      this.filters.fechaInicio = today;
+      this.filters.fechaFin = today;
+    } else if (!this.filters.fechaInicio && this.filters.fechaFin) {
+      this.filters.fechaInicio = this.filters.fechaFin;
+    } else if (!this.filters.fechaFin && this.filters.fechaInicio) {
+      this.filters.fechaFin = this.filters.fechaInicio;
+    }
     this.loadReport();
   },
   methods: {
+    todayInBolivia() {
+      const parts = new Intl.DateTimeFormat('en', {
+        timeZone: 'America/La_Paz', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date()).reduce((values, part) => {
+        if (part.type !== 'literal') values[part.type] = part.value;
+        return values;
+      }, {});
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    },
+    formatDateLabel(value) {
+      const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value || '');
+    },
     normalizeText(value) {
       return String(value || '')
         .toLowerCase()
