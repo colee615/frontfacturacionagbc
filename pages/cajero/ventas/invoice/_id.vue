@@ -278,10 +278,12 @@ export default {
       async ensureAnulacionAuthorization() {
          const roles = this.$store?.state?.auth?.roles || [];
          const permissions = this.$store?.state?.auth?.permissions || [];
+         const hasAnnulPermission = Array.isArray(permissions)
+            && permissions.some((permission) => String(permission).toLowerCase() === 'ventas.void');
          const isHigherRole =
             (Array.isArray(roles) && roles.some((r) => ['admin', 'administrador', 'supervisor'].includes(String(r).toLowerCase())))
             || (Array.isArray(permissions) && permissions.some((p) => ['rbac.manage', 'usuarios.manage', 'ventas.manage'].includes(String(p).toLowerCase())));
-         if (isHigherRole) return true;
+         if (isHigherRole || hasAnnulPermission) return true;
 
          const guard = await this.fetchAnulacionGuardStatus();
          if (guard?.allowed) return true;

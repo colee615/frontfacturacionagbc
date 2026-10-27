@@ -201,17 +201,11 @@
                 </table>
               </div>
 
-              <div>
-                <div v-if="!filteredVentas.length" class="empty-state">
-                  <h3>Sin ventas</h3>
-                  <p>No encontramos ventas para esta sucursal con los filtros actuales.</p>
-                </div>
-
-                <div v-else class="table-wrap enterprise-table-wrap">
-                  <div class="detail-filters">
+              <div class="table-wrap enterprise-table-wrap">
+                <div class="detail-filters">
                     <label class="detail-filter-field detail-filter-field-search">
                       <i class="fas fa-search"></i>
-                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por orden, factura, cliente o seguimiento..." />
+                      <input v-model.trim="detailFilters.q" type="text" placeholder="Buscar por orden, factura, cliente, seguimiento o código de paquete..." />
                     </label>
                     <label class="detail-filter-field">
                       <span>Estado</span>
@@ -242,9 +236,14 @@
                         <option :value="100">100</option>
                       </select>
                     </label>
-                  </div>
+                </div>
 
-                  <div class="sales-table-scroll">
+                <div v-if="!filteredVentas.length" class="empty-state">
+                  <h3>Sin coincidencias</h3>
+                  <p>No encontramos ventas para esta sucursal con los filtros actuales. Cambia la búsqueda o los filtros para intentarlo de nuevo.</p>
+                </div>
+
+                <div v-else class="sales-table-scroll">
                     <table class="sales-table enterprise-table sales-table-detail">
                     <thead>
                       <tr>
@@ -430,7 +429,7 @@
                     </table>
                   </div>
 
-                  <div class="table-footer">
+                <div v-if="filteredVentas.length" class="table-footer">
                     <p class="footer-copy">
                       Mostrando {{ rangeStart }} a {{ rangeEnd }} de {{ filteredVentas.length }} ventas
                     </p>
@@ -469,7 +468,6 @@
                         <i class="fa fa-angle-right"></i>
                       </button>
                     </div>
-                  </div>
                 </div>
               </div>
             </section>
@@ -1617,6 +1615,21 @@ export default {
         venta?.codigoSeguimiento,
         venta?.qr_transaction_id,
         this.numeroFacturaValue(venta),
+        venta?.codigo_paquete,
+        venta?.codigoPaquete,
+        ...(Array.isArray(venta?.codigo_paquetes) ? venta.codigo_paquetes : []),
+        ...(Array.isArray(venta?.codigoPaquetes) ? venta.codigoPaquetes : []),
+        ...(Array.isArray(venta?.detalle) ? venta.detalle.flatMap((item) => [
+          item?.codigo,
+          item?.codigoSeguimiento,
+          item?.tracking,
+          item?.guia,
+          item?.codigo_paquete,
+          item?.codigoPaquete,
+          item?.resumen_origen?.codigo,
+          item?.resumen_origen?.codigo_paquete,
+          item?.resumen_origen?.codigoPaquete
+        ]) : []),
         venta?.cliente?.razonSocial,
         venta?.cliente?.documentoIdentidad,
         venta?.usuario?.nombre,
@@ -2623,6 +2636,8 @@ export default {
       const singleRole = this.$store?.state?.auth?.role || this.$store?.state?.auth?.user?.role || null;
       const roles = this.$store?.state?.auth?.roles || [];
       const permissions = this.$store?.state?.auth?.permissions || [];
+      const hasAnnulPermission = Array.isArray(permissions)
+        && permissions.some((permission) => String(permission).toLowerCase() === 'ventas.void');
       const isHigherRole =
         ['admin', 'administrador', 'supervisor'].includes(String(singleRole || '').toLowerCase())
         || 
@@ -2634,7 +2649,7 @@ export default {
         permissions,
         isHigherRole
       });
-      if (isHigherRole) return true;
+      if (isHigherRole || hasAnnulPermission) return true;
 
       const guard = await this.fetchAnulacionGuardStatus();
       console.log('[ventas/sucursal] ensureAnulacionAuthorization:guard', {
