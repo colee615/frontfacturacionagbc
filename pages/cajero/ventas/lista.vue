@@ -46,6 +46,14 @@
               <div class="toolbar-actions">
                 <button
                   type="button"
+                  class="toolbar-export-btn cancellation-report-btn"
+                  @click="openCancellationsReport"
+                >
+                  <i class="fas fa-ban"></i>
+                  <span>Reporte de anulaciones</span>
+                </button>
+                <button
+                  type="button"
                   class="toolbar-export-btn"
                   :disabled="exportExcelLoading"
                   @click="downloadResumenExcel"
@@ -374,6 +382,102 @@
             <div v-else class="empty-state users-modal-empty">
               <h3>{{ incidentSearchQuery ? 'No encontramos coincidencias' : (activeIncidentsModal.selectedCategory === 'all' ? 'Sin incidencias' : 'Sin casos para esta categoría') }}</h3>
               <p>{{ incidentSearchQuery ? 'Prueba con otro número de factura, cliente o término.' : (activeIncidentsModal.error || 'No encontramos incidencias para esta sucursal.') }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="activeCancellationsReport" class="detail-modal-backdrop" @click.self="closeCancellationsReport">
+          <div class="detail-modal-card cancellations-report-card">
+            <div class="detail-modal-head">
+              <div class="users-modal-head-copy">
+                <p class="detail-kicker mb-1">Reporte general · todas las regionales</p>
+                <h3>Facturas y QR anulados</h3>
+                <p class="detail-copy mb-0">Por defecto muestra todo el historial. Puedes filtrar por fechas y revisar la caja de origen y quién realizó la anulación.</p>
+              </div>
+              <button type="button" class="detail-modal-close" aria-label="Cerrar reporte" @click="closeCancellationsReport"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="cancellations-report-filters">
+              <label class="toolbar-field toolbar-field-date">
+                <i class="far fa-calendar-alt"></i>
+                <input v-model="cancellationsReportFilters.fechaInicio" type="date" aria-label="Fecha inicial de anulaciones" />
+              </label>
+              <label class="toolbar-field toolbar-field-date">
+                <i class="far fa-calendar-alt"></i>
+                <input v-model="cancellationsReportFilters.fechaFin" type="date" aria-label="Fecha final de anulaciones" />
+              </label>
+              <label class="toolbar-field toolbar-field-select">
+                <i class="fas fa-filter"></i>
+                <select v-model="cancellationsReportFilters.tipo" aria-label="Tipo de anulación">
+                  <option value="all">Facturas y QR</option>
+                  <option value="factura">Solo facturas anuladas</option>
+                  <option value="qr">Solo QR anulados</option>
+                </select>
+              </label>
+              <label class="toolbar-field cancellations-report-search">
+                <i class="fas fa-search"></i>
+                <input v-model.trim="cancellationsReportFilters.q" type="search" placeholder="Buscar orden, factura, Tx QR, regional, caja o cajero..." aria-label="Buscar anulaciones" @keyup.enter="loadCancellationsReport(1)" />
+              </label>
+              <button type="button" class="toolbar-filter-btn" :disabled="cancellationsReportLoading" @click="loadCancellationsReport(1)">
+                <i :class="cancellationsReportLoading ? 'fas fa-sync-alt fa-spin' : 'fas fa-filter'"></i>
+                <span>{{ cancellationsReportLoading ? 'Consultando...' : 'Aplicar filtros' }}</span>
+              </button>
+            </div>
+
+            <div class="cancellations-report-summary">
+              <div><span>Total en filtros</span><strong>{{ cancellationsReportSummary.total }}</strong></div>
+              <div><span>Facturas anuladas</span><strong>{{ cancellationsReportSummary.facturas }}</strong></div>
+              <div><span>QR anulados</span><strong>{{ cancellationsReportSummary.qrs }}</strong></div>
+            </div>
+
+            <div v-if="cancellationsReportError" class="error-card cancellations-report-error">
+              <p>{{ cancellationsReportError }}</p>
+            </div>
+            <div v-else-if="cancellationsReportLoading && !cancellationsReportRows.length" class="empty-state users-modal-empty">
+              <h3>Cargando anulaciones</h3>
+              <p>Estamos consultando facturas y pagos QR de todas las sucursales.</p>
+            </div>
+            <div v-else-if="cancellationsReportRows.length" class="cancellations-report-table-wrap">
+              <table class="cancellations-report-table">
+                <thead>
+                  <tr>
+                    <th>Fecha de anulación</th>
+                    <th>Tipo / estado</th>
+                    <th>Regional</th>
+                    <th>Caja de la operación</th>
+                    <th>Orden / factura / Tx QR</th>
+                    <th>Cajero</th>
+                    <th>Anulado por</th>
+                    <th>Monto</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in cancellationsReportRows" :key="item.id">
+                    <td>{{ formatDate(item.fecha) }}</td>
+                    <td><strong>{{ item.tipoLabel }}</strong><small>{{ item.estado }}</small></td>
+                    <td>{{ item.regional || 'Sin dato' }}</td>
+                    <td><strong>{{ item.sucursal || 'Sin sucursal' }}</strong><small>{{ item.caja || 'Punto no registrado' }}</small></td>
+                    <td><strong>{{ item.codigoOrden || 'Sin orden' }}</strong><small v-if="item.numeroFactura">Factura {{ item.numeroFactura }}</small><small v-else-if="item.transactionId">Tx QR {{ item.transactionId }}</small><small v-else-if="item.cuf">CUF {{ item.cuf }}</small></td>
+                    <td>{{ item.cajero || 'Sin dato' }}</td>
+                    <td>{{ item.anuladoPor || 'No registrado' }}</td>
+                    <td class="cancellations-report-amount">{{ formatCurrency(item.monto) }}</td>
+                    <td>{{ item.motivo || 'Sin motivo registrado' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-state users-modal-empty">
+              <h3>Sin anulaciones para estos filtros</h3>
+              <p>Prueba con otro rango de fechas o cambia el tipo de registro.</p>
+            </div>
+
+            <div v-if="cancellationsReportPagination.total > 0" class="cancellations-report-pagination">
+              <span>{{ cancellationsReportPagination.total }} registros · Página {{ cancellationsReportPagination.page }} de {{ cancellationsReportPagination.totalPages }}</span>
+              <div>
+                <button type="button" :disabled="cancellationsReportLoading || cancellationsReportPagination.page <= 1" @click="loadCancellationsReport(cancellationsReportPagination.page - 1)">Anterior</button>
+                <button type="button" :disabled="cancellationsReportLoading || cancellationsReportPagination.page >= cancellationsReportPagination.totalPages" @click="loadCancellationsReport(cancellationsReportPagination.page + 1)">Siguiente</button>
+              </div>
             </div>
           </div>
         </div>
@@ -842,6 +946,13 @@ export default {
       activeUsersModal: null,
       activeIncidentsModal: null,
       incidentSearchQuery: '',
+      activeCancellationsReport: false,
+      cancellationsReportLoading: false,
+      cancellationsReportError: '',
+      cancellationsReportRows: [],
+      cancellationsReportSummary: { total: 0, facturas: 0, qrs: 0 },
+      cancellationsReportPagination: { page: 1, perPage: 25, total: 0, totalPages: 1 },
+      cancellationsReportFilters: { fechaInicio: '', fechaFin: '', tipo: 'all', q: '' },
       activeConciliationModal: null
     };
   },
@@ -4311,6 +4422,57 @@ export default {
         this.load = false;
       }
     },
+    openCancellationsReport() {
+      this.cancellationsReportFilters = {
+        fechaInicio: '',
+        fechaFin: '',
+        tipo: 'all',
+        q: ''
+      };
+      this.cancellationsReportError = '';
+      this.cancellationsReportRows = [];
+      this.cancellationsReportSummary = { total: 0, facturas: 0, qrs: 0 };
+      this.cancellationsReportPagination = { page: 1, perPage: 25, total: 0, totalPages: 1 };
+      this.activeCancellationsReport = true;
+      this.loadCancellationsReport(1);
+    },
+    closeCancellationsReport() {
+      this.activeCancellationsReport = false;
+    },
+    async loadCancellationsReport(page = 1) {
+      if (!this.activeCancellationsReport) return;
+      this.cancellationsReportLoading = true;
+      this.cancellationsReportError = '';
+      const params = new URLSearchParams();
+      if (this.cancellationsReportFilters.fechaInicio) params.append('fechaInicio', this.cancellationsReportFilters.fechaInicio);
+      if (this.cancellationsReportFilters.fechaFin) params.append('fechaFin', this.cancellationsReportFilters.fechaFin);
+      if (this.cancellationsReportFilters.q) params.append('q', this.cancellationsReportFilters.q);
+      params.append('tipo', this.cancellationsReportFilters.tipo || 'all');
+      params.append('page', String(page));
+      params.append('perPage', String(this.cancellationsReportPagination.perPage || 25));
+
+      try {
+        const response = await this.$admin.$get(`ventas/reportes/anulaciones?${params.toString()}`);
+        const data = response?.data && !Array.isArray(response.data) ? response.data : response;
+        this.cancellationsReportRows = Array.isArray(data?.rows) ? data.rows : [];
+        this.cancellationsReportSummary = {
+          total: Number(data?.summary?.total || 0),
+          facturas: Number(data?.summary?.facturas || 0),
+          qrs: Number(data?.summary?.qrs || 0)
+        };
+        this.cancellationsReportPagination = {
+          page: Number(data?.pagination?.page || page),
+          perPage: Number(data?.pagination?.perPage || 25),
+          total: Number(data?.pagination?.total || 0),
+          totalPages: Number(data?.pagination?.totalPages || 1)
+        };
+      } catch (err) {
+        this.cancellationsReportRows = [];
+        this.cancellationsReportError = err?.response?.data?.message || 'No se pudo cargar el reporte general de anulaciones.';
+      } finally {
+        this.cancellationsReportLoading = false;
+      }
+    },
     formatDate(value) {
       if (!value) {
         return '-';
@@ -5750,7 +5912,7 @@ export default {
 
 .toolbar-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.55rem;
   min-width: 0;
 }
@@ -5776,6 +5938,12 @@ export default {
 .toolbar-export-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 20px rgba(154, 98, 0, 0.12);
+}
+
+.cancellation-report-btn {
+  border-color: #8ad4ce;
+  background: linear-gradient(180deg, #effcfb 0%, #dff6f3 100%);
+  color: #087c7b;
 }
 
 .toolbar-filter-btn {
@@ -6323,6 +6491,122 @@ export default {
   display: flex;
   flex-direction: column;
 }
+
+.cancellations-report-card {
+  width: min(1500px, calc(100vw - 3rem));
+}
+
+.cancellations-report-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: 1rem;
+}
+
+.cancellations-report-search {
+  grid-column: span 2;
+}
+
+.cancellations-report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .65rem;
+  margin: .85rem 0;
+}
+
+.cancellations-report-summary > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  padding: .7rem .85rem;
+  border: 1px solid #e2eaf3;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.cancellations-report-summary span,
+.cancellations-report-pagination span {
+  color: #63738a;
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.cancellations-report-summary strong {
+  color: #16345c;
+  font-size: 1.05rem;
+}
+
+.cancellations-report-error { margin: 0; }
+
+.cancellations-report-table-wrap {
+  min-height: 120px;
+  max-height: min(58vh, 680px);
+  overflow: auto;
+  border: 1px solid #e3eaf2;
+  border-radius: 12px;
+}
+
+.cancellations-report-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+  font-size: .72rem;
+}
+
+.cancellations-report-table th,
+.cancellations-report-table td {
+  padding: .7rem .65rem;
+  border-bottom: 1px solid #e7edf4;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cancellations-report-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f6f8fb;
+  color: #66758b;
+  font-size: .62rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.cancellations-report-table td strong,
+.cancellations-report-table td small {
+  display: block;
+}
+
+.cancellations-report-table td small {
+  margin-top: .22rem;
+  color: #718197;
+  overflow-wrap: anywhere;
+}
+
+.cancellations-report-amount { white-space: nowrap; font-weight: 800; color: #16345c; }
+
+.cancellations-report-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem;
+  margin-top: .75rem;
+}
+
+.cancellations-report-pagination > div { display: flex; gap: .45rem; }
+
+.cancellations-report-pagination button {
+  padding: .45rem .7rem;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #294567;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.cancellations-report-pagination button:disabled { opacity: .5; cursor: not-allowed; }
 
 .detail-modal-head {
   display: flex;
@@ -7294,6 +7578,9 @@ body.enterprise-dark .incidents-modal-meta .incident-amount { background: #1b293
     grid-template-columns: 1fr;
   }
 
+  .cancellations-report-filters { grid-template-columns: 1fr; }
+  .cancellations-report-search { grid-column: auto; }
+
   .conciliation-hero-head {
     flex-direction: column;
     align-items: flex-start;
@@ -7332,6 +7619,10 @@ body.enterprise-dark .incidents-modal-meta .incident-amount { background: #1b293
     padding: 1rem;
     border-radius: 20px;
   }
+
+  .cancellations-report-card { width: 100%; }
+  .cancellations-report-summary { grid-template-columns: 1fr; }
+  .cancellations-report-pagination { align-items: flex-start; flex-direction: column; }
 
   .users-modal-item {
     flex-direction: column;
