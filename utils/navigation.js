@@ -1,6 +1,6 @@
 export const navigation = [
   { label: 'Espacio de trabajo', items: [
-    { title: 'Inicio', to: '/', icon: 'home', description: 'Tu espacio de trabajo y accesos frecuentes.' },
+    { title: 'Inicio', to: '/', icon: 'home', description: 'Consulta ventas y medios de pago por período.' },
     { title: 'Notificaciones', to: '/panel/notificaciones/', icon: 'bell', permission: 'dashboard.view', view: 'dashboard', description: 'Revisa los avisos y el seguimiento de facturación.' }
   ] },
   { label: 'Reportes y control', items: [

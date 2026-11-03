@@ -10,7 +10,7 @@
         <div class="heading-actions">
           <label class="date-filter">
             <span>Fecha</span>
-            <input v-model="selectedDate" type="date" @change="loadReport">
+            <input v-model="selectedDate" type="date" :disabled="loading" @change="changeDate">
           </label>
           <button class="primary-button" type="button" :disabled="loading" @click="loadReport">
             {{ loading ? 'Actualizando…' : 'Actualizar' }}
@@ -222,22 +222,54 @@ export default {
       const date = new Date();
       return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
     },
+    changeDate() {
+      this.dailyReport = null;
+      return this.loadReport();
+    },
     async loadReport() {
+      if (this.loading) return;
       this.loading = true;
       this.error = '';
       try {
         const date = encodeURIComponent(this.selectedDate || this.today());
-        const [incidents, daily] = await Promise.all([
+        const [incidentsResult, dailyResult] = await Promise.allSettled([
           this.$admin.$get('caja/bloqueadas?minutos=5'),
           this.$admin.$get(`caja/reporte-diario?fecha=${date}`)
         ]);
-        this.report = incidents;
-        this.dailyReport = daily;
-      } catch (error) {
-        this.error = error.response?.data?.message || 'No se pudo consultar el estado de cajas e incidencias.';
+        const errors = [];
+
+        if (incidentsResult.status === 'fulfilled') {
+          this.report = incidentsResult.value;
+        } else {
+          errors.push(this.requestError('Incidencias', 'caja/bloqueadas', incidentsResult.reason));
+        }
+
+        if (dailyResult.status === 'fulfilled') {
+          this.dailyReport = dailyResult.value;
+        } else {
+          errors.push(this.requestError('Cajas del día', 'caja/reporte-diario', dailyResult.reason));
+        }
+
+        this.error = errors.join(' ');
       } finally {
         this.loading = false;
       }
+    },
+    requestError(label, endpoint, error) {
+      const timeoutMs = Number(this.$admin?.defaults?.timeout || 20000);
+      let detail = 'sin respuesta del servidor (red o CORS)';
+
+      if (error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '')) {
+        detail = `superó el tiempo de espera de ${Math.ceil(timeoutMs / 1000)} segundos`;
+      } else if (error?.response?.status === 401) {
+        detail = 'la sesión venció (HTTP 401)';
+      } else if (error?.response?.status === 403) {
+        detail = 'falta el permiso ventas.read (HTTP 403)';
+      } else if (error?.response?.status) {
+        detail = `el servidor respondió HTTP ${error.response.status}`;
+      }
+
+      return `${label} (${endpoint}): ${detail}.`;
     },
     async releaseCart(row) {
       if (!row?.cartId || !row.puedeLiberar || !this.canWriteSales) return;
