@@ -938,7 +938,8 @@ export default {
         { id: '005-0', codigoSucursal: '005', puntoVenta: '0', departamento: 'SUCRE', nombre: 'SUCRE', sucursalNombre: 'SUCRE' },
         { id: '006-0', codigoSucursal: '006', puntoVenta: '0', departamento: 'TARIJA', nombre: 'TARIJA', sucursalNombre: 'TARIJA' },
         { id: '007-0', codigoSucursal: '007', puntoVenta: '0', departamento: 'COBIJA', nombre: 'COBIJA', sucursalNombre: 'COBIJA' },
-        { id: '008-0', codigoSucursal: '008', puntoVenta: '0', departamento: 'TRINIDAD', nombre: 'TRINIDAD', sucursalNombre: 'TRINIDAD' }
+        { id: '008-0', codigoSucursal: '008', puntoVenta: '0', departamento: 'TRINIDAD', nombre: 'TRINIDAD', sucursalNombre: 'TRINIDAD' },
+        { id: '010-0', codigoSucursal: '010', puntoVenta: '0', departamento: 'EL ALTO', nombre: 'EL ALTO', sucursalNombre: 'EL ALTO' }
       ],
       calendarAnchorMonth: '',
       conciliacionSummaryRows: [],

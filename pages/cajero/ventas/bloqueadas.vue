@@ -175,6 +175,19 @@
 </template>
 
 <script>
+const SUCURSALES_POR_CODIGO = {
+  0: 'LA PAZ',
+  1: 'SANTA CRUZ DE LA SIERRA',
+  2: 'COCHABAMBA',
+  3: 'ORURO',
+  4: 'POTOSI',
+  5: 'SUCRE',
+  6: 'TARIJA',
+  7: 'COBIJA',
+  8: 'TRINIDAD',
+  10: 'EL ALTO'
+};
+
 export default {
   data() {
     return {
@@ -300,7 +313,18 @@ export default {
     },
     money(value) { return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(Number(value || 0)); },
     dateTime(value) { return String(value || '—').replace('T', ' ').slice(0, 19); },
-    branchLabel(row) { return row.sucursal || (row.codigoSucursal ? `Sucursal ${row.codigoSucursal}` : 'Sin sucursal'); },
+    branchLabel(row) {
+      const name = String(row?.sucursal || row?.sucursalNombre || '').trim();
+      if (name) return name;
+
+      const rawCode = row?.codigoSucursal;
+      if (rawCode === null || rawCode === undefined || String(rawCode).trim() === '') {
+        return 'Sin sucursal';
+      }
+
+      const code = Number(rawCode);
+      return SUCURSALES_POR_CODIGO[code] || `Sucursal ${rawCode}`;
+    },
     boxStatus(status) { return status === 'ABIERTA' ? 'Abierta' : status === 'CERRADA' ? 'Cerrada' : (status || 'Sin estado'); },
     boxSolution(box) {
       if (box.estado === 'ABIERTA') return 'Al terminar el turno, registra el cierre y concilia efectivo, QR y fichas.';
