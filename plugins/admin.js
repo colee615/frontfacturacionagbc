@@ -30,7 +30,7 @@ const resolveAdminBaseUrl = ($config) => {
   return normalized === '/' ? '' : normalized;
 };
 
-export default function ({ $axios, $config, store, redirect }, inject) {
+export default function ({ $axios, $config, store, redirect, app }, inject) {
   const admin = $axios.create({
     baseURL: resolveAdminBaseUrl($config),
     timeout: 20000,
@@ -73,8 +73,10 @@ export default function ({ $axios, $config, store, redirect }, inject) {
       const message = error && error.response && error.response.data ? error.response.data.error : null;
 
       if (status === 401) {
-        store.dispatch('auth/logout');
-        redirect('/auth/login');
+        store.dispatch('auth/clearSession');
+        if (app?.router?.currentRoute?.path !== '/auth/login') {
+          redirect('/auth/login');
+        }
       } else if (status === 403) {
         Swal.fire({
           icon: 'error',

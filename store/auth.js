@@ -153,6 +153,11 @@ export const actions = {
     commit('setPermissions', permissions);
     commit('setViews', views);
   },
+  clearSession({ commit }) {
+    clearStorage();
+    commit('clearToken');
+    commit('clearUser');
+  },
   async logout({ commit, state }) {
     if (process.client) {
       try {

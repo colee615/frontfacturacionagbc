@@ -1,11 +1,15 @@
 // plugins/auth.js
-export default async ({ store, app }) => {
-  await store.dispatch('auth/loadAuthFromStorage');
+export default ({ store, app }) => {
+  // Restore the cached session synchronously so public routes can render immediately.
+  store.dispatch('auth/loadAuthFromStorage');
 
-  if (!store.state.auth.token) return;
+  const token = store.state.auth.token;
+  if (!token || !app.$admin) return;
 
-  try {
-    const res = await app.$admin.$get('me');
+  // Validate the session in the background; a slow API must not leave the SPA blank.
+  app.$admin.$get('me').then((res) => {
+    if (store.state.auth.token !== token) return;
+
     const user = res.usuario || null;
     const roles = res.roles || [];
     const permissions = res.permissions || [];
@@ -13,14 +17,17 @@ export default async ({ store, app }) => {
 
     if (user) {
       store.dispatch('auth/login', {
-        token: store.state.auth.token,
+        token,
         user,
         roles,
         permissions,
         views
       });
     }
-  } catch (_) {
-    store.dispatch('auth/logout');
-  }
+  }).catch((error) => {
+    // The admin plugin handles 401 cleanup and redirects. Keep cached auth on network errors.
+    if (error?.response?.status !== 401) {
+      console.warn('No se pudo validar la sesión en segundo plano:', error?.message || error);
+    }
+  });
 };
