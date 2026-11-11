@@ -309,11 +309,11 @@ export default {
 
 <style scoped>
 .sales-dashboard { max-width: 1600px; margin: 0 auto; color: var(--safe-ink); }
-.sales-dashboard-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+.sales-dashboard-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .sales-dashboard-heading h1 { margin: 0; font-size: clamp(24px, 2.2vw, 31px); line-height: 1.25; font-weight: 700; }
 .sales-dashboard-heading > div > p:last-child { color: var(--safe-muted); margin: 7px 0 0; font-size: 13px; }
 .dashboard-updated { color: var(--safe-muted); font-size: 11px; padding-bottom: 4px; white-space: nowrap; }
-.dashboard-filters { display: grid; grid-template-columns: minmax(140px, 190px) minmax(140px, 190px) minmax(190px, 1fr) auto; gap: 13px; align-items: end; padding: 16px; background: var(--safe-surface); border: 1px solid var(--safe-line); border-radius: 12px; }
+.dashboard-filters { display: grid; grid-template-columns: minmax(140px, 190px) minmax(140px, 190px) minmax(190px, 1fr) auto; gap: 13px; align-items: flex-end; padding: 16px; background: var(--safe-surface); border: 1px solid var(--safe-line); border-radius: 12px; }
 .dashboard-filters label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .dashboard-filters label > span { color: var(--safe-muted); font-size: 11px; font-weight: 600; }
 .dashboard-filters input, .dashboard-filters select { height: 40px; width: 100%; min-width: 0; padding: 0 10px; color: var(--safe-ink); background: var(--safe-soft); border: 1px solid var(--safe-line); border-radius: 7px; font-size: 12px; }

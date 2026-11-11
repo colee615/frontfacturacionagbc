@@ -22,7 +22,8 @@
               <div class="branch-hero-meta">
                 <div class="branch-context-chip">
                   <i class="fas fa-store"></i>
-                  <span>Sucursal {{ branchCodeLabel }} · Punto {{ branchPointLabel }}</span>
+                  <span v-if="isConsolidatedKardex">Kardex consolidado · Sucursales {{ branchCodeLabel }} · Punto {{ branchPointLabel }}</span>
+                  <span v-else>Sucursal {{ branchCodeLabel }} · Punto {{ branchPointLabel }}</span>
                 </div>
 
                 <div class="branch-status-chip" :class="`branch-status-chip-${branchHealth.key}`">
@@ -264,6 +265,7 @@
                           <div class="cell-stack">
                             <strong>{{ formatDate(venta.fecha) }}</strong>
                             <small>{{ usuarioNombre(venta) }}</small>
+                            <small v-if="isConsolidatedKardex" class="consolidated-origin-label">Origen: {{ saleBranchLabel(venta) }}</small>
                           </div>
                         </td>
                         <td>
@@ -750,9 +752,23 @@ export default {
   },
   computed: {
     branchLabel() {
+      if (this.isConsolidatedKardex) {
+        return 'LA PAZ';
+      }
       return this.branchDepartment || this.branchName || 'Sucursal';
     },
+    isConsolidatedKardex() {
+      return String(this.$route.query.consolidarKardex || '') === 'la-paz-el-alto'
+        && Number(this.filters.codigoSucursal) === 0
+        && Number(this.filters.puntoVenta || 0) === 0;
+    },
+    branchExportCodeLabel() {
+      return this.isConsolidatedKardex ? '000-010' : (this.filters.codigoSucursal || 'sucursal');
+    },
     branchCodeLabel() {
+      if (this.isConsolidatedKardex) {
+        return '000 + 010';
+      }
       return String(this.filters.codigoSucursal || '0').padStart(3, '0');
     },
     branchPointLabel() {
@@ -790,7 +806,11 @@ export default {
         ? 'Historial completo'
         : (this.hasDateRange ? this.currentDateRangeLabel : 'Sin rango de fechas aplicado');
 
-      return `${base} · ${this.scopeVentas.length} venta(s) visibles${this.activeUserId === 'all' ? ' en la sucursal' : ` para ${this.activeUserName}`}`;
+      const consolidatedScope = this.isConsolidatedKardex ? 'Consolidado con El Alto · ' : '';
+      const location = this.activeUserId === 'all'
+        ? (this.isConsolidatedKardex ? 'en La Paz y El Alto' : 'en la sucursal')
+        : `para ${this.activeUserName}`;
+      return `${consolidatedScope}${base} · ${this.scopeVentas.length} venta(s) visibles ${location}`;
     },
     exportButtonLabel() {
       if (this.activeTab === 'todas' && this.activeUserId === 'all') {
@@ -1021,7 +1041,9 @@ export default {
           label: 'Sin ventas',
           icon: 'far fa-times-circle',
           message: this.activeUserId === 'all'
-            ? 'No se encontraron ventas para este rango en la sucursal.'
+            ? (this.isConsolidatedKardex
+              ? 'No se encontraron ventas para este rango en La Paz ni en El Alto.'
+              : 'No se encontraron ventas para este rango en la sucursal.')
             : `No se encontraron ventas para ${this.activeUserName} en este rango.`
         };
       }
@@ -1048,7 +1070,9 @@ export default {
         key: 'ok',
         label: 'Sin observaciones',
         icon: 'far fa-check-circle',
-        message: 'La sucursal no presenta incidencias visibles en el rango seleccionado.'
+        message: this.isConsolidatedKardex
+          ? 'La Paz y El Alto no presentan incidencias visibles en el rango seleccionado.'
+          : 'La sucursal no presenta incidencias visibles en el rango seleccionado.'
       };
     },
     totalPages() {
@@ -1644,6 +1668,28 @@ export default {
     },
     usuarioId(venta) {
       return venta?.usuario?.id || venta?.origen_usuario_id || 'sin-usuario';
+    },
+    saleBranchLabel(venta) {
+      const sourceCode = venta?.sucursal?.codigoSucursal
+        ?? venta?.sucursal?.codigo_sucursal
+        ?? venta?.codigoSucursal
+        ?? venta?.codigo_sucursal;
+      const code = Number(String(sourceCode ?? '').trim() ? sourceCode : venta?._reportSourceBranchCode);
+      if (code === 0) {
+        return 'LA PAZ';
+      }
+      if (code === 10) {
+        return 'EL ALTO';
+      }
+
+      const name = venta?.sucursal?.departamento
+        || venta?.sucursal?.nombre
+        || venta?.sucursalNombre
+        || venta?.nombre_sucursal;
+      if (name) {
+        return String(name).toLocaleUpperCase('es-BO');
+      }
+      return Number.isFinite(code) ? `SUCURSAL ${String(code).padStart(3, '0')}` : 'SUCURSAL';
     },
     usuarioNombre(venta) {
       return venta?.usuario?.nombre || venta?.origen_usuario_nombre || 'Sin usuario';
@@ -3053,30 +3099,66 @@ export default {
       this.error = '';
 
       try {
-        const params = new URLSearchParams();
-        params.append('codigoSucursal', this.filters.codigoSucursal);
-        params.append('puntoVenta', this.filters.puntoVenta);
-        if (this.activeTab === 'fechas' && this.filters.fechaInicio) {
-          params.append('fechaInicio', this.filters.fechaInicio);
-        }
-        if (this.activeTab === 'fechas' && this.filters.fechaFin) {
-          params.append('fechaFin', this.filters.fechaFin);
-        }
-        if (this.filters.q) {
-          params.append('q', this.filters.q);
-        }
-
-        const path = `ventas?${params.toString()}`;
+        const branchCodes = this.isConsolidatedKardex
+          ? ['0', '10']
+          : [String(this.filters.codigoSucursal)];
+        const paths = branchCodes.map((codigoSucursal) => {
+          const params = new URLSearchParams();
+          params.append('codigoSucursal', codigoSucursal);
+          params.append('puntoVenta', this.filters.puntoVenta || '0');
+          if (this.activeTab === 'fechas' && this.filters.fechaInicio) {
+            params.append('fechaInicio', this.filters.fechaInicio);
+          }
+          if (this.activeTab === 'fechas' && this.filters.fechaFin) {
+            params.append('fechaFin', this.filters.fechaFin);
+          }
+          if (this.filters.q) {
+            params.append('q', this.filters.q);
+          }
+          return `ventas?${params.toString()}`;
+        });
         console.log('[ventas/sucursal] loadVentas:start', {
           filters: { ...this.filters },
-          path
+          consolidated: this.isConsolidatedKardex,
+          paths
         });
-        const response = await this.$admin.$get(path);
+        const responses = await Promise.all(paths.map((path) => this.$admin.$get(path)));
+        const sourceVentas = responses.flatMap((response, index) => (
+          Array.isArray(response)
+            ? response.map((venta) => ({ ...venta, _reportSourceBranchCode: branchCodes[index] }))
+            : []
+        ));
+        const seen = new Set();
+        const ventas = sourceVentas.filter((venta) => {
+          const sourceCode = venta?.sucursal?.codigoSucursal
+            ?? venta?.sucursal?.codigo_sucursal
+            ?? venta?.codigoSucursal
+            ?? venta?.codigo_sucursal;
+          const branchCode = String(String(sourceCode ?? '').trim() ? sourceCode : (venta?._reportSourceBranchCode ?? ''));
+          const id = String(venta?.id ?? venta?.cartId ?? '').trim();
+          const order = String(venta?.codigoOrden || '').trim();
+          const tracking = String(venta?.codigoSeguimiento || '').trim();
+          const identity = id
+            ? `branch:${branchCode}:id:${id}`
+            : order
+              ? `branch:${branchCode}:orden:${order}`
+              : tracking
+                ? `branch:${branchCode}:seguimiento:${tracking}`
+                : null;
+          if (!identity) {
+            return true;
+          }
+          if (seen.has(identity)) {
+            return false;
+          }
+          seen.add(identity);
+          return true;
+        });
         console.log('[ventas/sucursal] loadVentas:success', {
-          totalVentas: Array.isArray(response) ? response.length : 0,
-          firstVenta: Array.isArray(response) && response.length ? response[0] : null
+          totalVentas: ventas.length,
+          firstVenta: ventas.length ? ventas[0] : null
         });
-        this.ventas = Array.isArray(response) ? response : [];
+        this.ventas = ventas;
         this.activeUserId = 'all';
         this.currentPage = 1;
         this.scrollActiveSelectorIntoView();
@@ -3457,7 +3539,7 @@ export default {
         const link = document.createElement('a');
 
         link.href = url;
-        link.download = `resumen-usuarios-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+        link.download = `resumen-usuarios-${this.branchExportCodeLabel}-${this.todayIso()}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -3670,7 +3752,7 @@ export default {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `totales-por-fecha-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+        link.download = `totales-por-fecha-${this.branchExportCodeLabel}-${this.todayIso()}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -4116,7 +4198,7 @@ export default {
           const link = document.createElement('a');
 
           link.href = url;
-          link.download = `kardex-facturacion-${this.filters.codigoSucursal || 'sucursal'}-${this.todayIso()}.pdf`;
+          link.download = `kardex-facturacion-${this.branchExportCodeLabel}-${this.todayIso()}.pdf`;
           document.body.appendChild(link);
           link.click();
           link.remove();
@@ -4518,7 +4600,7 @@ export default {
 
         link.href = url;
         link.download = userId === 'all'
-          ? `kardex-sucursal-${this.filters.codigoSucursal || '0'}-${this.todayIso()}.pdf`
+          ? `kardex-sucursal-${this.branchExportCodeLabel}-${this.todayIso()}.pdf`
           : `kardex-cajero-${userId}-${this.todayIso()}.pdf`;
         document.body.appendChild(link);
         link.click();
@@ -5407,6 +5489,11 @@ export default {
 .cell-stack small {
   line-height: 1.35;
   word-break: break-word;
+}
+
+.consolidated-origin-label {
+  color: #3567bd !important;
+  font-weight: 700;
 }
 
 .audit-inline-copy {

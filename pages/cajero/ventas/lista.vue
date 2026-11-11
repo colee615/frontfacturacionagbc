@@ -5,7 +5,7 @@
       <div slot="body" class="closure-page">
         <div v-if="!activeConciliationModal" class="closure-shell">
           <section class="hero-card">
-            <BasePageHeading title="Control de cierre" icon="chart" eyebrow="Reportes y control" description="Consulta los cierres por sucursal, revisa diferencias y concilia tus operaciones." />
+            <BasePageHeading title="Control de cierre" icon="chart" eyebrow="Reportes y control" description="Consulta los cierres por regional, revisa diferencias y concilia cada sucursal." />
 
             <div class="toolbar-grid">
               <label class="toolbar-field toolbar-field-date">
@@ -30,7 +30,7 @@
 
               <label class="toolbar-field toolbar-field-search">
                 <i class="fas fa-search"></i>
-                <input v-model.trim="filters.q" type="text" placeholder="Buscar sucursal..." />
+                <input v-model.trim="filters.q" type="text" placeholder="Buscar regional o sucursal..." />
               </label>
 
               <label class="toolbar-field toolbar-field-select">
@@ -90,7 +90,7 @@
                     <i class="fas fa-store"></i>
                   </div>
                   <div class="summary-copy">
-                    <span>Sucursales del día</span>
+                    <span>Regionales del día</span>
                     <strong>{{ dashboardMetrics.total }}</strong>
                   </div>
                 </article>
@@ -149,7 +149,7 @@
               <section class="table-card">
                 <div v-if="!filteredBranches.length" class="empty-state">
                   <h3>Sin resultados</h3>
-                  <p>No encontramos sucursales para esa fecha o filtro seleccionado.</p>
+                  <p>No encontramos regionales para esa fecha o filtro seleccionado.</p>
                 </div>
 
                 <div v-else class="table-wrap">
@@ -176,12 +176,11 @@
                       >
                         <td>
                           <div class="branch-cell">
-                            <span class="branch-cell-icon">
-                              <i class="fas fa-store"></i>
-                            </span>
+                            <span class="branch-cell-icon"><i class="fas fa-store"></i></span>
                             <div class="branch-cell-copy">
                               <strong>{{ item.displayName }}</strong>
-                              <small>Sucursal {{ item.codigoSucursalLabel }} · Punto {{ item.puntoVentaLabel }}</small>
+                              <small v-if="item.isReportingGroup">Consolidado con El Alto · Sucursales {{ item.codigoSucursalLabel }} · Punto {{ item.puntoVentaLabel }}</small>
+                              <small v-else>Sucursal {{ item.codigoSucursalLabel }} · Punto {{ item.puntoVentaLabel }}</small>
                             </div>
                           </div>
                         </td>
@@ -191,18 +190,8 @@
                             <div class="metric-tags">
                               <span class="metric-tag metric-tag-info">QR {{ formatCurrency(item.totalQrFacturado) }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ formatCurrency(item.totalEfectivoFacturado) }}</span>
-                              <span
-                                v-if="item.totalEcaFacturado > 0"
-                                class="metric-tag metric-tag-warning"
-                              >
-                                ECA {{ formatCurrency(item.totalEcaFacturado) }}
-                              </span>
-                              <span
-                                v-if="item.totalContratosNoSumados > 0"
-                                class="metric-tag metric-tag-contract"
-                              >
-                                Cont {{ formatCurrency(item.totalContratosNoSumados) }}
-                              </span>
+                              <span v-if="item.totalEcaFacturado > 0" class="metric-tag metric-tag-warning">ECA {{ formatCurrency(item.totalEcaFacturado) }}</span>
+                              <span v-if="item.totalContratosNoSumados > 0" class="metric-tag metric-tag-contract">Cont {{ formatCurrency(item.totalContratosNoSumados) }}</span>
                             </div>
                           </div>
                         </td>
@@ -218,12 +207,25 @@
                           </div>
                         </td>
                         <td>
-                          <button
-                            v-if="hasIncidences(item)"
-                            type="button"
-                            class="incident-trigger"
-                            @click="loadIncidentsModal(item)"
-                          >
+                          <div v-if="item.isReportingGroup" class="branch-detail-stack">
+                            <div v-for="branch in item.memberBranches" :key="branch.id" class="branch-detail-row">
+                              <button v-if="hasIncidences(branch)" type="button" class="incident-trigger" @click="loadIncidentsModal(branch)">
+                                <div class="metric-stack">
+                                  <strong>{{ branch.displayName }} · Revisar</strong>
+                                  <div class="metric-tags">
+                                    <span v-if="branch.observadas > 0" class="metric-tag metric-tag-danger">Obs {{ branch.observadas }}</span>
+                                    <span v-if="branch.pendientes > 0" class="metric-tag metric-tag-warning">Pend {{ branch.pendientes }}</span>
+                                    <span v-if="branch.conCufOtroEstado > 0" class="metric-tag metric-tag-danger">Fac anul {{ branch.conCufOtroEstado }}</span>
+                                    <span v-if="branch.qrPagadoPendienteFactura > 0" class="metric-tag metric-tag-warning">QR s/f {{ branch.qrPagadoPendienteFactura }}</span>
+                                    <span v-if="branch.qrCancelado > 0" class="metric-tag metric-tag-danger">QR anul {{ branch.qrCancelado }}</span>
+                                    <span v-if="branch.qrPendiente > 0" class="metric-tag metric-tag-neutral">QR pend {{ branch.qrPendiente }}</span>
+                                  </div>
+                                </div>
+                              </button>
+                              <div v-else class="metric-stack"><strong>{{ branch.displayName }}</strong><small>Sin incidencias</small></div>
+                            </div>
+                          </div>
+                          <button v-else-if="hasIncidences(item)" type="button" class="incident-trigger" @click="loadIncidentsModal(item)">
                             <div class="metric-stack">
                               <strong>Revisar</strong>
                               <div class="metric-tags">
@@ -236,43 +238,30 @@
                               </div>
                             </div>
                           </button>
-                          <div v-else class="metric-stack">
-                            <strong>Sin incidencias</strong>
-                            <small>Todo en orden</small>
-                          </div>
+                          <div v-else class="metric-stack"><strong>Sin incidencias</strong><small>Todo en orden</small></div>
                         </td>
-
                         <td>
-                          <span class="status-chip" :class="`status-chip-${item.status.key}`">
-                            <i :class="item.status.icon"></i>
-                            {{ item.status.label }}
-                          </span>
+                          <span class="status-chip" :class="`status-chip-${item.status.key}`"><i :class="item.status.icon"></i> {{ item.status.label }}</span>
                         </td>
-
                         <td>
-                          <div class="action-stack">
-                            <button
-                              class="action-btn"
-                              :class="item.status.actionClass"
-                              type="button"
-                              @click="goToSucursal(item)"
-                            >
-                              <i :class="item.status.actionIcon"></i>
-                              <span>{{ item.status.actionLabel }}</span>
+                          <div v-if="item.isReportingGroup" class="action-stack">
+                            <button class="action-btn action-btn-primary" type="button" @click="goToConsolidatedKardex">
+                              <i class="far fa-eye"></i>
+                              <span>Ver kardex de La Paz consolidado</span>
                             </button>
-
-                            <button
-                              class="action-btn action-btn-warning"
-                              type="button"
-                              @click="goToConciliation(item)"
-                            >
+                            <button class="action-btn action-btn-warning" type="button" @click="goToConsolidatedConciliation">
                               <i class="far fa-calendar-check"></i>
-                              <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliación' : 'Conciliar sucursal' }}</span>
+                              <span>{{ item.conciliacion.totalComprobantes > 0 ? 'Ver conciliación conjunta' : 'Conciliar La Paz + El Alto' }}</span>
                             </button>
-
-                            <button class="action-link" type="button" @click="loadUsersModal(item)">
-                              {{ item.cajerosUnicos }} usuario(s)
-                            </button>
+                            <div v-for="branch in item.memberBranches" :key="branch.id" class="branch-action-group">
+                              <strong>{{ branch.displayName }}</strong>
+                              <button class="action-link" type="button" @click="loadUsersModal(branch)">{{ branch.cajerosUnicos }} usuario(s)</button>
+                            </div>
+                          </div>
+                          <div v-else class="action-stack">
+                            <button class="action-btn" :class="item.status.actionClass" type="button" @click="goToSucursal(item)"><i :class="item.status.actionIcon"></i><span>{{ item.status.actionLabel }}</span></button>
+                            <button class="action-btn action-btn-warning" type="button" @click="goToConciliation(item)"><i class="far fa-calendar-check"></i><span>{{ item.conciliacion.totalComprobantes > 0 ? 'Conciliación' : 'Conciliar sucursal' }}</span></button>
+                            <button class="action-link" type="button" @click="loadUsersModal(item)">{{ item.cajerosUnicos }} usuario(s)</button>
                           </div>
                         </td>
                       </tr>
@@ -283,7 +272,6 @@
             </template>
           </section>
         </div>
-
         <div v-if="activeUsersModal" class="detail-modal-backdrop" @click.self="closeUsersModal">
           <div class="detail-modal-card users-modal-card">
             <div class="detail-modal-head">
@@ -969,6 +957,9 @@ export default {
     },
     conciliacionSummaryByBranch() {
       return (this.conciliacionSummaryRows || []).reduce((acc, row) => {
+        if (row?.alcance === 'la-paz-el-alto') {
+          return acc;
+        }
         const key = this.branchKey(row?.codigoSucursal, row?.puntoVenta);
         acc[key] = row;
         return acc;
@@ -1053,10 +1044,16 @@ export default {
         const current = new Date(gridStart);
         current.setDate(gridStart.getDate() + index);
         const iso = this.dateToIso(current);
-        const receipts = this.conciliacionSummaryRows.filter((row) =>
-          row?.fecha === iso
-          && this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey
-        );
+        const receipts = this.conciliacionSummaryRows.filter((row) => {
+          if (row?.fecha !== iso) {
+            return false;
+          }
+          if (this.activeConciliationModal.alcance === 'la-paz-el-alto') {
+            return row?.alcance === 'la-paz-el-alto';
+          }
+          return row?.alcance !== 'la-paz-el-alto'
+            && this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey;
+        });
         const receiptCount = receipts.reduce((acc, row) => acc + Number(row?.receiptCount || 0), 0);
         const hasCompleted = receipts.some((row) => String(row?.estado || '').toLowerCase() === 'conciliado');
 
@@ -1098,14 +1095,42 @@ export default {
 
       return mergedRows.map((item, index) => this.normalizeBranch(item, index));
     },
+    reportBranches() {
+      const branches = this.branchRows;
+      if (this.filters.codigoSucursal !== '' || this.filters.puntoVenta !== '') {
+        return branches;
+      }
+
+      // This consolidation exists only in report rows; branchRows retain the original branch identities.
+      const laPaz = branches.find((item) => Number(item.codigoSucursal) === 0 && Number(item.puntoVenta) === 0);
+      const elAlto = branches.find((item) => Number(item.codigoSucursal) === 10 && Number(item.puntoVenta) === 0);
+      if (!laPaz || !elAlto) {
+        return branches;
+      }
+
+      const consolidated = this.consolidateReportBranches([laPaz, elAlto]);
+      return branches.map((item) => item === laPaz ? consolidated : item).filter((item) => item !== elAlto);
+    },
     filteredBranches() {
-      return this.branchRows.filter((item) => {
+      const query = String(this.filters.q || '').trim().toLocaleLowerCase('es-BO');
+      return this.reportBranches.filter((item) => {
         if (this.statusFilter !== 'all' && item.status.key !== this.statusFilter) {
           return false;
         }
 
+        if (query) {
+          const searchValues = [item.displayName, item.codigoSucursalLabel, item.puntoVentaLabel]
+            .concat((item.memberBranches || []).flatMap((branch) => [branch.displayName, branch.codigoSucursalLabel, branch.puntoVentaLabel]));
+          if (!searchValues.some((value) => String(value || '').toLocaleLowerCase('es-BO').includes(query))) {
+            return false;
+          }
+        }
+
         return true;
       });
+    },
+    filteredOperationalBranches() {
+      return this.filteredBranches.flatMap((item) => item.memberBranches || [item]);
     },
     dashboardMetrics() {
       return this.filteredBranches.reduce((acc, item) => {
@@ -1162,14 +1187,14 @@ export default {
     },
     priorityMessage() {
       if (this.dashboardMetrics.diferencias) {
-        return 'Priorice la revisión de sucursales con ventas observadas.';
+        return 'Priorice la revisión de regionales con ventas observadas.';
       }
 
       if (this.dashboardMetrics.pendientes) {
-        return 'Hay sucursales con pendientes operativos que requieren seguimiento.';
+        return 'Hay regionales con pendientes que requieren seguimiento por sucursal.';
       }
 
-      return 'Todas las sucursales visibles estan sin observaciones.';
+      return 'Todas las regionales visibles estan sin observaciones.';
     },
     filteredIncidentModalItems() {
       const items = this.activeIncidentsModal?.items || [];
@@ -1206,9 +1231,6 @@ export default {
     endDate() {
       this.initializeCalendarAnchor();
     },
-    'filters.q'() {
-      this.scheduleLoadReport();
-    },
     'filters.codigoSucursal'() {
       this.scheduleLoadReport();
     },
@@ -1241,7 +1263,22 @@ export default {
           view: 'conciliation',
           fecha: selectedDate,
           codigoSucursal: String(codigoSucursal),
-          puntoVenta: String(puntoVenta)
+          puntoVenta: String(puntoVenta),
+          alcance: 'sucursal'
+        }
+      });
+    },
+    goToConsolidatedConciliation() {
+      const selectedDate = this.endDate || this.startDate || this.defaultToday();
+      this.$router.push({
+        path: this.$route.path,
+        query: {
+          ...this.$route.query,
+          view: 'conciliation',
+          fecha: selectedDate,
+          codigoSucursal: '0',
+          puntoVenta: '0',
+          alcance: 'la-paz-el-alto'
         }
       });
     },
@@ -1258,20 +1295,25 @@ export default {
       const fecha = String(this.$route.query?.fecha || this.endDate || this.startDate || this.defaultToday());
       const codigoSucursal = this.normalizeNonNegativeInteger(this.$route.query?.codigoSucursal, NaN);
       const puntoVenta = this.normalizeNonNegativeInteger(this.$route.query?.puntoVenta, NaN);
+      const alcance = String(this.$route.query?.alcance || 'sucursal');
       if (Number.isNaN(codigoSucursal) || Number.isNaN(puntoVenta)) {
         return;
       }
 
-      const branch = this.branchRows.find((row) => (
+      const isConsolidated = alcance === 'la-paz-el-alto' && codigoSucursal === 0 && puntoVenta === 0;
+      const branch = isConsolidated
+        ? this.reportBranches.find((row) => row.isReportingGroup)
+        : this.branchRows.find((row) => (
         Number(row?.codigoSucursal ?? -1) === codigoSucursal
         && Number(row?.puntoVenta ?? -1) === puntoVenta
       ));
 
-      const nextKey = this.branchKey(codigoSucursal, puntoVenta);
+      const nextKey = isConsolidated ? 'report-la-paz-el-alto' : this.branchKey(codigoSucursal, puntoVenta);
       if (
         this.activeConciliationModal
         && this.activeConciliationModal.branchKey === nextKey
         && this.activeConciliationModal.selectedDate === fecha
+        && this.activeConciliationModal.alcance === (isConsolidated ? 'la-paz-el-alto' : 'sucursal')
       ) {
         return;
       }
@@ -1285,7 +1327,11 @@ export default {
         conciliacion: this.emptyConciliacion({ codigoSucursal, puntoVenta })
       };
 
-      await this.openConciliationModal(fallbackItem, { selectedDate: fecha, fromRoute: true });
+      await this.openConciliationModal(fallbackItem, {
+        selectedDate: fecha,
+        fromRoute: true,
+        alcance: isConsolidated ? 'la-paz-el-alto' : 'sucursal'
+      });
     },
     branchKey(codigoSucursal, puntoVenta) {
       const codigo = String(this.normalizeNonNegativeInteger(codigoSucursal, 0)).padStart(3, '0');
@@ -3406,6 +3452,74 @@ export default {
     usuarioEmailFromVenta(venta) {
       return venta?.usuario?.email || venta?.origen_usuario_email || '';
     },
+    consolidateReportBranches(members) {
+      const summedFields = [
+        'cantidadVentas', 'ventasNetas', 'ventasFacturadasNetas', 'totalVendido', 'totalFacturado',
+        'totalQrFacturado', 'totalEfectivoFacturado', 'totalEcaFacturado', 'totalContratosNoSumados',
+        'totalQrPagadoPendienteFactura', 'facturadas', 'qrFacturadas', 'ecaFacturadas',
+        'electronicasFacturadas', 'contratosNoSumados', 'oficiales', 'facturasAnuladas',
+        'totalFacturasAnuladas', 'conCufOtroEstado', 'observadas', 'pendientes',
+        'qrPagadoPendienteFactura', 'qrCancelado', 'qrPendiente',
+        'cartRechazadoDescartado', 'totalCartRechazadoDescartado'
+      ];
+      const totals = summedFields.reduce((result, field) => {
+        result[field] = members.reduce((sum, branch) => sum + Number(branch?.[field] || 0), 0);
+        return result;
+      }, {});
+      const hasPendingIncidences = members.some((branch) => branch.hasPendingIncidences);
+      const hasObservedIncidences = members.some((branch) => branch.hasObservedIncidences);
+      const status = this.resolveBranchStatus({
+        cantidadVentas: totals.cantidadVentas,
+        hasPendingIncidences,
+        hasObservedIncidences
+      });
+      const consolidatedConciliation = (this.conciliacionSummaryRows || []).find((row) => (
+        row?.alcance === 'la-paz-el-alto'
+        && Number(row?.codigoSucursal) === 0
+        && Number(row?.puntoVenta) === 0
+      ));
+      const conciliacion = {
+        ...this.emptyConciliacion({
+          codigoSucursal: 0,
+          puntoVenta: 0,
+          displayName: 'LA PAZ + EL ALTO',
+          totalEfectivoFacturado: totals.totalEfectivoFacturado,
+          totalQrFacturado: totals.totalQrFacturado,
+          totalVendido: totals.totalVendido
+        }),
+        ...(consolidatedConciliation || {}),
+        alcance: 'la-paz-el-alto',
+        sucursalNombre: 'LA PAZ + EL ALTO'
+      };
+      const codes = members.map((branch) => branch.codigoSucursalLabel).join(' + ');
+      const pointSales = Array.from(new Set(members.map((branch) => branch.puntoVentaLabel))).join(' + ');
+
+      return {
+        ...members[0],
+        ...totals,
+        id: 'report-la-paz-el-alto',
+        isReportingGroup: true,
+        memberBranches: members,
+        codigoSucursalLabel: codes,
+        puntoVentaLabel: pointSales,
+        departamento: 'LA PAZ',
+        nombre: 'LA PAZ',
+        sucursalNombre: 'LA PAZ',
+        displayName: 'LA PAZ',
+        reportGroupLabel: 'LA PAZ + EL ALTO',
+        cajerosUnicos: null,
+        hasPendingIncidences,
+        hasObservedIncidences,
+        status,
+        conciliacion
+      };
+    },
+    branchReportLabel(branch) {
+      if (branch?.isReportingGroup) {
+        return `${branch.reportGroupLabel} (sucursales ${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`;
+      }
+      return `${branch?.displayName || '-'} (${branch?.codigoSucursalLabel || '000'} / PV ${branch?.puntoVentaLabel || '0'})`;
+    },
     isQrVenta(venta) {
       const codigoOrden = String(venta?.codigoOrden || '').toUpperCase();
       const metodoPago = String(venta?.metodo_pago || '').toLowerCase();
@@ -3677,6 +3791,9 @@ export default {
           params.append('fechaFin', endDate);
         }
         Object.keys(this.filters).forEach((key) => {
+          if (key === 'q') {
+            return;
+          }
           const value = this.filters[key];
           if (value !== '' && value !== null && value !== undefined) {
             params.append(key, value);
@@ -3866,6 +3983,22 @@ export default {
         }
       });
     },
+    goToConsolidatedKardex() {
+      const fechaInicio = this.startDate || this.defaultToday();
+      const fechaFin = this.endDate || fechaInicio;
+      this.$router.push({
+        path: '/cajero/ventas/sucursal',
+        query: {
+          codigoSucursal: '0',
+          puntoVenta: '0',
+          nombre: 'LA PAZ',
+          departamento: 'LA PAZ',
+          consolidarKardex: 'la-paz-el-alto',
+          fechaInicio,
+          fechaFin
+        }
+      });
+    },
     closeUsersModal() {
       this.activeUsersModal = null;
     },
@@ -3883,24 +4016,30 @@ export default {
         delete nextQuery.fecha;
         delete nextQuery.codigoSucursal;
         delete nextQuery.puntoVenta;
+        delete nextQuery.alcance;
         this.$router.replace({ path: this.$route.path, query: nextQuery });
       }
     },
     async openConciliationModal(item, options = {}) {
       const selectedDate = options.selectedDate || this.endDate || this.startDate || this.defaultToday();
+      const alcance = options.alcance === 'la-paz-el-alto' ? 'la-paz-el-alto' : 'sucursal';
       const codigoSucursal = this.normalizeNonNegativeInteger(item?.codigoSucursal, 0);
       const puntoVenta = this.normalizeNonNegativeInteger(item?.puntoVenta, 0);
-      const branchKey = this.branchKey(codigoSucursal, puntoVenta);
+      const isConsolidated = alcance === 'la-paz-el-alto';
+      const branchKey = isConsolidated ? 'report-la-paz-el-alto' : this.branchKey(codigoSucursal, puntoVenta);
       this.activeConciliationModal = {
         branchKey,
+        alcance,
         codigoSucursal,
         puntoVenta,
         fecha: selectedDate,
         selectedDate,
         calendarAnchorMonth: this.startOfMonth(selectedDate),
         showUploadComposer: true,
-        title: item.displayName || item.departamento || item.nombre || 'Sucursal',
-        subtitle: `Sucursal ${String(codigoSucursal).padStart(3, '0')} · Punto ${puntoVenta}`,
+        title: isConsolidated ? 'LA PAZ' : (item.displayName || item.departamento || item.nombre || 'Sucursal'),
+        subtitle: isConsolidated
+          ? 'Conciliación conjunta · Sucursales 000 + 010 · Punto 0'
+          : `Sucursal ${String(codigoSucursal).padStart(3, '0')} · Punto ${puntoVenta}`,
         conciliacion: item.conciliacion || this.emptyConciliacion(item),
         comprobantes: [],
         loading: true,
@@ -3945,7 +4084,7 @@ export default {
 
       try {
         const response = await this.$admin.$get(
-          `caja/conciliaciones/detalle?fecha=${encodeURIComponent(this.activeConciliationModal.selectedDate)}&codigoSucursal=${encodeURIComponent(this.activeConciliationModal.codigoSucursal)}&puntoVenta=${encodeURIComponent(this.activeConciliationModal.puntoVenta)}`
+          `caja/conciliaciones/detalle?fecha=${encodeURIComponent(this.activeConciliationModal.selectedDate)}&codigoSucursal=${encodeURIComponent(this.activeConciliationModal.codigoSucursal)}&puntoVenta=${encodeURIComponent(this.activeConciliationModal.puntoVenta)}&alcance=${encodeURIComponent(this.activeConciliationModal.alcance || 'sucursal')}`
         );
 
         if (!this.activeConciliationModal || this.activeConciliationModal.branchKey !== modalKey) {
@@ -4025,7 +4164,10 @@ export default {
         return;
       }
 
-      const activeBranch = this.branchRows.find((row) => this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey);
+      const isConsolidated = this.activeConciliationModal.alcance === 'la-paz-el-alto';
+      const activeBranch = isConsolidated
+        ? null
+        : this.branchRows.find((row) => this.branchKey(row?.codigoSucursal, row?.puntoVenta) === this.activeConciliationModal.branchKey);
       const codigoSucursal = this.normalizeNonNegativeInteger(
         activeBranch?.codigoSucursal ?? this.activeConciliationModal.codigoSucursal ?? this.activeConciliationModal.conciliacion?.codigoSucursal,
         0
@@ -4038,7 +4180,8 @@ export default {
       formData.append('fecha', this.activeConciliationModal.fecha);
       formData.append('codigoSucursal', String(codigoSucursal));
       formData.append('puntoVenta', String(puntoVenta));
-      formData.append('sucursalNombre', activeBranch?.displayName || activeBranch?.sucursalNombre || this.activeConciliationModal.title);
+      formData.append('alcance', this.activeConciliationModal.alcance || 'sucursal');
+      formData.append('sucursalNombre', isConsolidated ? 'LA PAZ + EL ALTO' : (activeBranch?.displayName || activeBranch?.sucursalNombre || this.activeConciliationModal.title));
       formData.append('totalEfectivoSistema', String(activeBranch?.totalEfectivoFacturado ?? this.activeConciliationModal.conciliacion?.totalEfectivoSistema ?? 0));
       formData.append('totalQrSistema', String(activeBranch?.totalQrFacturado ?? this.activeConciliationModal.conciliacion?.totalQrSistema ?? 0));
       formData.append('totalGeneralSistema', String(activeBranch?.totalVendido ?? this.activeConciliationModal.conciliacion?.totalGeneralSistema ?? 0));
@@ -4952,7 +5095,7 @@ export default {
           this.$swal.fire({
             icon: 'warning',
             title: 'Sin datos para exportar',
-            text: 'No hay sucursales visibles con el filtro actual.'
+            text: 'No hay regionales visibles con el filtro actual.'
           });
           return;
         }
@@ -4969,7 +5112,7 @@ export default {
           (acc, branch) => acc + Number(branch.totalCartRechazadoDescartado || 0),
           0
         );
-        const contractBranches = visibleBranches.filter(
+        const contractBranches = this.filteredOperationalBranches.filter(
           (branch) => Number(branch.totalContratosNoSumados || branch.contratosNoSumados || 0) > 0
         );
         const contractRows = (await Promise.all(contractBranches.map(async (branch) => {
@@ -5050,7 +5193,7 @@ export default {
 
         const infoRows = [
           ['Fecha inicio:', this.startDate || this.defaultToday(), 'Fecha fin:', this.endDate || this.defaultToday(), 'Estado:', statusLabel],
-          ['Búsqueda:', this.filters.q || 'Todas las sucursales', 'Sucursales visibles:', Number(this.dashboardMetrics.total || 0), 'Total vendido:', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
+          ['Búsqueda:', this.filters.q || 'Todas las regionales', 'Regionales visibles:', Number(this.dashboardMetrics.total || 0), 'Total vendido:', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
         ];
         infoRows.forEach((rowData, index) => {
           const rowNumber = 3 + index;
@@ -5077,7 +5220,7 @@ export default {
 
         styleSectionTitle(6, 'KARDEX DE VENTAS COBRADAS');
         const metricRows = [
-          ['Sucursales del día', Number(this.dashboardMetrics.total || 0), 'Sin observaciones', Number(this.dashboardMetrics.conformes || 0), 'Con pendientes', Number(this.dashboardMetrics.pendientes || 0)],
+          ['Regionales del día', Number(this.dashboardMetrics.total || 0), 'Sin observaciones', Number(this.dashboardMetrics.conformes || 0), 'Con pendientes', Number(this.dashboardMetrics.pendientes || 0)],
           ['Con observaciones', Number(this.dashboardMetrics.diferencias || 0), 'Sin ventas', Number(this.dashboardMetrics.sinVentas || 0), 'Total vendido', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)]
         ];
         metricRows.forEach((rowData, index) => {
@@ -5099,9 +5242,9 @@ export default {
         });
         applyRangeBorder(7, 1, 8, 6);
 
-        styleSectionTitle(10, 'RESUMEN DE SUCURSALES', 4);
+        styleSectionTitle(10, 'RESUMEN DE REGIONALES', 4);
         const branchHeaderRow = 11;
-        ['Sucursal', 'Estado e incidencias', 'Total ventas', 'Total vendido'].forEach((value, index) => {
+        ['Regional / agrupación', 'Estado e incidencias', 'Total ventas', 'Total vendido'].forEach((value, index) => {
           const cell = mainSheet.getCell(branchHeaderRow, index + 1);
           cell.value = value;
           cell.font = { name: 'Calibri', size: 10, bold: true };
@@ -5113,7 +5256,7 @@ export default {
 
         let currentRow = 12;
         visibleBranches.forEach((branch) => {
-          const branchLabel = `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`;
+          const branchLabel = this.branchReportLabel(branch);
           const incidentText = this.buildPdfIncidentBlocks(branch).map((block) => block.text).join('\n');
           const salesText = this.buildPdfSalesBlocks(branch).map((block) => block.text).join('\n');
           const totalsText = this.buildPdfTotalBlocks(branch).map((block) => block.text).join('\n');
@@ -5174,10 +5317,10 @@ export default {
         mainSheet.getCell(currentRow, 1).alignment = { horizontal: 'left' };
         mainSheet.getCell(currentRow, 3).alignment = { horizontal: 'left' };
 
-        const branchesSheet = workbook.addWorksheet('Sucursales');
+        const branchesSheet = workbook.addWorksheet('Regionales');
         branchesSheet.columns = [
-          { header: 'Sucursal', key: 'sucursal', width: 28 },
-          { header: 'Código de sucursal', key: 'codigo_sucursal', width: 16 },
+          { header: 'Regional / agrupación', key: 'sucursal', width: 28 },
+          { header: 'Códigos de sucursal', key: 'codigo_sucursal', width: 20 },
           { header: 'Punto venta', key: 'punto_venta', width: 14 },
           { header: 'Estado', key: 'estado', width: 20 },
           { header: 'Detalle estado', key: 'detalle_estado', width: 24 },
@@ -5197,7 +5340,7 @@ export default {
           { header: 'QR pendiente factura', key: 'qr_pagado_pendiente_factura', width: 20 },
           { header: 'QR cancelado', key: 'qr_cancelado', width: 14 },
           { header: 'QR pendiente', key: 'qr_pendiente', width: 14 },
-          { header: 'Cajeros unicos', key: 'cajeros_unicos', width: 14 }
+          { header: 'Cajeros únicos', key: 'cajeros_unicos', width: 25 }
         ];
         visibleBranches.forEach((branch) => {
           branchesSheet.addRow({
@@ -5222,7 +5365,7 @@ export default {
             qr_pagado_pendiente_factura: Number(branch.qrPagadoPendienteFactura || 0),
             qr_cancelado: Number(branch.qrCancelado || 0),
             qr_pendiente: Number(branch.qrPendiente || 0),
-            cajeros_unicos: Number(branch.cajerosUnicos || 0)
+            cajeros_unicos: branch.isReportingGroup ? 'Ver detalle por sucursal' : Number(branch.cajerosUnicos || 0)
           });
         });
 
@@ -5233,7 +5376,7 @@ export default {
           { header: 'Punto venta', key: 'punto_venta', width: 14 },
           { header: 'Incidencia', key: 'incidencia', width: 52 }
         ];
-        visibleBranches.forEach((branch) => {
+        this.filteredOperationalBranches.forEach((branch) => {
           const blocks = this.buildPdfIncidentBlocks(branch);
           if (!blocks.length) {
             incidentsSheet.addRow({
@@ -5427,7 +5570,7 @@ export default {
           sin_ventas: 'Sin ventas'
         }[this.statusFilter] || 'Todos';
         const visibleBranches = this.filteredBranches;
-        const contractBranches = visibleBranches.filter((branch) => Number(branch.totalContratosNoSumados || branch.contratosNoSumados || 0) > 0);
+        const contractBranches = this.filteredOperationalBranches.filter((branch) => Number(branch.totalContratosNoSumados || branch.contratosNoSumados || 0) > 0);
         const contractGroups = await Promise.all(contractBranches.map(async (branch) => {
           try {
             const ventas = await this.fetchBranchVentas(branch);
@@ -5461,7 +5604,7 @@ export default {
           this.$swal.fire({
             icon: 'warning',
             title: 'Sin datos para exportar',
-            text: 'No hay sucursales visibles con el filtro actual.'
+            text: 'No hay regionales visibles con el filtro actual.'
           });
           return;
         }
@@ -5483,8 +5626,8 @@ export default {
             statusLabel
           ], [
             'Búsqueda:',
-            this.filters.q || 'Todas las sucursales',
-            'Sucursales visibles:',
+            this.filters.q || 'Todas las regionales',
+            'Regionales visibles:',
             String(this.dashboardMetrics.total),
             'Total vendido:',
             this.formatCurrency(this.dashboardMetrics.totalVendido)
@@ -5529,7 +5672,7 @@ export default {
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY,
           body: [[
-            'Sucursales del día',
+            'Regionales del día',
             String(this.dashboardMetrics.total),
             'Sin observaciones',
             String(this.dashboardMetrics.conformes),
@@ -5565,7 +5708,7 @@ export default {
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 3,
-          body: [['RESUMEN DE SUCURSALES']],
+          body: [['RESUMEN DE REGIONALES']],
           theme: 'grid',
           styles: {
             fontSize: 8.6,
@@ -5581,7 +5724,7 @@ export default {
         });
 
         const tableRows = visibleBranches.map((branch) => [
-          `${branch.displayName || '-'} (${branch.codigoSucursalLabel} / PV ${branch.puntoVentaLabel})`,
+          this.branchReportLabel(branch),
           this.buildPdfIncidentBlocks(branch).map((block) => block.text).join('\n'),
           this.buildPdfSalesBlocks(branch).map((block) => block.text).join('\n'),
           this.buildPdfTotalBlocks(branch).map((block) => block.text).join('\n')
@@ -5590,7 +5733,7 @@ export default {
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY,
           head: [[
-            'Sucursal',
+            'Regional / agrupación',
             'Estado e incidencias',
             'Total ventas',
             'Total vendido'
@@ -6331,6 +6474,34 @@ export default {
 
 .incident-trigger:hover .metric-stack strong {
   color: #2a63d7;
+}
+
+.branch-detail-stack,
+.branch-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.branch-action-group {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.branch-action-group:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.branch-action-group > strong {
+  color: #1e3565;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.branch-detail-row + .branch-detail-row {
+  padding-top: 0.35rem;
+  border-top: 1px solid #edf1f7;
 }
 
 .code-pill {
