@@ -252,7 +252,7 @@
                         <th>Código de orden</th>
                         <th>Cliente</th>
                         <th>Nro. factura</th>
-                        <th>Facturación</th>
+                        <th>Medio de pago</th>
                         <th>Estado</th>
                         <th>Items</th>
                         <th>Monto</th>
@@ -507,6 +507,7 @@
                       <small><strong>Ventas</strong> {{ branchGlobalOverview.countResumen }}</small>
                       <small><strong>Total</strong> {{ formatCurrency(branchGlobalOverview.totalResumen) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-info">QR {{ formatCurrency(branchGlobalOverview.totalQr) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-card">Tarj. {{ formatCurrency(branchGlobalOverview.totalTarjeta) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-neutral">Ef {{ formatCurrency(branchGlobalOverview.totalEf) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-warning">ECA {{ formatCurrency(branchGlobalOverview.totalEca) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-contract">Cont {{ formatCurrency(branchGlobalOverview.totalContratos) }}</small>
@@ -540,6 +541,7 @@
                       <small><strong>Ventas</strong> {{ user.countResumen }}</small>
                       <small><strong>Total</strong> {{ formatCurrency(user.totalResumen) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-info">QR {{ formatCurrency(user.totalQr) }}</small>
+                      <small class="selector-metric-chip selector-metric-chip-card">Tarj. {{ formatCurrency(user.totalTarjeta) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-neutral">Ef {{ formatCurrency(user.totalCaja) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-warning">ECA {{ formatCurrency(user.totalEca) }}</small>
                       <small class="selector-metric-chip selector-metric-chip-contract">Cont {{ formatCurrency(user.totalContratos) }}</small>
@@ -884,6 +886,7 @@ export default {
             totalResumen: 0,
             totalCaja: 0,
             totalQr: 0,
+            totalTarjeta: 0,
             totalEca: 0,
             countContratos: 0,
             totalContratos: 0,
@@ -909,6 +912,9 @@ export default {
         if (this.countsTowardCollectedQrTotal(venta)) {
           current.totalQr = addMoney(current.totalQr, total);
         }
+        if (this.countsTowardCardTotal(venta)) {
+          current.totalTarjeta = addMoney(current.totalTarjeta, total);
+        }
         if (this.countsTowardEcaTotal(venta)) {
           current.countEca += 1;
           current.totalEca = addMoney(current.totalEca, total);
@@ -933,6 +939,7 @@ export default {
           || Number(user.totalResumen || 0) > 0
           || Number(user.totalCaja || 0) > 0
           || Number(user.totalQr || 0) > 0
+          || Number(user.totalTarjeta || 0) > 0
           || Number(user.totalEca || 0) > 0
           || Number(user.countContratos || 0) > 0
           || Number(user.totalContratos || 0) > 0;
@@ -1007,6 +1014,10 @@ export default {
           acc.totalQr = addMoney(acc.totalQr, total);
         }
 
+        if (this.countsTowardCardTotal(venta)) {
+          acc.totalTarjeta = addMoney(acc.totalTarjeta, total);
+        }
+
         if (this.countsTowardCashTotal(venta)) {
           acc.totalEf = addMoney(acc.totalEf, total);
         }
@@ -1027,6 +1038,7 @@ export default {
         totalGeneral: 0,
         totalResumen: 0,
         totalQr: 0,
+        totalTarjeta: 0,
         totalEf: 0,
         totalEca: 0,
         countContratos: 0,
@@ -1375,6 +1387,14 @@ export default {
     isQrPaymentVenta(venta) {
       const f = financialState(venta);
       return f.medioPago === 'QR';
+    },
+    isCardPaymentVenta(venta) {
+      const medioPago = String(financialState(venta).medioPago || '').trim().toUpperCase();
+      return medioPago.includes('TARJETA');
+    },
+    countsTowardCardTotal(venta) {
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && this.isCardPaymentVenta(venta);
     },
     hasFacturaEmitidaEvidence(venta) {
       const f = financialState(venta);
@@ -1813,6 +1833,10 @@ export default {
         return 'QR';
       }
 
+      if (this.isCardPaymentVenta(venta)) {
+        return 'Tarjeta NFC';
+      }
+
       return this.resolveDeliveryType(venta).label;
     },
     paymentChannelIcon(venta) {
@@ -1824,7 +1848,11 @@ export default {
         return 'fas fa-file-invoice-dollar';
       }
 
-      return this.isQrPaymentVenta(venta) ? 'fas fa-qrcode' : 'fas fa-money-bill-wave';
+      if (this.isQrPaymentVenta(venta)) {
+        return 'fas fa-qrcode';
+      }
+
+      return this.isCardPaymentVenta(venta) ? 'fas fa-credit-card' : 'fas fa-money-bill-wave';
     },
     paymentOriginLabel(venta) {
       if (this.isServicioContratoVenta(venta)) {
@@ -1835,7 +1863,11 @@ export default {
         return 'ECA';
       }
 
-      return this.isQrPaymentVenta(venta) ? 'QR' : 'Efectivo';
+      if (this.isQrPaymentVenta(venta)) {
+        return 'QR';
+      }
+
+      return this.isCardPaymentVenta(venta) ? 'Tarjeta NFC' : 'Efectivo';
     },
     paymentChannelKey(venta) {
       if (this.isServicioContratoVenta(venta)) {
@@ -1846,7 +1878,11 @@ export default {
         return 'eca';
       }
 
-      return this.isQrPaymentVenta(venta) ? 'qr' : 'efectivo';
+      if (this.isQrPaymentVenta(venta)) {
+        return 'qr';
+      }
+
+      return this.isCardPaymentVenta(venta) ? 'tarjeta' : 'efectivo';
     },
     detailVentaHistory(venta) {
       if (!venta) {
@@ -5141,6 +5177,12 @@ export default {
   color: #265fce;
 }
 
+.selector-metric-chip-card {
+  background: #eaf8f7;
+  border-color: #c8e9e4;
+  color: #187667;
+}
+
 .selector-metric-chip-neutral {
   background: #f3f6fb;
   border-color: #dfe7f3;
@@ -5921,6 +5963,19 @@ export default {
 
 .detail-payment-qr .detail-payment-copy small { color: #8172b1; }
 .detail-payment-qr .detail-payment-copy strong { color: #5039a2; }
+
+.detail-payment-tarjeta {
+  border-color: #c8e9e4;
+  background: linear-gradient(135deg, #f0fbfa, #e6f6f4);
+}
+
+.detail-payment-tarjeta .detail-payment-icon {
+  background: #d7efeb;
+  color: #187667;
+}
+
+.detail-payment-tarjeta .detail-payment-copy small { color: #5f938b; }
+.detail-payment-tarjeta .detail-payment-copy strong { color: #187667; }
 
 .detail-payment-contrato {
   border-color: #f0dfbb;
@@ -6884,6 +6939,7 @@ body.enterprise-dark .branch-dashboard-page .selector-item small { color: #a8b8c
 body.enterprise-dark .branch-dashboard-page .selector-search input { color: #e5edf6; border-color: #3a4d64; background: #111d2c; }
 body.enterprise-dark .branch-dashboard-page .selector-search input::placeholder { color: #8193a9; }
 body.enterprise-dark .branch-dashboard-page .selector-metric-chip-info { background: #243956; border-color: #38577f; color: #a9c8ff; }
+body.enterprise-dark .branch-dashboard-page .selector-metric-chip-card { background: #203b3a; border-color: #35605a; color: #9edacf; }
 body.enterprise-dark .branch-dashboard-page .selector-metric-chip-neutral { background: #2a3748; border-color: #45566c; color: #c1cddd; }
 body.enterprise-dark .branch-dashboard-page .selector-metric-chip-warning { background: #423723; border-color: #6c5935; color: #f2ca7b; }
 body.enterprise-dark .branch-dashboard-page .selector-metric-chip-contract { background: #392f4d; border-color: #594979; color: #d2baff; }
@@ -6935,6 +6991,10 @@ body.enterprise-dark .detail-payment-qr { border-color: #51487e; background: lin
 body.enterprise-dark .detail-payment-qr .detail-payment-icon { background: #484075; color: #c5b5ff; }
 body.enterprise-dark .detail-payment-qr .detail-payment-copy small { color: #b6a9df; }
 body.enterprise-dark .detail-payment-qr .detail-payment-copy strong { color: #d1c5ff; }
+body.enterprise-dark .detail-payment-tarjeta { border-color: #35605a; background: linear-gradient(135deg, #203b3a, #254643); }
+body.enterprise-dark .detail-payment-tarjeta .detail-payment-icon { background: #2e5a54; color: #9edacf; }
+body.enterprise-dark .detail-payment-tarjeta .detail-payment-copy small { color: #94c8be; }
+body.enterprise-dark .detail-payment-tarjeta .detail-payment-copy strong { color: #b0e8df; }
 body.enterprise-dark .detail-payment-contrato { border-color: #6a5736; background: linear-gradient(135deg, #3c3426, #433821); }
 body.enterprise-dark .detail-payment-contrato .detail-payment-icon { background: #5a482b; color: #f3ce83; }
 body.enterprise-dark .detail-payment-contrato .detail-payment-copy small { color: #d2bb8c; }

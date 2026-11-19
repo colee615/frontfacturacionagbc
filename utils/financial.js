@@ -4,6 +4,11 @@ export function financialState(sale = {}) {
   const state = String(sale.estadoSufe || sale.estado_sufe || sale.estadoFiscal || sale.respuesta_emision?.estadoSufe || sale.estado_emision || sale.status?.key || 'SIN_ESTADO').trim().toUpperCase();
   const payment = String(sale.estado_pago || sale.estadoPago || '').trim().toLowerCase();
   const order = String(sale.codigoOrden || '').toUpperCase();
+  const paymentMethod = String(sale.qhantuy_payment_method || sale.qhantuyPaymentMethod || sale.payment_method || '').trim().toUpperCase();
+  const paymentMedium = String(sale.medioPago || sale.medio_pago || '').trim().toUpperCase();
+  const card = paymentMethod === 'T2P'
+    || String(sale.metodo_pago || '').trim().toLowerCase() === 'tarjeta'
+    || paymentMedium.includes('TARJETA');
   const qr = Number(sale.metodoPago) === 5 || sale.metodo_pago === 'qr' || sale.canal_emision === 'qr' || sale.medioPago === 'QR' || /^VQC?-/.test(order);
   const annulled = ['ANULADA', 'ANULADO', 'DESCARTADA'].includes(state);
   const active = ['PROCESADA', 'PROCESADO', 'FACTURADA', 'EMITIDO', 'ANULACION_SOLICITADA', 'ANULACION_OBSERVADA'].includes(state);
@@ -13,7 +18,7 @@ export function financialState(sale = {}) {
   const receivable = [true, 1, '1', 'true'].includes(sale.es_cuenta_por_cobrar);
   const category = state === 'REGISTRADA_OFICIAL' ? 'OFICIAL' : (receivable || sale.canal_operativo === 'contrato' || sale.empresa_nombre || sale.empresa_sigla || /\bcontratos?\b/.test(labels)) ? 'CONTRATO' : /\beca\b/.test(labels) ? 'ECA' : 'NORMAL';
   const included = active && !annulled && !canceled && paid && category === 'NORMAL' && Number(sale.total || 0) >= 0;
-  return { estadoFiscal: state, estadoPago: payment || 'sin_evidencia', medioPago: qr ? 'QR' : 'EFECTIVO', categoria: category,
+  return { estadoFiscal: state, estadoPago: payment || 'sin_evidencia', medioPago: card ? 'TARJETA NFC' : (qr ? 'QR' : 'EFECTIVO'), categoria: category,
     anulada: annulled, facturaVigente: active, pagoConfirmado: paid, pagoCancelado: canceled, incluidaEnTotalVendido: included };
 }
 
