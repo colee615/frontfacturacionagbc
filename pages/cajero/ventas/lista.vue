@@ -189,6 +189,7 @@
                             <strong>{{ formatCurrency(item.totalVendido) }}</strong>
                             <div class="metric-tags">
                               <span class="metric-tag metric-tag-info">QR {{ formatCurrency(item.totalQrFacturado) }}</span>
+                              <span class="metric-tag metric-tag-card">Tarj. {{ formatCurrency(item.totalTarjetaFacturada) }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ formatCurrency(item.totalEfectivoFacturado) }}</span>
                               <span v-if="item.totalEcaFacturado > 0" class="metric-tag metric-tag-warning">ECA {{ formatCurrency(item.totalEcaFacturado) }}</span>
                               <span v-if="item.totalContratosNoSumados > 0" class="metric-tag metric-tag-contract">Cont {{ formatCurrency(item.totalContratosNoSumados) }}</span>
@@ -200,6 +201,7 @@
                             <strong>{{ item.facturadas }} ventas</strong>
                             <div class="metric-tags">
                               <span class="metric-tag metric-tag-info">QR {{ item.qrFacturadas }}</span>
+                              <span class="metric-tag metric-tag-card">Tarj. {{ item.tarjetaFacturadas }}</span>
                               <span class="metric-tag metric-tag-neutral">Ef {{ item.electronicasFacturadas }}</span>
                               <span v-if="item.ecaFacturadas > 0" class="metric-tag metric-tag-warning">ECA {{ item.ecaFacturadas }}</span>
                               <span v-if="item.contratosNoSumados > 0" class="metric-tag metric-tag-contract">Cont {{ item.contratosNoSumados }}</span>
@@ -219,6 +221,9 @@
                                     <span v-if="branch.qrPagadoPendienteFactura > 0" class="metric-tag metric-tag-warning">QR s/f {{ branch.qrPagadoPendienteFactura }}</span>
                                     <span v-if="branch.qrCancelado > 0" class="metric-tag metric-tag-danger">QR anul {{ branch.qrCancelado }}</span>
                                     <span v-if="branch.qrPendiente > 0" class="metric-tag metric-tag-neutral">QR pend {{ branch.qrPendiente }}</span>
+                                    <span v-if="branch.tarjetaPagadoPendienteFactura > 0" class="metric-tag metric-tag-warning">Tarj. s/f {{ branch.tarjetaPagadoPendienteFactura }}</span>
+                                    <span v-if="branch.tarjetaCancelado > 0" class="metric-tag metric-tag-danger">Tarj. anul {{ branch.tarjetaCancelado }}</span>
+                                    <span v-if="branch.tarjetaPendiente > 0" class="metric-tag metric-tag-neutral">Tarj. pend {{ branch.tarjetaPendiente }}</span>
                                   </div>
                                 </div>
                               </button>
@@ -235,6 +240,9 @@
                                 <span v-if="item.qrPagadoPendienteFactura > 0" class="metric-tag metric-tag-warning">QR s/f {{ item.qrPagadoPendienteFactura }}</span>
                                 <span v-if="item.qrCancelado > 0" class="metric-tag metric-tag-danger">QR anul {{ item.qrCancelado }}</span>
                                 <span v-if="item.qrPendiente > 0" class="metric-tag metric-tag-neutral">QR pend {{ item.qrPendiente }}</span>
+                                <span v-if="item.tarjetaPagadoPendienteFactura > 0" class="metric-tag metric-tag-warning">Tarj. s/f {{ item.tarjetaPagadoPendienteFactura }}</span>
+                                <span v-if="item.tarjetaCancelado > 0" class="metric-tag metric-tag-danger">Tarj. anul {{ item.tarjetaCancelado }}</span>
+                                <span v-if="item.tarjetaPendiente > 0" class="metric-tag metric-tag-neutral">Tarj. pend {{ item.tarjetaPendiente }}</span>
                               </div>
                             </div>
                           </button>
@@ -510,6 +518,12 @@
                   <div class="summary-copy">
                     <span>Efectivo esperado</span>
                     <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalEfectivoSistema) }}</strong>
+                  </div>
+                </article>
+                <article class="summary-card summary-card-money conciliation-summary-card">
+                  <div class="summary-copy">
+                    <span>Tarjeta NFC según sistema</span>
+                    <strong>{{ formatCurrency(activeConciliationModal.conciliacion.totalTarjetaSistema) }}</strong>
                   </div>
                 </article>
                 <article class="summary-card summary-card-warning conciliation-summary-card">
@@ -1138,6 +1152,7 @@ export default {
         acc.totalVendido += item.totalVendido;
         acc.ventasNetas += item.ventasNetas;
         acc.totalQrFacturado += item.totalQrFacturado || 0;
+        acc.totalTarjetaFacturada += item.totalTarjetaFacturada || 0;
         acc.totalEfectivoFacturado += item.totalEfectivoFacturado || 0;
         acc.totalEcaFacturado += item.totalEcaFacturado || 0;
         acc.totalContratosNoSumados += item.totalContratosNoSumados || 0;
@@ -1158,6 +1173,7 @@ export default {
         totalVendido: 0,
         ventasNetas: 0,
         totalQrFacturado: 0,
+        totalTarjetaFacturada: 0,
         totalEfectivoFacturado: 0,
         totalEcaFacturado: 0,
         totalContratosNoSumados: 0,
@@ -1915,6 +1931,7 @@ export default {
         sucursalNombre: item?.displayName || item?.sucursalNombre || item?.nombre || '',
         totalEfectivoSistema: Number(item?.totalEfectivoFacturado || 0),
         totalQrSistema: Number(item?.totalQrFacturado || 0),
+        totalTarjetaSistema: Number(item?.totalTarjetaFacturada || 0),
         totalGeneralSistema: Number(item?.totalVendido || 0),
         totalComprobantes: 0,
         diferencia: Number(item?.totalEfectivoFacturado || 0) * -1,
@@ -3017,10 +3034,12 @@ export default {
         cantidadVentas: 0,
         totalVendido: 0,
         totalQrFacturado: 0,
+        totalTarjetaFacturada: 0,
         totalEfectivoFacturado: 0,
         cajerosUnicos: 0,
         facturadas: 0,
         qrFacturadas: 0,
+        tarjetaFacturadas: 0,
         electronicasFacturadas: 0,
         oficiales: 0,
         facturasAnuladas: 0,
@@ -3031,8 +3050,14 @@ export default {
         qrPagadoPendienteFactura: 0,
         qrCancelado: 0,
         qrPendiente: 0,
+        tarjetaCancelado: 0,
+        tarjetaPendiente: 0,
+        tarjetaPagadoPendienteFactura: 0,
         cartRechazadoDescartado: 0,
         totalQrPagadoPendienteFactura: 0,
+        totalTarjetaCancelado: 0,
+        totalTarjetaPendiente: 0,
+        totalTarjetaPagadoPendienteFactura: 0,
         totalQrCancelado: 0,
         totalQrPendiente: 0,
         totalCartRechazadoDescartado: 0,
@@ -3048,6 +3073,9 @@ export default {
       const f = financialState(venta);
       return f.medioPago === 'QR';
     },
+    isCardPaymentVenta(venta) {
+      return String(financialState(venta).medioPago || '').trim().toUpperCase().includes('TARJETA');
+    },
     hasFacturaEmitidaEvidence(venta) {
       const f = financialState(venta);
       return f.facturaVigente;
@@ -3060,6 +3088,10 @@ export default {
       const f = financialState(venta);
       return f.incluidaEnTotalVendido && f.medioPago === 'EFECTIVO';
     },
+    countsTowardCardTotal(venta) {
+      const f = financialState(venta);
+      return f.incluidaEnTotalVendido && this.isCardPaymentVenta(venta);
+    },
     countsTowardCollectedTotal(venta) {
       const f = financialState(venta);
       return f.incluidaEnTotalVendido;
@@ -3071,6 +3103,10 @@ export default {
     countsTowardPendingFacturaQrTotal(venta) {
       const f = financialState(venta);
       return f.medioPago === 'QR' && f.pagoConfirmado && !f.facturaVigente && !f.anulada;
+    },
+    countsTowardPendingFacturaCardTotal(venta) {
+      const f = financialState(venta);
+      return this.isCardPaymentVenta(venta) && f.pagoConfirmado && !f.facturaVigente && !f.anulada;
     },
     isContratoChannelVenta(venta) {
       const canalOperativo = String(
@@ -3229,8 +3265,22 @@ export default {
           acc.qrFacturadas += 1;
           acc.facturadas += 1;
         }
+        if (this.countsTowardCardTotal(venta)) {
+          acc.totalTarjetaFacturada = addMoney(acc.totalTarjetaFacturada, total);
+          acc.tarjetaFacturadas += 1;
+          acc.facturadas += 1;
+        }
         if (this.countsTowardPendingFacturaQrTotal(venta)) {
           acc.totalQrPagadoPendienteFactura = addMoney(acc.totalQrPagadoPendienteFactura, total);
+        }
+        if (this.countsTowardPendingFacturaCardTotal(venta)) {
+          acc.totalTarjetaPagadoPendienteFactura = addMoney(acc.totalTarjetaPagadoPendienteFactura, total);
+        }
+        if (this.isCardPaymentVenta(venta) && financialState(venta).pagoCancelado && !this.isAnuladaVenta(venta)) {
+          acc.totalTarjetaCancelado = addMoney(acc.totalTarjetaCancelado, total);
+        }
+        if (this.isCardPaymentVenta(venta) && !financialState(venta).pagoConfirmado && !financialState(venta).pagoCancelado && !this.isAnuladaVenta(venta)) {
+          acc.totalTarjetaPendiente = addMoney(acc.totalTarjetaPendiente, total);
         }
         if (this.countsTowardCashTotal(venta)) {
           acc.totalEfectivoFacturado = addMoney(acc.totalEfectivoFacturado, total);
@@ -3243,11 +3293,16 @@ export default {
         totalVendido: 0,
         totalQrFacturado: 0,
         totalQrPagadoPendienteFactura: 0,
+        totalTarjetaFacturada: 0,
+        totalTarjetaPagadoPendienteFactura: 0,
+        totalTarjetaCancelado: 0,
+        totalTarjetaPendiente: 0,
         totalEfectivoFacturado: 0,
         totalEcaFacturado: 0,
         totalContratosNoSumados: 0,
         facturadas: 0,
         qrFacturadas: 0,
+        tarjetaFacturadas: 0,
         ecaFacturadas: 0,
         electronicasFacturadas: 0,
         contratosNoSumados: 0
@@ -3287,11 +3342,20 @@ export default {
           totalVendido: 0,
           totalQrFacturado: 0,
           totalQrPagadoPendienteFactura: 0,
+          totalTarjetaFacturada: 0,
+          totalTarjetaPorDetalle: 0,
+          totalTarjetaCancelado: 0,
+          totalTarjetaPendiente: 0,
+          totalTarjetaPagadoPendienteFactura: 0,
           totalEfectivoFacturado: 0,
           totalEcaFacturado: 0,
           totalContratosNoSumados: 0,
           facturadas: 0,
           qrFacturadas: 0,
+          tarjetaFacturadas: 0,
+          tarjetaCancelado: 0,
+          tarjetaPendiente: 0,
+          tarjetaPagadoPendienteFactura: 0,
           ecaFacturadas: 0,
           electronicasFacturadas: 0,
           contratosNoSumados: 0
@@ -3455,8 +3519,10 @@ export default {
     consolidateReportBranches(members) {
       const summedFields = [
         'cantidadVentas', 'ventasNetas', 'ventasFacturadasNetas', 'totalVendido', 'totalFacturado',
-        'totalQrFacturado', 'totalEfectivoFacturado', 'totalEcaFacturado', 'totalContratosNoSumados',
-        'totalQrPagadoPendienteFactura', 'facturadas', 'qrFacturadas', 'ecaFacturadas',
+        'totalQrFacturado', 'totalTarjetaFacturada', 'totalEfectivoFacturado', 'totalEcaFacturado', 'totalContratosNoSumados',
+        'totalQrPagadoPendienteFactura', 'totalTarjetaPorDetalle', 'totalTarjetaCancelado', 'totalTarjetaPendiente',
+        'totalTarjetaPagadoPendienteFactura', 'facturadas', 'qrFacturadas', 'tarjetaFacturadas',
+        'tarjetaCancelado', 'tarjetaPendiente', 'tarjetaPagadoPendienteFactura', 'ecaFacturadas',
         'electronicasFacturadas', 'contratosNoSumados', 'oficiales', 'facturasAnuladas',
         'totalFacturasAnuladas', 'conCufOtroEstado', 'observadas', 'pendientes',
         'qrPagadoPendienteFactura', 'qrCancelado', 'qrPendiente',
@@ -3485,6 +3551,7 @@ export default {
           displayName: 'LA PAZ + EL ALTO',
           totalEfectivoFacturado: totals.totalEfectivoFacturado,
           totalQrFacturado: totals.totalQrFacturado,
+          totalTarjetaFacturada: totals.totalTarjetaFacturada,
           totalVendido: totals.totalVendido
         }),
         ...(consolidatedConciliation || {}),
@@ -3627,12 +3694,18 @@ export default {
     normalizeBranch(item, index) {
       const branchTotals = this.branchTotalsByBranch[this.branchKey(item?.codigoSucursal, item?.puntoVenta)] || null;
       const totalQrFacturado = Number(branchTotals?.totalQrFacturado ?? (item?.totalQrFacturado || 0));
+      const totalTarjetaFacturada = Number(branchTotals?.totalTarjetaFacturada ?? (item?.totalTarjetaFacturada || 0));
       const totalEfectivoFacturado = Number(branchTotals?.totalEfectivoFacturado ?? (item?.totalEfectivoFacturado || 0));
       const totalEcaFacturado = Number(branchTotals?.totalEcaFacturado ?? 0);
       const totalContratosNoSumados = Number(branchTotals?.totalContratosNoSumados ?? 0);
       const totalQrPagadoPendienteFactura = Number(branchTotals?.totalQrPagadoPendienteFactura ?? (item?.totalQrPagadoPendienteFactura || 0));
+      const totalTarjetaPagadoPendienteFactura = Number(branchTotals?.totalTarjetaPagadoPendienteFactura ?? (item?.totalTarjetaPagadoPendienteFactura || 0));
       const facturadas = Number(branchTotals?.facturadas ?? (item?.facturadas || 0));
       const qrFacturadas = Number(branchTotals?.qrFacturadas ?? (item?.qrFacturadas || 0));
+      const tarjetaFacturadas = Number(branchTotals?.tarjetaFacturadas ?? (item?.tarjetaFacturadas || 0));
+      const tarjetaPagadoPendienteFactura = Number(branchTotals?.tarjetaPagadoPendienteFactura ?? (item?.tarjetaPagadoPendienteFactura || 0));
+      const tarjetaCancelado = Number(branchTotals?.tarjetaCancelado ?? (item?.tarjetaCancelado || 0));
+      const tarjetaPendiente = Number(branchTotals?.tarjetaPendiente ?? (item?.tarjetaPendiente || 0));
       const ecaFacturadas = Number(branchTotals?.ecaFacturadas ?? 0);
       const electronicasFacturadas = Number(branchTotals?.electronicasFacturadas ?? (item?.electronicasFacturadas || 0));
       const contratosNoSumados = Number(branchTotals?.contratosNoSumados ?? 0);
@@ -3644,14 +3717,17 @@ export default {
       const qrPendiente = Number(item?.qrPendiente || 0);
       const ventasFacturadasNetas = Math.max(0, facturadas);
       const ventasOperativas = ventasFacturadasNetas;
-      const totalCobrado = Number(branchTotals?.totalVendido ?? (totalQrFacturado + totalEfectivoFacturado));
+      const totalCobrado = Number(branchTotals?.totalVendido ?? (totalQrFacturado + totalTarjetaFacturada + totalEfectivoFacturado));
       const incidentSummary = this.resolveIncidentSummary({
         observadas,
         pendientes,
         conCufOtroEstado: Number(item?.conCufOtroEstado || 0),
         qrPagadoPendienteFactura,
         qrCancelado,
-        qrPendiente
+        qrPendiente,
+        tarjetaPagadoPendienteFactura,
+        tarjetaCancelado,
+        tarjetaPendiente
       });
       const status = this.resolveBranchStatus({
         cantidadVentas: ventasOperativas,
@@ -3662,6 +3738,7 @@ export default {
         ...item,
         totalEfectivoFacturado,
         totalQrFacturado,
+        totalTarjetaFacturada,
         totalVendido: totalCobrado
       });
 
@@ -3675,14 +3752,20 @@ export default {
         ventasNetas: ventasOperativas,
         ventasFacturadasNetas,
         totalVendido: totalCobrado,
-        totalFacturado: totalQrFacturado + totalEfectivoFacturado,
+        totalFacturado: totalQrFacturado + totalTarjetaFacturada + totalEfectivoFacturado,
         totalQrFacturado,
+        totalTarjetaFacturada,
         totalEfectivoFacturado,
         totalEcaFacturado,
         totalContratosNoSumados,
         totalQrPagadoPendienteFactura,
+        totalTarjetaPagadoPendienteFactura,
         facturadas,
         qrFacturadas,
+        tarjetaFacturadas,
+        tarjetaPagadoPendienteFactura,
+        tarjetaCancelado,
+        tarjetaPendiente,
         ecaFacturadas,
         electronicasFacturadas,
         contratosNoSumados,
@@ -3706,20 +3789,24 @@ export default {
           ...conciliacion,
           totalEfectivoSistema: Number(conciliacion?.totalEfectivoSistema ?? totalEfectivoFacturado),
           totalQrSistema: Number(conciliacion?.totalQrSistema ?? totalQrFacturado),
+          totalTarjetaSistema: Number(conciliacion?.totalTarjetaSistema ?? totalTarjetaFacturada),
           totalGeneralSistema: Number(conciliacion?.totalGeneralSistema ?? totalCobrado)
         }
       };
     },
-    resolveIncidentSummary({ observadas, pendientes, conCufOtroEstado, qrPagadoPendienteFactura, qrCancelado, qrPendiente }) {
+    resolveIncidentSummary({ observadas, pendientes, conCufOtroEstado, qrPagadoPendienteFactura, qrCancelado, qrPendiente, tarjetaPagadoPendienteFactura = 0, tarjetaCancelado = 0, tarjetaPendiente = 0 }) {
       const hasObservedIncidences = Boolean(
         observadas > 0
         || conCufOtroEstado > 0
         || qrCancelado > 0
+        || tarjetaCancelado > 0
       );
       const hasPendingIncidences = Boolean(
         pendientes > 0
         || qrPagadoPendienteFactura > 0
         || qrPendiente > 0
+        || tarjetaPagadoPendienteFactura > 0
+        || tarjetaPendiente > 0
       );
 
       return {
@@ -3936,6 +4023,9 @@ export default {
         || item?.qrPagadoPendienteFactura
         || item?.qrCancelado
         || item?.qrPendiente
+        || item?.tarjetaPagadoPendienteFactura
+        || item?.tarjetaCancelado
+        || item?.tarjetaPendiente
       );
     },
     incidentIcon(incident) {
@@ -4184,6 +4274,7 @@ export default {
       formData.append('sucursalNombre', isConsolidated ? 'LA PAZ + EL ALTO' : (activeBranch?.displayName || activeBranch?.sucursalNombre || this.activeConciliationModal.title));
       formData.append('totalEfectivoSistema', String(activeBranch?.totalEfectivoFacturado ?? this.activeConciliationModal.conciliacion?.totalEfectivoSistema ?? 0));
       formData.append('totalQrSistema', String(activeBranch?.totalQrFacturado ?? this.activeConciliationModal.conciliacion?.totalQrSistema ?? 0));
+      formData.append('totalTarjetaSistema', String(activeBranch?.totalTarjetaFacturada ?? this.activeConciliationModal.conciliacion?.totalTarjetaSistema ?? 0));
       formData.append('totalGeneralSistema', String(activeBranch?.totalVendido ?? this.activeConciliationModal.conciliacion?.totalGeneralSistema ?? 0));
       formData.append('montoDepositado', String(this.activeConciliationModal.form.montoDepositado || 0));
       formData.append('banco', this.activeConciliationModal.form.banco || '');
@@ -4689,6 +4780,18 @@ export default {
         parts.push(`QR pendientes: ${item.qrPendiente}`);
       }
 
+      if (Number(item?.tarjetaPagadoPendienteFactura || 0) > 0) {
+        parts.push(`Tarjeta pagada sin factura: ${item.tarjetaPagadoPendienteFactura}`);
+      }
+
+      if (Number(item?.tarjetaCancelado || 0) > 0) {
+        parts.push(`Tarjeta cancelada: ${item.tarjetaCancelado}`);
+      }
+
+      if (Number(item?.tarjetaPendiente || 0) > 0) {
+        parts.push(`Tarjeta pendiente: ${item.tarjetaPendiente}`);
+      }
+
       return parts;
     },
     resolvePdfIncidenceLabel(item) {
@@ -4785,8 +4888,9 @@ export default {
     },
     buildPdfSalesBlocks(branch) {
       return [
-        { text: `Ventas total: ${Number(branch.qrFacturadas || 0) + Number(branch.electronicasFacturadas || 0)}`, bold: true },
+        { text: `Ventas total: ${Number(branch.qrFacturadas || 0) + Number(branch.tarjetaFacturadas || 0) + Number(branch.electronicasFacturadas || 0)}`, bold: true },
         { text: `Ventas QR: ${branch.qrFacturadas || 0}` },
+        { text: `Ventas tarjeta: ${branch.tarjetaFacturadas || 0}` },
         { text: `Ventas Ef: ${branch.electronicasFacturadas || 0}` }
       ];
     },
@@ -4794,6 +4898,7 @@ export default {
       const blocks = [
         { text: `Total: ${this.formatCurrency(branch.totalVendido)}`, bold: true },
         { text: `QR: ${this.formatCurrency(branch.totalQrFacturado)}` },
+        { text: `Tarjeta NFC: ${this.formatCurrency(branch.totalTarjetaFacturada)}` },
         { text: `Efectivo: ${this.formatCurrency(branch.totalEfectivoFacturado)}` }
       ];
 
@@ -5287,6 +5392,7 @@ export default {
         const totalRows = [
           ['Total general', this.formatCurrency(this.dashboardMetrics.totalVendido || 0)],
           ['Total QR', this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)],
+          ['Total tarjeta NFC', this.formatCurrency(this.dashboardMetrics.totalTarjetaFacturada || 0)],
           ['Total efectivo', this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)]
         ];
         if (totalFacturasAnuladas > 0) {
@@ -5326,11 +5432,13 @@ export default {
           { header: 'Detalle estado', key: 'detalle_estado', width: 24 },
           { header: 'Total vendido', key: 'total_vendido', width: 16 },
           { header: 'Total QR', key: 'total_qr_facturado', width: 16 },
+          { header: 'Total tarjeta NFC', key: 'total_tarjeta_facturado', width: 18 },
           { header: 'Total efectivo', key: 'total_efectivo_facturado', width: 18 },
           { header: 'Total ECA', key: 'total_eca_facturado', width: 16 },
           { header: 'Contratos no sumados', key: 'total_contratos_no_sumados', width: 22 },
           { header: 'Ventas totales', key: 'ventas_totales', width: 14 },
           { header: 'Ventas QR', key: 'ventas_qr', width: 12 },
+          { header: 'Ventas tarjeta', key: 'ventas_tarjeta', width: 15 },
           { header: 'Ventas efectivo', key: 'ventas_efectivo', width: 15 },
           { header: 'Ventas ECA', key: 'ventas_eca', width: 12 },
           { header: 'Ventas contrato', key: 'ventas_contrato', width: 15 },
@@ -5340,6 +5448,9 @@ export default {
           { header: 'QR pendiente factura', key: 'qr_pagado_pendiente_factura', width: 20 },
           { header: 'QR cancelado', key: 'qr_cancelado', width: 14 },
           { header: 'QR pendiente', key: 'qr_pendiente', width: 14 },
+          { header: 'Tarjeta pendiente factura', key: 'tarjeta_pagado_pendiente_factura', width: 22 },
+          { header: 'Tarjeta cancelada', key: 'tarjeta_cancelado', width: 18 },
+          { header: 'Tarjeta pendiente', key: 'tarjeta_pendiente', width: 18 },
           { header: 'Cajeros únicos', key: 'cajeros_unicos', width: 25 }
         ];
         visibleBranches.forEach((branch) => {
@@ -5351,11 +5462,13 @@ export default {
             detalle_estado: branch.status?.hint || '',
             total_vendido: Number(branch.totalVendido || 0),
             total_qr_facturado: Number(branch.totalQrFacturado || 0),
+            total_tarjeta_facturado: Number(branch.totalTarjetaFacturada || 0),
             total_efectivo_facturado: Number(branch.totalEfectivoFacturado || 0),
             total_eca_facturado: Number(branch.totalEcaFacturado || 0),
             total_contratos_no_sumados: Number(branch.totalContratosNoSumados || 0),
             ventas_totales: Number(branch.facturadas || 0),
             ventas_qr: Number(branch.qrFacturadas || 0),
+            ventas_tarjeta: Number(branch.tarjetaFacturadas || 0),
             ventas_efectivo: Number(branch.electronicasFacturadas || 0),
             ventas_eca: Number(branch.ecaFacturadas || 0),
             ventas_contrato: Number(branch.contratosNoSumados || 0),
@@ -5365,6 +5478,9 @@ export default {
             qr_pagado_pendiente_factura: Number(branch.qrPagadoPendienteFactura || 0),
             qr_cancelado: Number(branch.qrCancelado || 0),
             qr_pendiente: Number(branch.qrPendiente || 0),
+            tarjeta_pagado_pendiente_factura: Number(branch.tarjetaPagadoPendienteFactura || 0),
+            tarjeta_cancelado: Number(branch.tarjetaCancelado || 0),
+            tarjeta_pendiente: Number(branch.tarjetaPendiente || 0),
             cajeros_unicos: branch.isReportingGroup ? 'Ver detalle por sucursal' : Number(branch.cajerosUnicos || 0)
           });
         });
@@ -5772,6 +5888,7 @@ export default {
         const footerRows = [
           [{ content: this.formatCurrency(this.dashboardMetrics.totalVendido), styles: { halign: 'left', fontStyle: 'bold' } }],
           [{ content: `Total QR: ${this.formatCurrency(this.dashboardMetrics.totalQrFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }],
+          [{ content: `Total tarjeta NFC: ${this.formatCurrency(this.dashboardMetrics.totalTarjetaFacturada || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }],
           [{ content: `Total efectivo: ${this.formatCurrency(this.dashboardMetrics.totalEfectivoFacturado || 0)}`, styles: { halign: 'left', fontStyle: 'bold' } }]
         ];
 
@@ -6431,6 +6548,12 @@ export default {
   background: #eaf2ff;
   border-color: #cddfff;
   color: #265fce;
+}
+
+.metric-tag-card {
+  background: #eaf8f7;
+  border-color: #c8e9e4;
+  color: #187667;
 }
 
 .metric-tag-neutral {

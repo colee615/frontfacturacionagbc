@@ -62,7 +62,7 @@
                   <strong>{{ formatNumber(summary.totalCantidad) }}</strong>
                 </article>
                 <article class="service-summary-card service-summary-card-money">
-                  <span>Total vendido · efectivo + QR confirmado</span>
+                  <span>Total vendido · efectivo + QR + tarjeta NFC confirmados</span>
                   <strong>{{ formatCurrency(summary.totalMontoVendido) }}</strong>
                 </article>
               </div>

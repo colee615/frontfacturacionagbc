@@ -81,7 +81,7 @@
               <div class="stat-copy">
                 <span>Efectivo / caja</span>
                 <strong>{{ formatCurrency(branchOverview.totalCaja) }}</strong>
-                <small>No incluye QR ni ECA</small>
+                <small>No incluye QR, tarjeta ni ECA</small>
               </div>
             </div>
 
@@ -91,6 +91,15 @@
                 <span>QR confirmado</span>
                 <strong>{{ formatCurrency(branchOverview.totalQrConfirmado) }}</strong>
                 <small>{{ branchOverview.qrConfirmados }} venta(s) QR facturadas</small>
+              </div>
+            </div>
+
+            <div class="stat-card stat-card-card">
+              <div class="stat-icon"><i class="fas fa-credit-card"></i></div>
+              <div class="stat-copy">
+                <span>Tarjeta NFC confirmada</span>
+                <strong>{{ formatCurrency(branchOverview.totalTarjetaConfirmado) }}</strong>
+                <small>{{ branchOverview.tarjetaConfirmados }} venta(s) con tarjeta</small>
               </div>
             </div>
 
@@ -106,9 +115,9 @@
             <div class="stat-card stat-card-red">
               <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
               <div class="stat-copy">
-                <span>QR por revisar</span>
-                <strong>{{ formatCurrency(branchOverview.totalQrPendiente) }}</strong>
-                <small>{{ branchOverview.qrPendientes }} pendiente(s) / pago(s)</small>
+                <span>Pagos por revisar</span>
+                <strong>{{ formatCurrency(branchOverview.totalQrPendiente + branchOverview.totalTarjetaPendiente) }}</strong>
+                <small>{{ branchOverview.qrPendientes + branchOverview.tarjetaPendientes }} QR / tarjeta pendiente(s)</small>
               </div>
             </div>
           </section>
@@ -182,6 +191,8 @@
                       <th>Total factura electrónica</th>
                       <th>QR</th>
                       <th>Total QR</th>
+                      <th>Tarjeta NFC</th>
+                      <th>Total tarjeta NFC</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -194,9 +205,11 @@
                       <td>{{ formatCurrency(user.deliveries.factura_electronica.total) }}</td>
                       <td>{{ user.deliveries.qr_facturado.count + user.deliveries.qr_pagado_pendiente_factura.count + user.deliveries.qr_pendiente.count }}</td>
                       <td>{{ formatCurrency(user.deliveries.qr_facturado.total + user.deliveries.qr_pagado_pendiente_factura.total + user.deliveries.qr_pendiente.total) }}</td>
+                      <td>{{ user.deliveries.tarjeta_facturado.count + user.deliveries.tarjeta_pagado_pendiente_factura.count + user.deliveries.tarjeta_pendiente.count }}</td>
+                      <td>{{ formatCurrency(user.deliveries.tarjeta_facturado.total + user.deliveries.tarjeta_pagado_pendiente_factura.total + user.deliveries.tarjeta_pendiente.total) }}</td>
                     </tr>
                     <tr v-if="!filteredUserSummaries.length">
-                      <td colspan="8" class="empty-state-cell">No hay cajeros visibles para el rango seleccionado.</td>
+                      <td colspan="10" class="empty-state-cell">No hay cajeros visibles para el rango seleccionado.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -972,9 +985,19 @@ export default {
           acc.qrConfirmados += 1;
         }
 
+        if (this.countsTowardCardTotal(venta)) {
+          acc.totalTarjetaConfirmado = addMoney(acc.totalTarjetaConfirmado, total);
+          acc.tarjetaConfirmados += 1;
+        }
+
         if (sectionKey === 'qr_pagado_pendiente_factura' || sectionKey === 'qr_pendiente') {
           acc.totalQrPendiente = addMoney(acc.totalQrPendiente, total);
           acc.qrPendientes += 1;
+        }
+
+        if (sectionKey === 'tarjeta_pagado_pendiente_factura' || sectionKey === 'tarjeta_pendiente') {
+          acc.totalTarjetaPendiente = addMoney(acc.totalTarjetaPendiente, total);
+          acc.tarjetaPendientes += 1;
         }
 
         if (this.isReviewableCartIncident(venta) && !reviewedQrIncident) {
@@ -988,10 +1011,14 @@ export default {
         totalCaja: 0,
         totalEca: 0,
         totalQrConfirmado: 0,
+        totalTarjetaConfirmado: 0,
         qrConfirmados: 0,
+        tarjetaConfirmados: 0,
         ecaConfirmados: 0,
         totalQrPendiente: 0,
         qrPendientes: 0,
+        totalTarjetaPendiente: 0,
+        tarjetaPendientes: 0,
         incidencias: 0
       });
     },
@@ -1057,7 +1084,9 @@ export default {
     branchHealth() {
       const observed = this.scopeVentas.filter((venta) => this.isReviewableCartIncident(venta) && !this.isReviewedQrIncident(venta)).length;
       const pending = this.branchDeliverySummary.qr_pagado_pendiente_factura.count
-        + this.branchDeliverySummary.qr_pendiente.count;
+        + this.branchDeliverySummary.qr_pendiente.count
+        + this.branchDeliverySummary.tarjeta_pagado_pendiente_factura.count
+        + this.branchDeliverySummary.tarjeta_pendiente.count;
 
       if (!this.scopeVentas.length) {
         return {
@@ -1086,7 +1115,7 @@ export default {
           key: 'pending',
           label: 'Con pendientes',
           icon: 'far fa-clock',
-          message: `Hay ${pending} venta(s) QR pendientes o pagadas sin cierre final de factura.`
+          message: `Hay ${pending} pago(s) QR o con tarjeta pendientes o pagados sin cierre final de factura.`
         };
       }
 
@@ -1381,6 +1410,10 @@ export default {
         qr_pagado_pendiente_factura: { key: 'qr_pagado_pendiente_factura', label: 'QR pagado pendiente de factura', count: 0, total: 0 },
         qr_pendiente: { key: 'qr_pendiente', label: 'QR pendiente', count: 0, total: 0 },
         qr_cancelado: { key: 'qr_cancelado', label: 'QR cancelado', count: 0, total: 0 },
+        tarjeta_facturado: { key: 'tarjeta_facturado', label: 'Tarjeta NFC facturada', count: 0, total: 0 },
+        tarjeta_pagado_pendiente_factura: { key: 'tarjeta_pagado_pendiente_factura', label: 'Tarjeta pagada pendiente de factura', count: 0, total: 0 },
+        tarjeta_pendiente: { key: 'tarjeta_pendiente', label: 'Tarjeta pendiente', count: 0, total: 0 },
+        tarjeta_cancelado: { key: 'tarjeta_cancelado', label: 'Tarjeta cancelada', count: 0, total: 0 },
         oficial: { key: 'oficial', label: 'Registro oficial', count: 0, total: 0 }
       };
     },
@@ -1498,6 +1531,24 @@ export default {
     resolveSectionKey(venta) {
       const deliveryType = this.resolveDeliveryType(venta);
       const isQrDelivery = this.isQrPaymentVenta(venta) || deliveryType?.key === 'qr';
+
+      if (this.isCardPaymentVenta(venta)) {
+        const estadoPago = String(venta?.estado_pago || financialState(venta).estadoPago || 'pendiente').trim().toLowerCase();
+
+        if (this.countsTowardCardTotal(venta)) {
+          return 'tarjeta_facturado';
+        }
+
+        if (estadoPago === 'pagado' || estadoPago === 'confirmado') {
+          return 'tarjeta_pagado_pendiente_factura';
+        }
+
+        if (['cancelado', 'fallido', 'anulado', 'reembolsado', 'revertido'].includes(estadoPago)) {
+          return 'tarjeta_cancelado';
+        }
+
+        return 'tarjeta_pendiente';
+      }
 
       if (isQrDelivery) {
         const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
@@ -3381,6 +3432,7 @@ export default {
             String(this.branchGlobalOverview.countCobrado || 0),
             this.formatCurrency(this.branchGlobalOverview.totalGeneral || 0),
             this.formatCurrency(this.branchGlobalOverview.totalQr || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalTarjeta || 0),
             this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
             this.formatCurrency(this.branchGlobalOverview.totalEca || 0)
           ],
@@ -3389,6 +3441,7 @@ export default {
             String(user.countCobrado || 0),
             this.formatCurrency(user.total || 0),
             this.formatCurrency(user.totalQr || 0),
+            this.formatCurrency(user.totalTarjeta || 0),
             this.formatCurrency(user.totalCaja || 0),
             this.formatCurrency(user.totalEca || 0)
           ]))
@@ -3463,15 +3516,20 @@ export default {
             'Total QR',
             this.formatCurrency(this.branchGlobalOverview.totalQr || 0)
           ], [
+            'Total tarjeta NFC',
+            this.formatCurrency(this.branchGlobalOverview.totalTarjeta || 0),
             'Total efectivo',
-            this.formatCurrency(this.branchGlobalOverview.totalEf || 0),
-            'Total ECA',
-            this.formatCurrency(this.branchGlobalOverview.totalEca || 0)
+            this.formatCurrency(this.branchGlobalOverview.totalEf || 0)
           ], [
+            'Total ECA',
+            this.formatCurrency(this.branchGlobalOverview.totalEca || 0),
             'Contratos no sumados',
-            this.formatCurrency(this.branchGlobalOverview.totalContratos || 0),
+            this.formatCurrency(this.branchGlobalOverview.totalContratos || 0)
+          ], [
             'QR pendientes',
-            this.formatCurrency(this.branchOverview.totalQrPendiente || 0)
+            this.formatCurrency(this.branchOverview.totalQrPendiente || 0),
+            'Tarjeta pendiente',
+            this.formatCurrency(this.branchOverview.totalTarjetaPendiente || 0)
           ]],
           theme: 'grid',
           tableWidth: 180,
@@ -3509,7 +3567,7 @@ export default {
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
-          head: [['Usuario', 'Ventas', 'Total', 'QR', 'Ef', 'ECA']],
+          head: [['Usuario', 'Ventas', 'Total', 'QR', 'Tarjeta NFC', 'Efectivo', 'ECA']],
           body: rows,
           theme: 'grid',
           tableWidth: 180,
@@ -3527,12 +3585,13 @@ export default {
             textColor: [20, 20, 20]
           },
           columnStyles: {
-            0: { cellWidth: 60 },
-            1: { cellWidth: 18, halign: 'center' },
-            2: { cellWidth: 24, halign: 'right' },
-            3: { cellWidth: 24, halign: 'right' },
-            4: { cellWidth: 24, halign: 'right' },
-            5: { cellWidth: 30, halign: 'right' }
+            0: { cellWidth: 47 },
+            1: { cellWidth: 16, halign: 'center' },
+            2: { cellWidth: 23, halign: 'right' },
+            3: { cellWidth: 23, halign: 'right' },
+            4: { cellWidth: 23, halign: 'right' },
+            5: { cellWidth: 23, halign: 'right' },
+            6: { cellWidth: 25, halign: 'right' }
           },
           margin: { left: 15, right: 15 }
         });
@@ -3619,6 +3678,7 @@ export default {
         const dailyTotalsMap = new Map();
         const dailySummaryTotals = {
           qr: 0,
+          tarjeta: 0,
           efectivo: 0,
           total: 0
         };
@@ -3633,6 +3693,7 @@ export default {
             dailyTotalsMap.set(dayKey, {
               ventas: 0,
               qr: 0,
+              tarjeta: 0,
               efectivo: 0,
               total: 0
             });
@@ -3647,6 +3708,9 @@ export default {
           if (this.countsTowardCollectedQrTotal(venta)) {
             day.qr += amount;
             dailySummaryTotals.qr += amount;
+          } else if (this.countsTowardCardTotal(venta)) {
+            day.tarjeta += amount;
+            dailySummaryTotals.tarjeta += amount;
           } else if (this.countsTowardCashTotal(venta)) {
             day.efectivo += amount;
             dailySummaryTotals.efectivo += amount;
@@ -3659,6 +3723,7 @@ export default {
             dayKey === 'SIN_FECHA' ? dayKey : this.formatShortDate(dayKey),
             String(day.ventas),
             this.formatCurrency(day.qr),
+            this.formatCurrency(day.tarjeta),
             this.formatCurrency(day.efectivo),
             this.formatCurrency(day.total)
           ]));
@@ -3739,7 +3804,7 @@ export default {
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
-          head: [['Fecha', 'Ventas', 'Total QR', 'Total efectivo', 'Total general']],
+          head: [['Fecha', 'Ventas', 'Total QR', 'Tarjeta NFC', 'Total efectivo', 'Total general']],
           body: dailyRows,
           theme: 'grid',
           tableWidth: 180,
@@ -3758,10 +3823,11 @@ export default {
           },
           columnStyles: {
             0: { cellWidth: 36, halign: 'center' },
-            1: { cellWidth: 24, halign: 'center' },
-            2: { cellWidth: 40, halign: 'right' },
-            3: { cellWidth: 40, halign: 'right' },
-            4: { cellWidth: 40, halign: 'right' }
+            1: { cellWidth: 20, halign: 'center' },
+            2: { cellWidth: 31, halign: 'right' },
+            3: { cellWidth: 31, halign: 'right' },
+            4: { cellWidth: 31, halign: 'right' },
+            5: { cellWidth: 31, halign: 'right' }
           },
           margin: { left: 15, right: 15 },
           didDrawPage: () => {
@@ -3774,6 +3840,8 @@ export default {
           body: [[
             'TOTAL QR',
             this.formatCurrency(dailySummaryTotals.qr),
+            'TARJETA NFC',
+            this.formatCurrency(dailySummaryTotals.tarjeta),
             'TOTAL EFECTIVO',
             this.formatCurrency(dailySummaryTotals.efectivo),
             'TOTAL GENERAL',
@@ -3782,19 +3850,21 @@ export default {
           theme: 'grid',
           tableWidth: 180,
           styles: {
-            fontSize: 7.2,
+            fontSize: 6.8,
             cellPadding: 2,
             lineColor: [90, 90, 90],
             textColor: [20, 20, 20],
             fontStyle: 'bold'
           },
           columnStyles: {
-            0: { cellWidth: 25 },
-            1: { cellWidth: 35, halign: 'right' },
-            2: { cellWidth: 31 },
-            3: { cellWidth: 35, halign: 'right' },
-            4: { cellWidth: 25 },
-            5: { cellWidth: 29, halign: 'right' }
+            0: { cellWidth: 24 },
+            1: { cellWidth: 21, halign: 'right' },
+            2: { cellWidth: 24 },
+            3: { cellWidth: 21, halign: 'right' },
+            4: { cellWidth: 24 },
+            5: { cellWidth: 21, halign: 'right' },
+            6: { cellWidth: 24 },
+            7: { cellWidth: 21, halign: 'right' }
           },
           margin: { left: 15, right: 15 }
         });
@@ -3859,6 +3929,9 @@ export default {
         const totalQr = exportVentas.reduce((sum, venta) => (
           this.countsTowardCollectedQrTotal(venta) ? sum + Number(venta.total || 0) : sum
         ), 0);
+        const totalTarjeta = exportVentas.reduce((sum, venta) => (
+          this.countsTowardCardTotal(venta) ? sum + Number(venta.total || 0) : sum
+        ), 0);
         const totalVentas = exportVentas.filter((venta) => this.countsTowardCollectedTotal(venta)).length;
         const dailyTotalsMap = new Map();
         exportVentas.forEach((venta) => {
@@ -3872,6 +3945,7 @@ export default {
             dailyTotalsMap.set(dayKey, {
               ventas: 0,
               qr: 0,
+              tarjeta: 0,
               efectivo: 0,
               total: 0
             });
@@ -3884,6 +3958,8 @@ export default {
 
           if (this.countsTowardCollectedQrTotal(venta)) {
             day.qr += amount;
+          } else if (this.countsTowardCardTotal(venta)) {
+            day.tarjeta += amount;
           } else if (this.countsTowardCashTotal(venta)) {
             day.efectivo += amount;
           }
@@ -3894,6 +3970,7 @@ export default {
             dayKey === 'SIN_FECHA' ? dayKey : this.formatShortDate(dayKey),
             String(day.ventas),
             this.formatCurrency(day.qr),
+            this.formatCurrency(day.tarjeta),
             this.formatCurrency(day.efectivo),
             this.formatCurrency(day.total)
           ]));
@@ -4034,6 +4111,11 @@ export default {
               this.formatCurrency(totalCaja),
               'TOTAL QR',
               this.formatCurrency(totalQr)
+            ], [
+              'TOTAL TARJETA NFC',
+              this.formatCurrency(totalTarjeta),
+              '',
+              ''
             ]],
             theme: 'grid',
             tableWidth: 180,
@@ -4075,7 +4157,7 @@ export default {
 
             autoTable(doc, {
               startY: doc.lastAutoTable.finalY + 2,
-              head: [['Fecha', 'Ventas', 'Total QR', 'Total efectivo', 'Total general']],
+              head: [['Fecha', 'Ventas', 'Total QR', 'Tarjeta NFC', 'Total efectivo', 'Total general']],
               body: dailyTotalsRows,
               theme: 'grid',
               tableWidth: 180,
@@ -4094,10 +4176,11 @@ export default {
               },
               columnStyles: {
                 0: { cellWidth: 34, halign: 'center' },
-                1: { cellWidth: 22, halign: 'center' },
-                2: { cellWidth: 41, halign: 'right' },
-                3: { cellWidth: 41, halign: 'right' },
-                4: { cellWidth: 42, halign: 'right' }
+                1: { cellWidth: 20, halign: 'center' },
+                2: { cellWidth: 31, halign: 'right' },
+                3: { cellWidth: 31, halign: 'right' },
+                4: { cellWidth: 31, halign: 'right' },
+                5: { cellWidth: 31, halign: 'right' }
               },
               margin: { left: 15, right: 15 },
               didDrawPage: () => {
@@ -4276,21 +4359,24 @@ export default {
 
         autoTable(doc, {
           startY: doc.lastAutoTable.finalY + 2,
-          head: [['Cajero', 'Ventas', 'Total general', 'Total efectivo', 'Total QR']],
+          head: [['Cajero', 'Ventas', 'Total general', 'Efectivo', 'QR', 'Tarjeta NFC']],
           body: groupedOperationalVentas.map((group) => {
             const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
-            const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
-            const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
+            const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCashTotal(venta));
+            const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCollectedQrTotal(venta));
+            const ventasTarjetaActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCardTotal(venta));
             const totalUsuario = ventasUsuarioActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
             const totalUsuarioEf = ventasEfectivoActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
             const totalUsuarioQr = ventasQrActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+            const totalUsuarioTarjeta = ventasTarjetaActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
 
             return [
               group.nombre,
               String(ventasUsuarioActivas.length),
               this.formatCurrency(totalUsuario),
               this.formatCurrency(totalUsuarioEf),
-              this.formatCurrency(totalUsuarioQr)
+              this.formatCurrency(totalUsuarioQr),
+              this.formatCurrency(totalUsuarioTarjeta)
             ];
           }),
           theme: 'grid',
@@ -4310,11 +4396,12 @@ export default {
             textColor: [20, 20, 20]
           },
           columnStyles: {
-            0: { cellWidth: 68 },
-            1: { cellWidth: 20, halign: 'center' },
-            2: { cellWidth: 31, halign: 'right' },
-            3: { cellWidth: 31, halign: 'right' },
-            4: { cellWidth: 30, halign: 'right' }
+            0: { cellWidth: 48 },
+            1: { cellWidth: 18, halign: 'center' },
+            2: { cellWidth: 29, halign: 'right' },
+            3: { cellWidth: 28, halign: 'right' },
+            4: { cellWidth: 28, halign: 'right' },
+            5: { cellWidth: 29, halign: 'right' }
           },
           margin: { left: 15, right: 15 },
           didDrawPage: () => {
@@ -4327,13 +4414,16 @@ export default {
         groupedOperationalVentas.forEach((group, groupIndex) => {
           const ventasUsuarioActivas = group.ventas.filter((venta) => this.countsTowardCollectedTotal(venta));
           const ventasAnuladas = group.ventas.filter((venta) => this.isAnuladaVenta(venta));
-          const ventasEfectivo = group.ventas.filter((venta) => !this.isQrPaymentVenta(venta) && !this.isServicioContratoVenta(venta));
+          const ventasEfectivo = group.ventas.filter((venta) => !this.isQrPaymentVenta(venta) && !this.isCardPaymentVenta(venta) && !this.isServicioContratoVenta(venta));
           const ventasQr = group.ventas.filter((venta) => this.isQrPaymentVenta(venta));
-          const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => !this.isQrPaymentVenta(venta));
-          const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.isQrPaymentVenta(venta));
+          const ventasTarjeta = group.ventas.filter((venta) => this.isCardPaymentVenta(venta));
+          const ventasEfectivoActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCashTotal(venta));
+          const ventasQrActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCollectedQrTotal(venta));
+          const ventasTarjetaActivas = ventasUsuarioActivas.filter((venta) => this.countsTowardCardTotal(venta));
           const totalUsuario = ventasUsuarioActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
           const totalUsuarioEf = ventasEfectivoActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
           const totalUsuarioQr = ventasQrActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
+          const totalUsuarioTarjeta = ventasTarjetaActivas.reduce((sum, venta) => sum + Number(venta.total || 0), 0);
 
           autoTable(doc, {
             startY: currentY,
@@ -4363,7 +4453,8 @@ export default {
                 : `Total ventas: ${ventasUsuarioActivas.length}`,
               `Total emitido: ${this.formatCurrency(totalUsuario)}`,
               `Efectivo: ${ventasEfectivoActivas.length} · ${this.formatCurrency(totalUsuarioEf)}`,
-              `QR: ${ventasQrActivas.length} · ${this.formatCurrency(totalUsuarioQr)}`
+              `QR: ${ventasQrActivas.length} · ${this.formatCurrency(totalUsuarioQr)}`,
+              `Tarjeta NFC: ${ventasTarjetaActivas.length} · ${this.formatCurrency(totalUsuarioTarjeta)}`
             ]],
             theme: 'grid',
             tableWidth: 180,
@@ -4375,10 +4466,11 @@ export default {
               textColor: [20, 20, 20]
             },
             columnStyles: {
-              0: { cellWidth: 45, fontStyle: 'bold' },
-              1: { cellWidth: 45, fontStyle: 'bold' },
-              2: { cellWidth: 45 },
-              3: { cellWidth: 45 }
+              0: { cellWidth: 36, fontStyle: 'bold' },
+              1: { cellWidth: 36, fontStyle: 'bold' },
+              2: { cellWidth: 36 },
+              3: { cellWidth: 36 },
+              4: { cellWidth: 36 }
             },
             margin: { left: 15, right: 15 },
             didDrawPage: () => {
@@ -4502,6 +4594,64 @@ export default {
             });
             currentY = doc.lastAutoTable.finalY + 2;
           }
+
+          if (ventasTarjeta.length) {
+            autoTable(doc, {
+              startY: currentY,
+              body: [[`VENTAS TARJETA NFC · ${ventasTarjeta.length} · ${this.formatCurrency(totalUsuarioTarjeta)}`]],
+              theme: 'grid',
+              tableWidth: 180,
+              styles: {
+                fontSize: 7.8,
+                fontStyle: 'bold',
+                cellPadding: 2,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                fillColor: [248, 250, 252]
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 1.5;
+
+            autoTable(doc, {
+              startY: currentY,
+              head: [['Nro.', 'Fecha', 'Detalle', 'Factura', 'Estado', 'Importe']],
+              body: buildDetailRows(ventasTarjeta).map((row) => [row[0], row[1], row[2], row[4], row[5], row[6]]),
+              theme: 'grid',
+              tableWidth: 180,
+              headStyles: {
+                fillColor: [248, 250, 252],
+                textColor: [20, 20, 20],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineColor: [90, 90, 90]
+              },
+              styles: {
+                fontSize: 7.1,
+                cellPadding: 1.8,
+                lineColor: [90, 90, 90],
+                textColor: [20, 20, 20],
+                overflow: 'linebreak',
+                valign: 'top'
+              },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 22, halign: 'center' },
+                2: { cellWidth: 86 },
+                3: { cellWidth: 14, halign: 'center' },
+                4: { cellWidth: 24, halign: 'center' },
+                5: { cellWidth: 24, halign: 'right' }
+              },
+              margin: { left: 15, right: 15 },
+              didDrawPage: () => {
+                this.drawPdfHeader(doc);
+              }
+            });
+            currentY = doc.lastAutoTable.finalY + 2;
+          }
         });
 
         autoTable(doc, {
@@ -4514,8 +4664,8 @@ export default {
           ], [
             'TOTAL QR',
             this.formatCurrency(totalQr),
-            '',
-            ''
+            'TOTAL TARJETA NFC',
+            this.formatCurrency(totalTarjeta)
           ]],
           theme: 'grid',
           tableWidth: 180,
@@ -4874,6 +5024,7 @@ export default {
 .stat-card-green .stat-icon { background: #e4f7df; color: #2b8a3e; }
 .stat-card-yellow .stat-icon { background: #fff2cd; color: #d69a00; }
 .stat-card-violet .stat-icon { background: #f2e8ff; color: #7c3aed; }
+.stat-card-card .stat-icon { background: #e6f6f4; color: #16756d; }
 .stat-card-gray .stat-icon { background: #eef2f7; color: #6b7280; }
 
 .branch-hero-card {
@@ -6393,7 +6544,7 @@ export default {
 }
 
 .branch-overview-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.8rem;
   margin: 0 0 1.05rem;
 }

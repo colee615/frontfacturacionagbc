@@ -42,7 +42,7 @@
       <template v-if="report && !loading && !error && canReadSales">
         <div class="dashboard-period">
           <span>{{ periodLabel }} · BOB</span>
-          <span>Ventas facturadas vigentes; QR con pago confirmado</span>
+          <span>Ventas facturadas vigentes; QR y tarjeta con pago confirmado</span>
         </div>
 
         <section class="dashboard-metrics" aria-label="Resumen del período">
@@ -62,6 +62,11 @@
             <small>{{ paymentShare('qr') }}% del total vendido</small>
           </article>
           <article class="dashboard-metric">
+            <span>Tarjeta NFC confirmada</span>
+            <strong>{{ money(summary.totalTarjetaFacturada) }}</strong>
+            <small>{{ paymentShare('card') }}% del total vendido</small>
+          </article>
+          <article class="dashboard-metric">
             <span>Promedio por factura</span>
             <strong>{{ money(ticketAverage) }}</strong>
             <small>En el período seleccionado</small>
@@ -71,12 +76,13 @@
         <section class="dashboard-charts">
           <article class="dashboard-chart-card dashboard-trend-card">
             <div class="dashboard-card-heading">
-              <div><h2>Ventas por día y medio de pago</h2><p>Compara efectivo y QR confirmado durante el período.</p></div>
+              <div><h2>Ventas por día y medio de pago</h2><p>Compara efectivo, QR y tarjeta confirmados durante el período.</p></div>
               <span v-if="chartWasLimited" class="chart-range-note">Últimos 45 días</span>
             </div>
             <div class="chart-legend" aria-hidden="true">
               <span><i class="legend-cash"></i>Efectivo</span>
               <span><i class="legend-qr"></i>QR confirmado</span>
+              <span><i class="legend-card"></i>Tarjeta NFC</span>
             </div>
             <div v-if="hasChartSales" class="sales-chart" role="img" :aria-label="chartDescription">
               <div class="chart-y-axis" aria-hidden="true">
@@ -94,6 +100,7 @@
                       <div class="chart-bar-pair">
                         <span class="chart-bar chart-bar-cash" :style="{ height: barHeight(day.efectivo) }"></span>
                         <span class="chart-bar chart-bar-qr" :style="{ height: barHeight(day.qr) }"></span>
+                        <span class="chart-bar chart-bar-card" :style="{ height: barHeight(day.tarjeta) }"></span>
                       </div>
                     </div>
                   </div>
@@ -113,22 +120,22 @@
             <div class="payment-total"><span>Total vendido</span><strong>{{ money(summary.totalVendido) }}</strong></div>
             <div v-for="method in paymentRows" :key="method.key" class="payment-method">
               <div class="payment-method-heading">
-                <span><i :class="method.key === 'cash' ? 'legend-cash' : 'legend-qr'"></i>{{ method.label }}</span>
+                <span><i :class="`legend-${method.key}`"></i>{{ method.label }}</span>
                 <strong>{{ money(method.total) }}</strong>
               </div>
-              <div class="payment-track" role="presentation"><span :class="method.key === 'cash' ? 'payment-fill-cash' : 'payment-fill-qr'" :style="{ width: method.share + '%' }"></span></div>
+              <div class="payment-track" role="presentation"><span :class="`payment-fill-${method.key}`" :style="{ width: method.share + '%' }"></span></div>
               <small>{{ method.share }}% del total</small>
             </div>
             <div class="payment-reconciliation" :class="{ 'has-difference': Number(summary.diferenciaMediosPago || 0) !== 0 }">
-              <span>Efectivo + QR</span>
-              <strong>{{ money(summary.totalEfectivoFacturado + summary.totalQrFacturado) }}</strong>
+              <span>Efectivo + QR + tarjeta</span>
+              <strong>{{ money(Number(summary.totalEfectivoFacturado || 0) + Number(summary.totalQrFacturado || 0) + Number(summary.totalTarjetaFacturada || 0)) }}</strong>
               <small>{{ reconciliationLabel }}</small>
             </div>
           </article>
         </section>
 
         <footer class="dashboard-footer">
-          <span>El total excluye anulaciones y pagos QR sin confirmación.</span>
+          <span>El total excluye anulaciones y pagos QR o tarjeta sin confirmación.</span>
           <nuxt-link :to="{ path: '/cajero/ventas/auditoria', query: appliedFilters }">Abrir auditoría financiera <BaseIcon name="chevron" :size="13" /></nuxt-link>
         </footer>
       </template>
@@ -189,7 +196,8 @@ export default {
     paymentRows() {
       return [
         { key: 'cash', label: 'Efectivo', total: Number(this.summary.totalEfectivoFacturado || 0), share: this.paymentShare('cash') },
-        { key: 'qr', label: 'QR confirmado', total: Number(this.summary.totalQrFacturado || 0), share: this.paymentShare('qr') }
+        { key: 'qr', label: 'QR confirmado', total: Number(this.summary.totalQrFacturado || 0), share: this.paymentShare('qr') },
+        { key: 'card', label: 'Tarjeta NFC', total: Number(this.summary.totalTarjetaFacturada || 0), share: this.paymentShare('card') }
       ];
     },
     chartBars() {
@@ -211,7 +219,8 @@ export default {
           fecha: date,
           etiqueta: date.slice(8, 10),
           efectivo: Number(row.totalEfectivoFacturado || 0),
-          qr: Number(row.totalQrFacturado || 0)
+          qr: Number(row.totalQrFacturado || 0),
+          tarjeta: Number(row.totalTarjetaFacturada || 0)
         });
         cursor.setDate(cursor.getDate() + 1);
       }
@@ -223,7 +232,7 @@ export default {
       return Boolean(start && end && Math.round((end - start) / 86400000) + 1 > 45);
     },
     chartMax() {
-      const max = Math.max(0, ...this.chartBars.map(day => Math.max(day.efectivo, day.qr)));
+      const max = Math.max(0, ...this.chartBars.map(day => Math.max(day.efectivo, day.qr, day.tarjeta)));
       if (!max) return 1;
       const magnitude = 10 ** Math.floor(Math.log10(max));
       return Math.ceil(max / magnitude) * magnitude;
@@ -234,9 +243,9 @@ export default {
         ? 'El desglose coincide con el total vendido.'
         : `Diferencia: ${this.money(this.summary.diferenciaMediosPago)}`;
     },
-    hasChartSales() { return this.chartBars.some(day => day.efectivo > 0 || day.qr > 0); },
+    hasChartSales() { return this.chartBars.some(day => day.efectivo > 0 || day.qr > 0 || day.tarjeta > 0); },
     chartDescription() {
-      return `Ventas diarias por medio de pago entre ${this.periodLabel}. Efectivo en verde oscuro y QR confirmado en verde claro.`;
+      return `Ventas diarias por medio de pago entre ${this.periodLabel}. Efectivo, QR confirmado y tarjeta NFC.`;
     }
   },
   mounted() {
@@ -260,14 +269,18 @@ export default {
     paymentShare(key) {
       const total = Number(this.summary.totalVendido || 0);
       if (!total) return 0;
-      const amount = key === 'cash' ? Number(this.summary.totalEfectivoFacturado || 0) : Number(this.summary.totalQrFacturado || 0);
+      const amount = key === 'cash'
+        ? Number(this.summary.totalEfectivoFacturado || 0)
+        : key === 'qr'
+          ? Number(this.summary.totalQrFacturado || 0)
+          : Number(this.summary.totalTarjetaFacturada || 0);
       return Math.round((amount / total) * 100);
     },
     barHeight(amount) {
       return amount > 0 ? `${Math.max((amount / this.chartMax) * 100, 1.5)}%` : '0%';
     },
     chartDayTitle(day) {
-      return `${this.formatShortDate(day.fecha)} · Efectivo: ${this.money(day.efectivo)} · QR: ${this.money(day.qr)}`;
+      return `${this.formatShortDate(day.fecha)} · Efectivo: ${this.money(day.efectivo)} · QR: ${this.money(day.qr)} · Tarjeta: ${this.money(day.tarjeta)}`;
     },
     async loadDashboard() {
       const id = ++this.requestId;
@@ -321,7 +334,7 @@ export default {
 .dashboard-apply:hover { background: #06696d; }
 .dashboard-apply:disabled { opacity: .6; cursor: wait; }
 .dashboard-period { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 18px; margin: 18px 2px 12px; color: var(--safe-muted); font-size: 11px; }
-.dashboard-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+.dashboard-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 13px; }
 .dashboard-metric { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 18px 19px; background: var(--safe-surface); border: 1px solid var(--safe-line); border-radius: 12px; }
 .dashboard-metric > span { color: var(--safe-muted); font-size: 12px; }
 .dashboard-metric > strong { overflow: hidden; color: var(--safe-ink); font-size: clamp(18px, 1.7vw, 23px); line-height: 1.3; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -340,6 +353,7 @@ export default {
 .chart-legend i, .payment-method-heading i { display: inline-block; width: 8px; height: 8px; border-radius: 3px; }
 .legend-cash { background: #117d78; }
 .legend-qr { background: #6bc6aa; }
+.legend-card { background: #e5a940; }
 .sales-chart { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; height: 232px; }
 .chart-y-axis { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding: 0 0 23px; color: var(--safe-muted); font-size: 9px; }
 .chart-scroll { min-width: 0; overflow-x: auto; scrollbar-width: thin; }
@@ -354,6 +368,7 @@ export default {
 .chart-bar { display: block; width: 10px; min-height: 0; border-radius: 3px 3px 0 0; transition: height .2s ease; }
 .chart-bar-cash { background: #117d78; }
 .chart-bar-qr { background: #6bc6aa; }
+.chart-bar-card { background: #e5a940; }
 .chart-date-labels { position: absolute; inset: auto 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(25px, 1fr); color: var(--safe-muted); text-align: center; font-size: 9px; }
 .dashboard-chart-empty { display: grid; place-items: center; min-height: 190px; color: var(--safe-muted); font-size: 12px; text-align: center; }
 .payment-total { display: flex; flex-direction: column; gap: 5px; margin: 23px 0 21px; padding-bottom: 17px; border-bottom: 1px solid var(--safe-line); }
@@ -366,6 +381,7 @@ export default {
 .payment-track > span { display: block; height: 100%; min-width: 0; border-radius: inherit; transition: width .2s ease; }
 .payment-fill-cash { background: #117d78; }
 .payment-fill-qr { background: #6bc6aa; }
+.payment-fill-card { background: #e5a940; }
 .payment-method > small { color: var(--safe-muted); font-size: 10px; }
 .payment-reconciliation { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin-top: 23px; padding: 12px; color: #11695e; background: #eaf6f1; border: 1px solid #d4eee3; border-radius: 8px; font-size: 10px; }
 .payment-reconciliation strong { text-align: right; }
