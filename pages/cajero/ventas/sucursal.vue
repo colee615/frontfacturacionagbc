@@ -712,6 +712,16 @@ import { financialState, addMoney } from "~/utils/financial";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const DELIVERY_SECTION_KEYS = new Set([
+  'factura_electronica',
+  'eca',
+  'qr_facturado',
+  'qr_pagado_pendiente_factura',
+  'qr_pendiente',
+  'qr_cancelado',
+  'oficial'
+]);
+
 export default {
   data() {
     return {
@@ -903,8 +913,9 @@ export default {
           current.countEca += 1;
           current.totalEca = addMoney(current.totalEca, total);
         }
-        current.deliveries[sectionKey].count += 1;
-        current.deliveries[sectionKey].total += total;
+        const deliverySummary = current.deliveries[sectionKey] || current.deliveries.factura_electronica;
+        deliverySummary.count += 1;
+        deliverySummary.total += total;
         current.countResumen = Number(current.countCobrado || 0) + Number(current.countEca || 0) + Number(current.countContratos || 0);
         current.totalResumen = Number(current.total || 0) + Number(current.totalEca || 0) + Number(current.totalContratos || 0);
       });
@@ -1025,8 +1036,9 @@ export default {
     branchDeliverySummary() {
       return this.scopeVentas.reduce((acc, venta) => {
         const sectionKey = this.resolveSectionKey(venta);
-        acc[sectionKey].count += 1;
-        acc[sectionKey].total += Number(venta.total || 0);
+        const deliverySummary = acc[sectionKey] || acc.factura_electronica;
+        deliverySummary.count += 1;
+        deliverySummary.total += Number(venta.total || 0);
         return acc;
       }, this.buildDeliveryAccumulator());
     },
@@ -1464,7 +1476,10 @@ export default {
       return f.incluidaEnTotalVendido && f.medioPago === 'QR';
     },
     resolveSectionKey(venta) {
-      if (this.isQrPaymentVenta(venta)) {
+      const deliveryType = this.resolveDeliveryType(venta);
+      const isQrDelivery = this.isQrPaymentVenta(venta) || deliveryType?.key === 'qr';
+
+      if (isQrDelivery) {
         const estadoPago = String(venta?.estado_pago || 'pendiente').trim().toLowerCase();
 
         if (estadoPago === 'pagado' && this.isQrFacturadoVenta(venta)) {
@@ -1482,8 +1497,9 @@ export default {
         return 'qr_pendiente';
       }
 
-      const deliveryType = this.resolveDeliveryType(venta);
-      return deliveryType.key;
+      return DELIVERY_SECTION_KEYS.has(deliveryType?.key)
+        ? deliveryType.key
+        : 'factura_electronica';
     },
     resolveDeliveryType(venta) {
       const codigoOrden = String(venta?.codigoOrden || '').trim().toUpperCase();
