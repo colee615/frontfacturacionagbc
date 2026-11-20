@@ -158,6 +158,12 @@ function parseLocalDate(value) {
 }
 
 export default {
+  middleware({ store, redirect }) {
+    const auth = store.state.auth || {};
+    if (!auth.user) {
+      return redirect('/auth/login');
+    }
+  },
   data() {
     const today = new Date();
     return {
@@ -249,10 +255,6 @@ export default {
     }
   },
   mounted() {
-    if (!this.user) {
-      this.$router.push('/auth/login');
-      return;
-    }
     if (this.canReadSales) this.loadDashboard();
   },
   methods: {
