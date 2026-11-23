@@ -6,15 +6,15 @@
         <div class="actions"><button :disabled="!report || loading || exporting" @click="exportExcel">Exportar Excel</button><button :disabled="!report || loading || exporting" @click="exportPdf">Exportar PDF</button></div>
       </header>
       <form class="filters" @submit.prevent="loadReport">
-        <label>Desde<input v-model="filters.fechaInicio" type="date" /></label>
-        <label>Hasta<input v-model="filters.fechaFin" type="date" /></label>
+        <label>Mes desde<input v-model="filters.periodoDesde" type="month" required /></label>
+        <label>Mes hasta<input v-model="filters.periodoHasta" type="month" required /></label>
         <label>Regional<select v-model="filters.codigoSucursal"><option value="">Todas las regionales</option><option v-for="r in regionales" :key="r.codigo" :value="r.codigo">{{ r.nombre }}</option></select></label>
         <button class="primary" :disabled="loading">{{ loading ? 'Consultando…' : 'Consultar' }}</button>
       </form>
       <p v-if="error" role="alert" class="error">{{ error }}</p>
       <p v-if="loading" role="status">Calculando las operaciones del período…</p>
       <template v-if="report && !loading && !error">
-        <div class="scope"><span>{{ periodLabel }} · BOB · {{ formatDate(report.generadoEn) }}</span><nuxt-link :to="{path:'/cajero/ventas/servicios',query:appliedFilters}">Comparar con servicios →</nuxt-link></div>
+        <div class="scope"><span>{{ periodLabel }} · {{ regionLabel }} · BOB · {{ formatDate(report.generadoEn) }}</span><nuxt-link :to="{path:'/cajero/ventas/servicios',query:{fechaInicio:appliedFilters.fechaInicio,fechaFin:appliedFilters.fechaFin,codigoSucursal:appliedFilters.codigoSucursal}}">Comparar con servicios →</nuxt-link></div>
         <section class="metrics" aria-label="Totales del período">
           <article class="metric main"><span>Total vendido</span><strong>{{ money(summary.totalVendido) }}</strong><small>{{ summary.facturadas }} facturas incluidas</small></article>
           <article class="metric"><span>Efectivo facturado</span><strong>{{ money(summary.totalEfectivoFacturado) }}</strong><small>Aporta al total vendido</small></article>
@@ -22,25 +22,10 @@
           <article class="metric"><span>Tarjeta NFC facturada y pagada</span><strong>{{ money(summary.totalTarjetaFacturada) }}</strong><small>Pago confirmado, factura vigente</small></article>
           <article class="metric"><span>Facturas anuladas</span><strong>{{ money(summary.totalFacturasAnuladas) }}</strong><small>{{ summary.facturasAnuladas }} registros · excluidos</small></article>
         </section>
-        <section class="reconciliation" :class="{warning: summary.diferenciaMediosPago !== 0}">
-          <div><h2>{{ summary.diferenciaMediosPago === 0 ? 'El desglose del total coincide' : 'Hay una diferencia en el desglose' }}</h2><p>Efectivo + QR + tarjeta NFC facturados = total vendido. Diferencia: <strong>{{ money(summary.diferenciaMediosPago) }}</strong>.</p></div>
-          <span class="badge">{{ report.meta.cantidadIncidencias }} operaciones para revisar</span>
-        </section>
-        <section class="excluded"><h2>Fuera del total vendido</h2><div class="excluded-grid">
-          <div><span>QR cancelado / fallido</span><strong>{{ money(summary.totalQrCancelado) }}</strong></div>
-          <div><span>QR sin pago confirmado</span><strong>{{ money(summary.totalQrPendiente) }}</strong></div>
-          <div><span>QR pagado sin factura vigente*</span><strong>{{ money(summary.totalQrPagadoPendienteFactura) }}</strong></div>
-          <div><span>Tarjeta NFC cancelada / fallida</span><strong>{{ money(summary.totalTarjetaCancelado) }}</strong></div>
-          <div><span>Tarjeta NFC sin pago confirmado</span><strong>{{ money(summary.totalTarjetaPendiente) }}</strong></div>
-          <div><span>Tarjeta NFC pagada sin factura vigente*</span><strong>{{ money(summary.totalTarjetaPagadoPendienteFactura) }}</strong></div>
-          <div><span>Contratos vigentes</span><strong>{{ money(summary.totalContratosNoSumados) }}</strong></div>
-          <div><span>ECA vigente</span><strong>{{ money(summary.totalEcaFacturado) }}</strong></div>
-          <div><span>Registros oficiales</span><strong>{{ money(summary.totalOficial) }}</strong></div>
-        </div><p>*Los cobros vinculados solo a facturas anuladas se identifican en incidencias. Un estado fiscal anulado no demuestra una devolución. Estas categorías pueden coincidir sobre la misma operación; no deben sumarse entre sí.</p></section>
         <section class="audit-results">
           <nav class="tabs" aria-label="Desglose del reporte"><button v-for="tab in tabs" :key="tab.key" :class="{active:activeTab===tab.key}" :aria-pressed="activeTab===tab.key" @click="activeTab=tab.key">{{ tab.label }}</button></nav>
           <div class="table-wrap" v-if="activeTab!=='incidencias'">
-            <table><caption>{{ currentTabLabel }} · {{ periodLabel }}</caption><thead><tr><th>{{ activeTab==='regionales' ? 'Regional / PV' : activeTab==='dias' ? 'Fecha' : 'Cajero / regional' }}</th><th>Facturas incluidas</th><th>Efectivo</th><th>QR confirmado</th><th>Tarjeta NFC</th><th>Total vendido</th><th>Anuladas (excluido)</th><th>Otros excluidos</th></tr></thead>
+            <table><caption>{{ currentTabLabel }} · {{ periodLabel }} · {{ regionLabel }}</caption><thead><tr><th>{{ activeTab==='regionales' ? 'Regional / PV' : activeTab==='dias' ? 'Fecha' : 'Cajero / regional' }}</th><th>Facturas incluidas</th><th>Efectivo</th><th>QR confirmado</th><th>Tarjeta NFC</th><th>Total vendido</th><th>Anuladas (excluido)</th><th>Otros excluidos</th></tr></thead>
               <tbody><tr v-for="(row,index) in tableRows" :key="index"><th scope="row">{{ rowLabel(row) }}</th><td>{{ row.facturadas }}</td><td>{{ money(row.totalEfectivoFacturado) }}</td><td>{{ money(row.totalQrFacturado) }}</td><td>{{ money(row.totalTarjetaFacturada) }}</td><td class="strong">{{ money(row.totalVendido) }}</td><td>{{ money(row.totalFacturasAnuladas) }}</td><td>{{ money(row.totalNoIncluido-row.totalFacturasAnuladas) }}</td></tr><tr v-if="!tableRows.length"><td colspan="8">Sin operaciones para estos filtros.</td></tr></tbody>
               <tfoot><tr><th>Total</th><td>{{ summary.facturadas }}</td><td>{{ money(summary.totalEfectivoFacturado) }}</td><td>{{ money(summary.totalQrFacturado) }}</td><td>{{ money(summary.totalTarjetaFacturada) }}</td><td>{{ money(summary.totalVendido) }}</td><td>{{ money(summary.totalFacturasAnuladas) }}</td><td>{{ money(summary.totalNoIncluido-summary.totalFacturasAnuladas) }}</td></tr></tfoot></table>
           </div>
@@ -58,15 +43,51 @@
 <script>
 export default {
   data() { return { loading:false, exporting:false, error:'', report:null, appliedFilters:{}, requestId:0, activeTab:'regionales',
-    filters:{fechaInicio:'',fechaFin:'',codigoSucursal:''}, regionales:[],
+    filters:{periodoDesde:'',periodoHasta:'',codigoSucursal:''}, regionales:[],
     tabs:[{key:'regionales',label:'Por regional'},{key:'dias',label:'Por día'},{key:'usuarios',label:'Por cajero'},{key:'incidencias',label:'Incidencias'}] }; },
   computed: {
     summary() { return this.report?.resumen || {}; },
-    periodLabel() { return `${this.appliedFilters.fechaInicio || 'Inicio de registros'} — ${this.appliedFilters.fechaFin || 'Último registro'}`; },
+    periodKey() {
+      const desde = this.appliedFilters.periodoDesde || this.filters.periodoDesde;
+      const hasta = this.appliedFilters.periodoHasta || this.filters.periodoHasta;
+      if (!desde) return '';
+      return desde === hasta ? desde : `${desde}_a_${hasta}`;
+    },
+    periodLabel() {
+      const desde = this.appliedFilters.periodoDesde || this.filters.periodoDesde;
+      const hasta = this.appliedFilters.periodoHasta || this.filters.periodoHasta;
+      const label = value => {
+        if (!value) return '';
+        const [year, month] = value.split('-').map(Number);
+        return new Intl.DateTimeFormat('es-BO', { month:'long', year:'numeric' }).format(new Date(year, month - 1, 1));
+      };
+      if (!desde) return 'Período sin seleccionar';
+      return desde === hasta ? label(desde) : `${label(desde)} — ${label(hasta)}`;
+    },
+    regionLabel() {
+      if (!this.appliedFilters.codigoSucursal) return 'Todas las regionales';
+      return this.regionales.find(r => String(r.codigo) === String(this.appliedFilters.codigoSucursal))?.nombre
+        || `Regional ${this.appliedFilters.codigoSucursal}`;
+    },
     tableRows() { return this.activeTab==='dias' ? this.report.porFecha : this.activeTab==='usuarios' ? this.report.porUsuarios : this.report.sucursales; },
     currentTabLabel() { return this.tabs.find(t=>t.key===this.activeTab)?.label || ''; }
   },
-  mounted() { Object.keys(this.filters).forEach(k=>{if(this.$route.query[k]!=null)this.filters[k]=this.$route.query[k];}); this.loadReport(); },
+  mounted() {
+    const query = this.$route.query || {};
+    if (query.mes && query.anio) {
+      this.filters.periodoDesde = `${query.anio}-${String(query.mes).padStart(2, '0')}`;
+      this.filters.periodoHasta = this.filters.periodoDesde;
+    } else if (query.fechaInicio) {
+      this.filters.periodoDesde = String(query.fechaInicio).slice(0, 7);
+      this.filters.periodoHasta = query.fechaFin ? String(query.fechaFin).slice(0, 7) : this.filters.periodoDesde;
+    } else {
+      const today = new Date();
+      this.filters.periodoDesde = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      this.filters.periodoHasta = this.filters.periodoDesde;
+    }
+    if (query.codigoSucursal != null) this.filters.codigoSucursal = String(query.codigoSucursal);
+    this.loadReport();
+  },
   methods: {
     money(value) { return new Intl.NumberFormat('es-BO',{style:'currency',currency:'BOB'}).format(Number(value||0)); },
     formatDate(value) { return String(value||'—').replace('T',' ').slice(0,19); },
@@ -77,12 +98,30 @@ export default {
       const id=++this.requestId; this.loading=true;this.error='';
       const filters={...this.filters};
       try {
-        if(filters.fechaInicio && filters.fechaFin && filters.fechaInicio>filters.fechaFin)throw new Error('La fecha inicial debe ser anterior a la final.');
-        const params=new URLSearchParams();Object.entries(filters).forEach(([k,v])=>{if(v!=='')params.set(k,v);});params.set('limite','500');
-        const report=await this.$admin.$get(`ventas/reportes/auditoria-financiera?${params}`);
+        const monthPattern = /^(\d{4})-(\d{2})$/;
+        const desde = monthPattern.exec(filters.periodoDesde || '');
+        const hasta = monthPattern.exec(filters.periodoHasta || '');
+        if (!desde || !hasta || Number(desde[2]) < 1 || Number(desde[2]) > 12 || Number(hasta[2]) < 1 || Number(hasta[2]) > 12) {
+          throw new Error('Selecciona un mes de inicio y uno de fin válidos.');
+        }
+        if (filters.periodoHasta < filters.periodoDesde) throw new Error('El mes hasta no puede ser anterior al mes desde.');
+        const endYear = Number(hasta[1]);
+        const endMonth = Number(hasta[2]);
+        const lastDay = new Date(endYear, endMonth, 0).getDate();
+        const fechaInicio = `${filters.periodoDesde}-01`;
+        const fechaFin = `${filters.periodoHasta}-${String(lastDay).padStart(2, '0')}`;
+        const params = new URLSearchParams({ fechaInicio, fechaFin });
+        if (filters.codigoSucursal !== '') params.set('codigoSucursal', filters.codigoSucursal);
+        params.set('limite','500');
+        const report=await this.$admin.$get(`ventas/reportes/auditoria-financiera?${params}`, { timeout:60000 });
         if(id!==this.requestId)return;
-        this.report=report;this.appliedFilters=filters;
-        if(filters.codigoSucursal==='')this.regionales=report.sucursales.map(r=>({codigo:r.codigoSucursal,nombre:r.nombre}));
+        this.report=report;
+        this.appliedFilters={fechaInicio,fechaFin,periodoDesde:filters.periodoDesde,periodoHasta:filters.periodoHasta,codigoSucursal:filters.codigoSucursal};
+        if(filters.codigoSucursal==='') {
+          const options=new Map(this.regionales.map(r=>[String(r.codigo),r.nombre]));
+          report.sucursales.forEach(row=>options.set(String(row.codigoSucursal),row.nombre));
+          this.regionales=Array.from(options,([codigo,nombre])=>({codigo,nombre}));
+        }
       } catch(error){if(id===this.requestId)this.error=error.response?.data?.message || error.message || 'No se pudo cargar la auditoría.';}
       finally{if(id===this.requestId)this.loading=false;}
     },
@@ -103,9 +142,26 @@ export default {
       this.exporting=true;
       try {
         const {default:jsPDF}=await import('jspdf');const {default:autoTable}=await import('jspdf-autotable');const pdf=new jsPDF({orientation:'landscape'});
-        pdf.setFontSize(18);pdf.text('Auditoría financiera',14,18);pdf.setFontSize(10);pdf.text(this.periodLabel+' · BOB',14,26);
+        const detailParams = new URLSearchParams({ fechaInicio:this.appliedFilters.fechaInicio, fechaFin:this.appliedFilters.fechaFin, incluirDetalleFacturas:'1' });
+        if (this.appliedFilters.codigoSucursal !== '') detailParams.set('codigoSucursal', this.appliedFilters.codigoSucursal);
+        detailParams.set('limite','500');
+        const detailReport = await this.$admin.$get(`ventas/reportes/auditoria-financiera?${detailParams}`, { timeout:60000 });
+        const invoices = Array.isArray(detailReport.facturas) ? detailReport.facturas : [];
+        pdf.setFontSize(18);pdf.text('Auditoría financiera',14,18);pdf.setFontSize(10);pdf.text(`${this.periodLabel} · ${this.regionLabel} · BOB`,14,26);
         autoTable(pdf,{startY:33,head:[['Regional / PV','Facturas','Efectivo','QR confirmado','Tarjeta NFC','Total vendido','Anuladas excluidas','Otros excluidos']],body:this.exportRows(this.report.sucursales,r=>this.branchName(r)).map(r=>r.map((v,i)=>i>1?this.money(v):v)),foot:[['Total',this.summary.facturadas,...['totalEfectivoFacturado','totalQrFacturado','totalTarjetaFacturada','totalVendido','totalFacturasAnuladas'].map(k=>this.money(this.summary[k])),this.money(this.summary.totalNoIncluido-this.summary.totalFacturasAnuladas)]],styles:{fontSize:8},headStyles:{fillColor:[0,117,125]}});
-        pdf.setFontSize(9);pdf.text(pdf.splitTextToSize(this.report.meta.criterio+' '+this.report.alcance,265),14,pdf.lastAutoTable.finalY+12);pdf.save('auditoria-financiera.pdf');
+        let detailStartY=pdf.lastAutoTable.finalY+14;
+        if(detailStartY>pdf.internal.pageSize.getHeight()-25){pdf.addPage();detailStartY=18;}
+        pdf.setFontSize(11);pdf.text('Detalle de facturas incluidas',14,detailStartY);
+        const invoiceRows=invoices.map(row=>[
+          row.numeroFactura || 'Sin número',
+          this.formatDate(row.fecha),
+          row.usuario || 'Sin usuario',
+          this.branchName(row.sucursal || {}),
+          this.money(row.total)
+        ]);
+        if(!invoiceRows.length)invoiceRows.push(['Sin facturas incluidas para este período','','','','']);
+        autoTable(pdf,{startY:detailStartY+4,head:[['N.º de factura','Fecha','Realizada por','Regional / PV','Total']],body:invoiceRows,foot:[['TOTAL','','','',this.money(this.summary.totalVendido)]],styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[0,117,125]},columnStyles:{0:{cellWidth:30},1:{cellWidth:34},2:{cellWidth:55},3:{cellWidth:55},4:{cellWidth:32}},showHead:'everyPage'});
+        pdf.save(`auditoria-financiera-${this.periodKey}.pdf`);
       }catch(error){this.error='No se pudo exportar PDF: '+error.message;}finally{this.exporting=false;}
     }
   }
@@ -113,7 +169,7 @@ export default {
 </script>
 
 <style scoped>
-.audit-page{max-width:1600px;margin:auto;padding:22px 10px;color:#19334a}.audit-heading{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-bottom:24px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527083;font-weight:700}h1{font-size:30px;letter-spacing:-.7px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}p{color:#5b6e80;margin:8px 0;line-height:1.6}.actions{display:flex;gap:10px}button{border:1px solid #cbdce4;background:white;border-radius:9px;padding:11px 17px;color:#19334a;font-weight:600;cursor:pointer}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #25b4be;outline-offset:2px}.primary{background:#007d86;color:white;border-color:#007d86}.filters{display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:16px;background:white;padding:22px;border:1px solid #e0e8ee;border-radius:14px;align-items:end}.filters label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:600}input,select{min-width:0;width:100%;height:42px;border:1px solid #cedee8;border-radius:8px;padding:8px;background:white;color:#19334a}.scope{display:flex;justify-content:space-between;margin:20px 0;font-size:12px;color:#5b6e80}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.metric{border:1px solid #dde7ee;border-radius:14px;background:white;padding:23px;display:flex;flex-direction:column;gap:12px}.metric span{font-size:13px}.metric strong{font-size:25px;letter-spacing:-.4px}.metric small{font-size:11px;color:#5b6e80}.metric.main{background:#006f78;color:white}.metric.main small{color:#ceeef1}.reconciliation{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#edf8f4;border:1px solid #cce9dd;border-radius:12px;padding:20px;margin:20px 0}.badge{border-radius:20px;background:white;padding:10px 14px;font-size:12px;white-space:nowrap}.warning,.error{background:#fff3e6;color:#864805}.error{padding:15px;border-radius:10px}.excluded{padding:22px;background:white;border:1px solid #dde7ee;border-radius:14px}.excluded-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:18px 0}.excluded-grid div{display:flex;flex-direction:column;gap:9px}.excluded-grid span,.excluded p{font-size:12px}.excluded-grid strong{font-size:18px}.audit-results{margin-top:24px;background:white;border:1px solid #dde7ee;border-radius:14px;overflow:hidden}.tabs{display:flex;gap:6px;padding:16px;border-bottom:1px solid #e1eaf0;overflow:auto}.tabs button{border:0;background:transparent;white-space:nowrap}.tabs button.active{background:#e7f5f5;color:#006f78}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}caption{text-align:left;padding:14px;color:#5b6e80;caption-side:top}th,td{padding:15px;border-bottom:1px solid #e7edf2;text-align:right}th:first-child,td:first-child{text-align:left}thead{background:#f5f8fb}tbody th{text-align:left;font-weight:500}tfoot{background:#edf6f7;font-weight:700}.strong{font-weight:700}td small{display:block;color:#63778a;margin-top:6px}.reason{display:block;color:#8c5a10;white-space:normal;text-align:left;min-width:220px;margin:4px 0}.table-note{padding:0 16px;font-size:12px}.audit-footnote{padding:22px 4px;font-size:12px}.audit-footnote p{max-width:1050px}@media(max-width:1000px){.metrics{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.audit-heading{align-items:flex-start;flex-direction:column}}@media(max-width:600px){.metrics,.excluded-grid,.filters{grid-template-columns:1fr}.scope,.reconciliation{flex-direction:column;align-items:flex-start;gap:10px}.metric strong{font-size:23px}.audit-page{padding:12px 0}h1{font-size:25px}}
+.audit-page{max-width:1600px;margin:auto;padding:22px 10px;color:#19334a}.audit-heading{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-bottom:24px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527083;font-weight:700}h1{font-size:30px;letter-spacing:-.7px;margin:6px 0}h2{font-size:17px;margin:0 0 8px}p{color:#5b6e80;margin:8px 0;line-height:1.6}.actions{display:flex;gap:10px}button{border:1px solid #cbdce4;background:white;border-radius:9px;padding:11px 17px;color:#19334a;font-weight:600;cursor:pointer}button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #25b4be;outline-offset:2px}.primary{background:#007d86;color:white;border-color:#007d86}.filters{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(240px,1.5fr) auto;gap:16px;background:white;padding:22px;border:1px solid #e0e8ee;border-radius:14px;align-items:end}.filters label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:600}input,select{min-width:0;width:100%;height:42px;border:1px solid #cedee8;border-radius:8px;padding:8px;background:white;color:#19334a}.scope{display:flex;justify-content:space-between;margin:20px 0;font-size:12px;color:#5b6e80}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.metric{border:1px solid #dde7ee;border-radius:14px;background:white;padding:23px;display:flex;flex-direction:column;gap:12px}.metric span{font-size:13px}.metric strong{font-size:25px;letter-spacing:-.4px}.metric small{font-size:11px;color:#5b6e80}.metric.main{background:#006f78;color:white}.metric.main small{color:#ceeef1}.reconciliation{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#edf8f4;border:1px solid #cce9dd;border-radius:12px;padding:20px;margin:20px 0}.badge{border-radius:20px;background:white;padding:10px 14px;font-size:12px;white-space:nowrap}.warning,.error{background:#fff3e6;color:#864805}.error{padding:15px;border-radius:10px}.audit-results{margin-top:24px;background:white;border:1px solid #dde7ee;border-radius:14px;overflow:hidden}.tabs{display:flex;gap:6px;padding:16px;border-bottom:1px solid #e1eaf0;overflow:auto}.tabs button{border:0;background:transparent;white-space:nowrap}.tabs button.active{background:#e7f5f5;color:#006f78}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px;white-space:nowrap}caption{text-align:left;padding:14px;color:#5b6e80;caption-side:top}th,td{padding:15px;border-bottom:1px solid #e7edf2;text-align:right}th:first-child,td:first-child{text-align:left}thead{background:#f5f8fb}tbody th{text-align:left;font-weight:500}tfoot{background:#edf6f7;font-weight:700}.strong{font-weight:700}td small{display:block;color:#63778a;margin-top:6px}.reason{display:block;color:#8c5a10;white-space:normal;text-align:left;min-width:220px;margin:4px 0}.table-note{padding:0 16px;font-size:12px}.audit-footnote{padding:22px 4px;font-size:12px}.audit-footnote p{max-width:1050px}@media(max-width:1000px){.metrics{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr 1fr}.audit-heading{align-items:flex-start;flex-direction:column}}@media(max-width:600px){.metrics,.filters{grid-template-columns:1fr}.scope,.reconciliation{flex-direction:column;align-items:flex-start;gap:10px}.metric strong{font-size:23px}.audit-page{padding:12px 0}h1{font-size:25px}}
 </style>
 
 <style scoped>
