@@ -615,7 +615,7 @@
                     <div><strong>Factura:</strong> {{ numeroFacturaValue(historyVenta) || '-' }}</div>
                     <div><strong>Estado:</strong> {{ isAnuladaVenta(historyVenta) ? 'ANULADA' : emissionStateLabel(historyVenta) }}</div>
                     <div><strong>Fecha y hora:</strong> {{ formatDateTime(historyVenta.fecha || historyVenta.created_at) }}</div>
-                    <div><strong>Tx QR:</strong> {{ historyVenta.qr_transaction_id || activeDetailVenta.qr_transaction_id || '-' }}</div>
+                    <div><strong>Tx QR:</strong> {{ historyVenta.qr_transaction_id || '-' }}</div>
                     <div><strong>Seguimiento:</strong> {{ historyVenta.codigoSeguimiento || '-' }}</div>
                     <div><strong>Total:</strong> {{ formatCurrency(historyVenta.total || 0) }}</div>
                   </div>
@@ -1940,24 +1940,39 @@ export default {
         return [];
       }
 
-      const selectedId = Number(venta?.id || 0);
-      const selectedOriginId = Number(venta?.origenVentaId || venta?.origen_venta_id || 0);
+      const selectedKey = String(venta?.id || '');
+      const selectedIsCartRecord = /^cart-\d+$/.test(selectedKey);
+      const selectedId = selectedIsCartRecord ? 0 : Number(selectedKey || 0);
+      const selectedOriginType = String(venta?.origenVentaTipo || venta?.origen_venta_tipo || '');
+      const selectedCartId = Number(
+        venta?.cartId
+        || (selectedIsCartRecord ? selectedKey.replace('cart-', '') : '')
+        || (selectedOriginType.includes('facturacion_cart') ? (venta?.origenVentaId || venta?.origen_venta_id) : 0)
+        || 0
+      );
       const selectedQrId = String(venta?.qr_transaction_id || '').trim();
       const selectedTracking = String(venta?.codigoSeguimiento || '').trim();
-      const candidateIds = new Set([selectedId, selectedOriginId].filter((value) => value > 0));
       const related = [];
       const seenKeys = new Set();
 
       this.ventas.forEach((candidate) => {
-        const candidateId = Number(candidate?.id || 0);
-        const candidateOriginId = Number(candidate?.origenVentaId || candidate?.origen_venta_id || 0);
+        const candidateKey = String(candidate?.id || '');
+        const candidateIsCartRecord = /^cart-\d+$/.test(candidateKey);
+        const candidateId = candidateIsCartRecord ? 0 : Number(candidateKey || 0);
+        const candidateOriginType = String(candidate?.origenVentaTipo || candidate?.origen_venta_tipo || '');
+        const candidateCartId = Number(
+          candidate?.cartId
+          || (candidateIsCartRecord ? candidateKey.replace('cart-', '') : '')
+          || (candidateOriginType.includes('facturacion_cart') ? (candidate?.origenVentaId || candidate?.origen_venta_id) : 0)
+          || 0
+        );
         const candidateQrId = String(candidate?.qr_transaction_id || '').trim();
         const candidateTracking = String(candidate?.codigoSeguimiento || '').trim();
         const matchesQr = selectedQrId !== '' && candidateQrId !== '' && candidateQrId === selectedQrId;
         const matchesTracking = selectedTracking !== '' && candidateTracking !== '' && candidateTracking === selectedTracking;
-        const matchesOrigin = candidateIds.has(candidateId) || candidateIds.has(candidateOriginId)
-          || (candidateId > 0 && candidateOriginId > 0 && candidateId === selectedOriginId)
-          || (selectedId > 0 && candidateOriginId > 0 && candidateOriginId === selectedId);
+        const matchesSale = selectedId > 0 && candidateId > 0 && selectedId === candidateId;
+        const matchesCart = selectedCartId > 0 && candidateCartId > 0 && selectedCartId === candidateCartId;
+        const matchesOrigin = matchesSale || matchesCart;
 
         if (!matchesQr && !matchesTracking && !matchesOrigin) {
           return;
@@ -2723,8 +2738,8 @@ export default {
 
         this.load = false;
         await this.$swal.fire({
-          icon: 'success',
-          title: autoEmitInvoice ? 'Venta actualizada' : 'QR actualizado',
+          icon: Number(response?.status_code) === 202 ? 'info' : 'success',
+          title: Number(response?.status_code) === 202 ? 'Factura en verificación' : 'Venta actualizada',
           text: message,
           confirmButtonText: 'Entendido'
         });
