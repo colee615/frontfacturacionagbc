@@ -1978,12 +1978,12 @@ export default {
           return;
         }
 
-        const candidateKey = String(candidate?.id || candidate?.codigoOrden || `${candidateTracking}-${candidateQrId}`);
-        if (seenKeys.has(candidateKey)) {
+        const dedupeKey = String(candidate?.id || candidate?.codigoOrden || `${candidateTracking}-${candidateQrId}`);
+        if (seenKeys.has(dedupeKey)) {
           return;
         }
 
-        seenKeys.add(candidateKey);
+        seenKeys.add(dedupeKey);
         related.push(candidate);
       });
 
