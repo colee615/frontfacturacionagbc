@@ -5762,18 +5762,32 @@ export default {
           }
           groupedRows.get(regionalKey).invoices.push(row);
         });
+        const compareInvoiceNumbersDesc = (left, right) => {
+          const leftNumber = String(left.numeroFactura || '').trim();
+          const rightNumber = String(right.numeroFactura || '').trim();
+          const leftIsNumeric = /^\d+$/.test(leftNumber);
+          const rightIsNumeric = /^\d+$/.test(rightNumber);
+
+          if (leftIsNumeric && rightIsNumeric) {
+            const difference = Number(rightNumber) - Number(leftNumber);
+            if (difference !== 0) {
+              return difference;
+            }
+          } else if (leftIsNumeric !== rightIsNumeric) {
+            return leftIsNumeric ? -1 : 1;
+          }
+
+          return rightNumber.localeCompare(leftNumber, 'es-BO', { numeric: true });
+        };
         const regionalGroups = Array.from(groupedRows.values())
           .map(({ regional, invoices }) => ({
             regional,
-            invoices: invoices.sort((left, right) => (
-              right.importe - left.importe
-              || left.numeroFactura.localeCompare(right.numeroFactura, 'es-BO')
-            )).map((invoice) => ({ ...invoice, regional })),
+            invoices: invoices.sort(compareInvoiceNumbersDesc)
+              .map((invoice) => ({ ...invoice, regional })),
             total: invoices.reduce((sum, invoice) => sum + invoice.importe, 0)
           }))
           .sort((left, right) => (
-            right.total - left.total
-            || left.regional.localeCompare(right.regional, 'es-BO')
+            left.regional.localeCompare(right.regional, 'es-BO')
           ));
 
         const formatReportDate = (value) => {
@@ -5781,13 +5795,6 @@ export default {
           return year && month && day ? `${day}/${month}/${year}` : value;
         };
         const columnNames = ['Regional', 'Nro. de factura', 'Importe (Bs)', 'Cajera', 'Método de pago', 'Estado de factura'];
-        const filterStatusLabel = {
-          all: 'Todos',
-          cerrada: 'Sin observaciones',
-          pendiente: 'Con pendientes',
-          diferencia: 'Con observaciones',
-          sin_ventas: 'Sin ventas'
-        }[this.statusFilter] || 'Todos';
         const border = {
           top: { style: 'thin', color: { argb: 'FF6B7280' } },
           left: { style: 'thin', color: { argb: 'FF6B7280' } },
@@ -5836,7 +5843,7 @@ export default {
         sheet.getRow(2).height = 22;
 
         sheet.mergeCells('A3:F3');
-        sheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Regional: ${this.filters.q || 'Todas las visibles'}  |  Estado de cierre: ${filterStatusLabel}  |  ${rows.length} registros`;
+        sheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Regional: Todas las regionales  |  Orden: número de factura descendente  |  ${rows.length} registros`;
         sheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
         sheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         sheet.getRow(3).height = 24;
@@ -5929,7 +5936,7 @@ export default {
         filterSheet.getRow(2).height = 22;
 
         filterSheet.mergeCells('A3:F3');
-        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Regional exportada: ${this.filters.q || 'Todas las visibles'}  |  Estado de cierre: ${filterStatusLabel}  |  Usa el desplegable de Regional para filtrar`;
+        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Todas las regionales  |  Orden: número de factura descendente  |  Usa el desplegable de Regional para filtrar`;
         filterSheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
         filterSheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         filterSheet.getRow(3).height = 24;
