@@ -3625,26 +3625,6 @@ export default {
         || '-'
       ).trim() || '-';
     },
-    medioPagoReporteFactura(venta) {
-      const financial = financialState(venta);
-      return String(financial.medioPago || venta?.medioPago || venta?.medio_pago || 'SIN DATO').trim().toUpperCase();
-    },
-    estadoFacturaReporte(venta) {
-      const financial = financialState(venta);
-      const fiscalState = [
-        venta?.estado_emision,
-        venta?.estadoSufe,
-        venta?.estado_sufe,
-        venta?.respuesta_emision?.estadoSufe,
-        venta?.respuesta_emision?.estado,
-        financial.estadoFiscal,
-        venta?.status?.key
-      ]
-        .map((value) => String(value || '').trim().toUpperCase())
-        .find((value) => value && value !== 'SIN_ESTADO');
-
-      return fiscalState || String(venta?.status?.label || 'SIN ESTADO').trim().toUpperCase();
-    },
     regionalReporteFactura(venta, branch) {
       return String(
         venta?.sucursal?.departamento
@@ -5702,11 +5682,12 @@ export default {
       const exportEndDate = this.endDate || this.startDate || fallbackDate;
       const exportStartDate = this.startDate || exportEndDate;
       const exportDateRange = { startDate: exportStartDate, endDate: exportEndDate };
+      let exportStage = 'consultando el reporte del período';
 
       this.exportInvoiceExcelLoading = true;
       this.$swal.fire({
         title: 'Generando Excel de facturas',
-        text: 'Estamos reuniendo las ventas de las regionales visibles.',
+        text: 'Estamos consultando las facturas de las fechas seleccionadas.',
         allowOutsideClick: false,
         allowEscapeKey: false,
         showConfirmButton: false,
@@ -5734,37 +5715,40 @@ export default {
           return;
         }
 
+        const params = new URLSearchParams({
+          fechaInicio: exportDateRange.startDate,
+          fechaFin: exportDateRange.endDate
+        });
+        const response = await this.$admin.$get(`ventas/reportes/facturas?${params.toString()}`);
+        const facturas = Array.isArray(response?.facturas) ? response.facturas : [];
         const rows = [];
-        for (let index = 0; index < branches.length; index += 3) {
-          const batch = branches.slice(index, index + 3);
-          const batchResults = await Promise.all(batch.map(async (branch) => ({
-            branch,
-            ventas: await this.fetchBranchVentas(branch, exportDateRange)
-          })));
 
-          batchResults.forEach(({ branch, ventas }) => {
-            ventas.forEach((venta) => {
-              const numeroFactura = this.numeroFacturaFromVenta(venta);
-              const financial = financialState(venta);
-              const esRegistroOficial = financial.categoria === 'OFICIAL'
-                || String(venta?.origenVentaTipo || venta?.origen_venta_tipo || '').trim().toUpperCase() === 'ENTREGA_MANUAL';
+        facturas.forEach((factura) => {
+          const codigoSucursal = factura?.codigoSucursal ?? factura?.sucursal?.codigoSucursal ?? 0;
+          const puntoVenta = factura?.puntoVenta ?? factura?.sucursal?.puntoVenta ?? 0;
+          const branch = uniqueBranches.get(this.branchKey(codigoSucursal, puntoVenta));
+          if (!branch) {
+            return;
+          }
 
-              // Los registros oficiales/manuales no son facturas emitidas.
-              if (esRegistroOficial && numeroFactura === '-') {
-                return;
-              }
+          const numeroFactura = String(factura?.numeroFactura || '-').trim() || '-';
+          const esRegistroOficial = String(factura?.categoria || '').trim().toUpperCase() === 'OFICIAL'
+            || String(factura?.origenVentaTipo || '').trim().toUpperCase() === 'ENTREGA_MANUAL';
 
-              rows.push({
-                regional: this.regionalReporteFactura(venta, branch),
-                numeroFactura,
-                importe: Number(venta?.total || 0),
-                cajera: this.usuarioNombreFromVenta(venta),
-                medioPago: this.medioPagoReporteFactura(venta),
-                estadoFactura: this.estadoFacturaReporte(venta)
-              });
-            });
+          // Los registros oficiales/manuales no son facturas emitidas.
+          if (esRegistroOficial && numeroFactura === '-') {
+            return;
+          }
+
+          rows.push({
+            regional: String(factura?.regional || this.regionalReporteFactura(factura, branch)).trim(),
+            numeroFactura,
+            importe: Number(factura?.importe || 0),
+            cajera: String(factura?.cajera || 'Sin usuario').trim(),
+            medioPago: String(factura?.medioPago || 'SIN DATO').trim().toUpperCase(),
+            estadoFactura: String(factura?.estadoFactura || 'SIN ESTADO').trim().toUpperCase()
           });
-        }
+        });
 
         if (!rows.length) {
           this.$swal.fire({
@@ -5775,6 +5759,7 @@ export default {
           return;
         }
 
+        exportStage = 'construyendo el archivo Excel';
         const ExcelJSModule = await import('exceljs');
         const ExcelJS = ExcelJSModule.default || ExcelJSModule;
         const workbook = new ExcelJS.Workbook();
@@ -5999,6 +5984,7 @@ export default {
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
+        exportStage = 'preparando la descarga';
         saveAs(
           new Blob([buffer], {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -6011,10 +5997,16 @@ export default {
           text: `${rows.length} registros. Incluye el detalle agrupado y una hoja adicional con un único filtro por Regional.`
         });
       } catch (error) {
+        const errorDetail = error?.response?.data?.message || error?.message || 'Error inesperado';
+        console.error('[Control de cierre] Falló el Excel por factura:', {
+          stage: exportStage,
+          status: error?.response?.status,
+          detail: error?.response?.data || errorDetail
+        });
         this.$swal.fire({
           icon: 'error',
           title: 'Exportación no disponible',
-          text: 'No se pudo generar el Excel de facturas para los filtros actuales.'
+          text: `${exportStage}: ${errorDetail}`
         });
       } finally {
         this.exportInvoiceExcelLoading = false;
