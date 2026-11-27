@@ -3626,8 +3626,9 @@ export default {
       ).trim() || '-';
     },
     regionalReporteFactura(venta, branch) {
-      return String(
-        venta?.sucursal?.departamento
+      const regional = String(
+        venta?.regional
+        || venta?.sucursal?.departamento
         || venta?.sucursal?.nombre
         || venta?.departamento
         || branch?.displayName
@@ -3635,6 +3636,17 @@ export default {
         || branch?.nombre
         || 'Sin regional'
       ).trim();
+      const regionalKey = regional
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleUpperCase('es-BO')
+        .replace(/\s+/g, ' ');
+
+      if (regionalKey === 'SANTA CRUZ' || regionalKey === 'SANTA CRUZ DE LA SIERRA') {
+        return 'SANTA CRUZ DE LA SIERRA';
+      }
+
+      return regional;
     },
     formatPdfDateTime(value) {
       if (!value) {
@@ -5719,6 +5731,11 @@ export default {
           const branch = uniqueBranches.get(this.branchKey(codigoSucursal, puntoVenta));
 
           const numeroFactura = String(factura?.numeroFactura || '-').trim() || '-';
+          const estadoFactura = String(factura?.estadoFactura || 'SIN ESTADO').trim().toUpperCase();
+          if (estadoFactura.replace(/[\s_-]/g, '') === 'NOAPLICA') {
+            return;
+          }
+
           const esRegistroOficial = String(factura?.categoria || '').trim().toUpperCase() === 'OFICIAL'
             || String(factura?.origenVentaTipo || '').trim().toUpperCase() === 'ENTREGA_MANUAL';
 
@@ -5728,12 +5745,12 @@ export default {
           }
 
           rows.push({
-            regional: String(factura?.regional || this.regionalReporteFactura(factura, branch)).trim(),
+            regional: this.regionalReporteFactura(factura, branch),
             numeroFactura,
             importe: Number(factura?.importe || 0),
             cajera: String(factura?.cajera || 'Sin usuario').trim(),
             medioPago: String(factura?.medioPago || 'SIN DATO').trim().toUpperCase(),
-            estadoFactura: String(factura?.estadoFactura || 'SIN ESTADO').trim().toUpperCase()
+            estadoFactura
           });
         });
 
