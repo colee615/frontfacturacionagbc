@@ -333,7 +333,18 @@
                         <td>
                           <div class="table-actions">
                             <button
-                              v-if="ventaActionKeys(venta).includes('view_qr')"
+                              v-if="ventaActionKeys(venta).includes('retry_invoice')"
+                              class="action-secondary-btn"
+                              type="button"
+                              aria-label="Reintentar factura de la venta"
+                              title="Consultar SEFE y reintentar solo si la orden no existe"
+                              @click="consultarQrVenta(venta, true)"
+                            >
+                              <i class="fas fa-file-invoice"></i>
+                              <span class="table-action-label">Reintentar factura</span>
+                            </button>
+                            <button
+                              v-else-if="ventaActionKeys(venta).includes('view_qr')"
                               class="action-secondary-btn"
                               type="button"
                               aria-label="Ver código QR"
@@ -1941,7 +1952,17 @@ export default {
       }
 
       const selectedKey = String(venta?.id || '');
-      const selectedIsCartRecord = /^cart-\d+$/.test(selectedKey);
+      const isCartRecord = (record, key) => {
+        const numericId = Number(key || 0);
+        const explicitCartId = Number(record?.cartId || 0);
+        const originType = String(record?.origenVentaTipo || record?.origen_venta_tipo || '').trim().toLowerCase();
+        const originId = Number(record?.origenVentaId || record?.origen_venta_id || 0);
+
+        return /^cart-\d+$/.test(key)
+          || (explicitCartId > 0 && numericId === explicitCartId)
+          || (originType.includes('facturacion_cart') && numericId > 0 && numericId === originId);
+      };
+      const selectedIsCartRecord = isCartRecord(venta, selectedKey);
       const selectedId = selectedIsCartRecord ? 0 : Number(selectedKey || 0);
       const selectedOriginType = String(venta?.origenVentaTipo || venta?.origen_venta_tipo || '');
       const selectedCartId = Number(
@@ -1957,7 +1978,7 @@ export default {
 
       this.ventas.forEach((candidate) => {
         const candidateKey = String(candidate?.id || '');
-        const candidateIsCartRecord = /^cart-\d+$/.test(candidateKey);
+        const candidateIsCartRecord = isCartRecord(candidate, candidateKey);
         const candidateId = candidateIsCartRecord ? 0 : Number(candidateKey || 0);
         const candidateOriginType = String(candidate?.origenVentaTipo || candidate?.origen_venta_tipo || '');
         const candidateCartId = Number(
@@ -1978,7 +1999,8 @@ export default {
           return;
         }
 
-        const dedupeKey = String(candidate?.id || candidate?.codigoOrden || `${candidateTracking}-${candidateQrId}`);
+        const dedupeReference = String(candidate?.id || candidate?.codigoOrden || `${candidateTracking}-${candidateQrId}`);
+        const dedupeKey = `${candidateIsCartRecord ? 'cart' : 'venta'}:${dedupeReference}`;
         if (seenKeys.has(dedupeKey)) {
           return;
         }
@@ -1994,11 +2016,12 @@ export default {
       const backendHistory = Array.isArray(venta?.historial_qr) ? venta.historial_qr : [];
       backendHistory.forEach((candidate) => {
         const candidateKey = String(candidate?.id || candidate?.codigoOrden || candidate?.codigoSeguimiento || '');
-        if (!candidateKey || seenKeys.has(candidateKey)) {
+        const dedupeKey = `venta:${candidateKey}`;
+        if (!candidateKey || seenKeys.has(dedupeKey)) {
           return;
         }
 
-        seenKeys.add(candidateKey);
+        seenKeys.add(dedupeKey);
         related.push(candidate);
       });
 
@@ -2181,7 +2204,9 @@ export default {
     ventaActionKeys(venta) {
       const actions = ['detail'];
 
-      if (this.canViewQr(venta)) {
+      if (this.canRetryUncertainInvoice(venta)) {
+        actions.push('retry_invoice');
+      } else if (this.canViewQr(venta)) {
         actions.push('view_qr');
       } else if (this.canConsultarEstadoVenta(venta)) {
         actions.push('consult');
@@ -2458,6 +2483,13 @@ export default {
         && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
         && !this.isQrFacturadoVenta(venta);
     },
+    canRetryUncertainInvoice(venta) {
+      return this.isCartVenta(venta)
+        && (this.isQrPaymentVenta(venta) || this.isCardPaymentVenta(venta))
+        && String(venta?.estado_pago || '').trim().toLowerCase() === 'pagado'
+        && this.normalizedEstadoEmision(venta) === 'EMISION_INCIERTA'
+        && Boolean(venta?.status?.can_retry_uncertain_invoice);
+    },
     extractQrPayloadFromConsultResponse(payload) {
       const qrData = payload?.qr_data || {};
       const respuesta = payload?.respuesta || {};
@@ -2666,15 +2698,29 @@ export default {
     async consultarQrVenta(venta, autoEmitInvoice = false) {
       const originUserId = this.usuarioId(venta);
       const cartId = Number(venta?.cartId || venta?.origenVentaId || String(venta?.id || '').replace('cart-', ''));
+      const retryUncertainFiscalOrder = autoEmitInvoice && this.canRetryUncertainInvoice(venta);
 
       if (!originUserId || !cartId) {
-        await this.notifyAnulacion('warning', 'Venta no disponible', 'No se pudo identificar la venta QR para consultar.');
+        await this.notifyAnulacion('warning', 'Venta no disponible', 'No se pudo identificar la venta para consultar.');
         return;
+      }
+
+      if (retryUncertainFiscalOrder) {
+        const confirmation = await this.$swal.fire({
+          icon: 'warning',
+          title: 'Verificar y reintentar factura',
+          text: 'SAFE consultará primero la misma orden en SEFE. Si encuentra una factura, la vinculará. Solo si SEFE confirma que no existe, enviará una vez la misma orden y el pago ya registrado. No se hará otro cobro.',
+          showCancelButton: true,
+          confirmButtonText: 'Verificar y reintentar',
+          cancelButtonText: 'Cancelar',
+          reverseButtons: true
+        });
+        if (!confirmation.isConfirmed) return;
       }
 
       this.load = true;
       try {
-        const directEmitPayload = autoEmitInvoice && venta?.status?.emit_payload
+        const directEmitPayload = autoEmitInvoice && !retryUncertainFiscalOrder && venta?.status?.emit_payload
           ? {
             origen_usuario_id: originUserId,
             cart_id: cartId,
@@ -2692,13 +2738,14 @@ export default {
             {
               origen_usuario_id: originUserId,
               cart_id: cartId,
-              auto_emit_invoice: autoEmitInvoice ? 1 : 0
+              auto_emit_invoice: autoEmitInvoice ? 1 : 0,
+              reintentar_si_no_encontrada: retryUncertainFiscalOrder ? 1 : 0
             },
             this.facturaVentaAuthConfig()
           );
 
         if (response?.ok === false || Number(response?.status_code || 200) >= 400 || response?.respuesta?.ok === false) {
-          const failedMessage = response?.respuesta?.mensaje || response?.respuesta?.message || response?.message || 'No se pudo emitir la factura de la venta QR.';
+          const failedMessage = response?.respuesta?.mensaje || response?.respuesta?.message || response?.message || 'No se pudo emitir la factura de la venta.';
           this.load = false;
           await this.$swal.fire({ icon: 'error', title: 'No se pudo facturar', text: failedMessage });
           return;

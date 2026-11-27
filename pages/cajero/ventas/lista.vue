@@ -64,6 +64,15 @@
                 <button
                   type="button"
                   class="toolbar-export-btn"
+                  :disabled="exportInvoiceExcelLoading"
+                  @click="downloadInvoicesExcel"
+                >
+                  <i class="fas fa-file-excel"></i>
+                  <span>{{ exportInvoiceExcelLoading ? 'Generando...' : 'Excel por factura' }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-export-btn"
                   :disabled="exportPdfLoading"
                   @click="downloadResumenPdf"
                 >
@@ -900,6 +909,7 @@ export default {
     return {
       load: false,
       exportExcelLoading: false,
+      exportInvoiceExcelLoading: false,
       exportPdfLoading: false,
       page: 'Reportes',
       modulo: 'Kardex',
@@ -3460,12 +3470,14 @@ export default {
 
       return `${year}-${month}-${day}`;
     },
-    async fetchBranchVentas(branch) {
+    async fetchBranchVentas(branch, dateRange = null) {
+      const startDate = dateRange?.startDate ?? this.startDate ?? '';
+      const endDate = dateRange?.endDate ?? this.endDate ?? '';
       const cacheKey = [
         String(branch?.codigoSucursal ?? ''),
         String(branch?.puntoVenta ?? '0'),
-        this.startDate || '',
-        this.endDate || ''
+        startDate,
+        endDate
       ].join('|');
 
       if (Array.isArray(this.branchVentasCache[cacheKey])) {
@@ -3475,11 +3487,11 @@ export default {
       const params = new URLSearchParams();
       params.append('codigoSucursal', String(branch?.codigoSucursal ?? ''));
       params.append('puntoVenta', String(branch?.puntoVenta ?? '0'));
-      if (this.startDate) {
-        params.append('fechaInicio', this.startDate);
+      if (startDate) {
+        params.append('fechaInicio', startDate);
       }
-      if (this.endDate) {
-        params.append('fechaFin', this.endDate);
+      if (endDate) {
+        params.append('fechaFin', endDate);
       }
 
       const path = `ventas?${params.toString()}`;
@@ -3612,6 +3624,37 @@ export default {
         || venta?.seguimiento?.numeroFactura
         || '-'
       ).trim() || '-';
+    },
+    medioPagoReporteFactura(venta) {
+      const financial = financialState(venta);
+      return String(financial.medioPago || venta?.medioPago || venta?.medio_pago || 'SIN DATO').trim().toUpperCase();
+    },
+    estadoFacturaReporte(venta) {
+      const financial = financialState(venta);
+      const fiscalState = [
+        venta?.estado_emision,
+        venta?.estadoSufe,
+        venta?.estado_sufe,
+        venta?.respuesta_emision?.estadoSufe,
+        venta?.respuesta_emision?.estado,
+        financial.estadoFiscal,
+        venta?.status?.key
+      ]
+        .map((value) => String(value || '').trim().toUpperCase())
+        .find((value) => value && value !== 'SIN_ESTADO');
+
+      return fiscalState || String(venta?.status?.label || 'SIN ESTADO').trim().toUpperCase();
+    },
+    regionalReporteFactura(venta, branch) {
+      return String(
+        venta?.sucursal?.departamento
+        || venta?.sucursal?.nombre
+        || venta?.departamento
+        || branch?.displayName
+        || branch?.sucursalNombre
+        || branch?.nombre
+        || 'Sin regional'
+      ).trim();
     },
     formatPdfDateTime(value) {
       if (!value) {
@@ -5648,6 +5691,333 @@ export default {
         });
       } finally {
         this.exportExcelLoading = false;
+      }
+    },
+    async downloadInvoicesExcel() {
+      if (this.exportInvoiceExcelLoading) {
+        return;
+      }
+
+      const fallbackDate = this.defaultToday();
+      const exportEndDate = this.endDate || this.startDate || fallbackDate;
+      const exportStartDate = this.startDate || exportEndDate;
+      const exportDateRange = { startDate: exportStartDate, endDate: exportEndDate };
+
+      this.exportInvoiceExcelLoading = true;
+      this.$swal.fire({
+        title: 'Generando Excel de facturas',
+        text: 'Estamos reuniendo las ventas de las regionales visibles.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          this.$swal.showLoading();
+        }
+      });
+
+      try {
+        const uniqueBranches = new Map();
+        this.filteredOperationalBranches.forEach((branch) => {
+          const key = this.branchKey(branch?.codigoSucursal, branch?.puntoVenta);
+          if (!uniqueBranches.has(key)) {
+            uniqueBranches.set(key, branch);
+          }
+        });
+        const branches = Array.from(uniqueBranches.values());
+
+        if (!branches.length) {
+          this.$swal.fire({
+            icon: 'warning',
+            title: 'Sin regionales para exportar',
+            text: 'No hay regionales visibles con los filtros actuales.'
+          });
+          return;
+        }
+
+        const rows = [];
+        for (let index = 0; index < branches.length; index += 3) {
+          const batch = branches.slice(index, index + 3);
+          const batchResults = await Promise.all(batch.map(async (branch) => ({
+            branch,
+            ventas: await this.fetchBranchVentas(branch, exportDateRange)
+          })));
+
+          batchResults.forEach(({ branch, ventas }) => {
+            ventas.forEach((venta) => {
+              const numeroFactura = this.numeroFacturaFromVenta(venta);
+              const financial = financialState(venta);
+              const esRegistroOficial = financial.categoria === 'OFICIAL'
+                || String(venta?.origenVentaTipo || venta?.origen_venta_tipo || '').trim().toUpperCase() === 'ENTREGA_MANUAL';
+
+              // Los registros oficiales/manuales no son facturas emitidas.
+              if (esRegistroOficial && numeroFactura === '-') {
+                return;
+              }
+
+              rows.push({
+                regional: this.regionalReporteFactura(venta, branch),
+                numeroFactura,
+                importe: Number(venta?.total || 0),
+                cajera: this.usuarioNombreFromVenta(venta),
+                medioPago: this.medioPagoReporteFactura(venta),
+                estadoFactura: this.estadoFacturaReporte(venta)
+              });
+            });
+          });
+        }
+
+        if (!rows.length) {
+          this.$swal.fire({
+            icon: 'warning',
+            title: 'Sin facturas para exportar',
+            text: 'No se encontraron ventas facturables en el período y filtros seleccionados.'
+          });
+          return;
+        }
+
+        const ExcelJSModule = await import('exceljs');
+        const ExcelJS = ExcelJSModule.default || ExcelJSModule;
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Control de cierre';
+        workbook.created = new Date();
+
+        const groupedRows = new Map();
+        rows.forEach((row) => {
+          const regional = String(row.regional || 'Sin regional').trim();
+          const regionalKey = regional.toLocaleUpperCase('es-BO');
+          if (!groupedRows.has(regionalKey)) {
+            groupedRows.set(regionalKey, { regional, invoices: [] });
+          }
+          groupedRows.get(regionalKey).invoices.push(row);
+        });
+        const regionalGroups = Array.from(groupedRows.values())
+          .map(({ regional, invoices }) => ({
+            regional,
+            invoices: invoices.sort((left, right) => (
+              right.importe - left.importe
+              || left.numeroFactura.localeCompare(right.numeroFactura, 'es-BO')
+            )).map((invoice) => ({ ...invoice, regional })),
+            total: invoices.reduce((sum, invoice) => sum + invoice.importe, 0)
+          }))
+          .sort((left, right) => (
+            right.total - left.total
+            || left.regional.localeCompare(right.regional, 'es-BO')
+          ));
+
+        const formatReportDate = (value) => {
+          const [year, month, day] = String(value || '').split('-');
+          return year && month && day ? `${day}/${month}/${year}` : value;
+        };
+        const columnNames = ['Regional', 'Nro. de factura', 'Importe (Bs)', 'Cajera', 'Método de pago', 'Estado de factura'];
+        const filterStatusLabel = {
+          all: 'Todos',
+          cerrada: 'Sin observaciones',
+          pendiente: 'Con pendientes',
+          diferencia: 'Con observaciones',
+          sin_ventas: 'Sin ventas'
+        }[this.statusFilter] || 'Todos';
+        const border = {
+          top: { style: 'thin', color: { argb: 'FF6B7280' } },
+          left: { style: 'thin', color: { argb: 'FF6B7280' } },
+          bottom: { style: 'thin', color: { argb: 'FF6B7280' } },
+          right: { style: 'thin', color: { argb: 'FF6B7280' } }
+        };
+        const sectionFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+        const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+
+        const sheet = workbook.addWorksheet('Detalle facturas', {
+          views: [{ state: 'frozen', ySplit: 3 }]
+        });
+        sheet.columns = [
+          { width: 28 },
+          { width: 19 },
+          { width: 16 },
+          { width: 30 },
+          { width: 18 },
+          { width: 24 }
+        ];
+        sheet.pageSetup = {
+          paperSize: 1,
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+        };
+        sheet.mergeCells(1, 1, 1, 6);
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = 'DETALLE DE FACTURAS POR REGIONAL';
+        titleCell.font = { name: 'Calibri', size: 13, bold: true };
+        titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+        titleCell.fill = sectionFill;
+        for (let column = 1; column <= 6; column += 1) sheet.getCell(1, column).border = border;
+        sheet.getRow(1).height = 32;
+
+        sheet.mergeCells('A2:C2');
+        sheet.getCell('A2').value = `Emitido por: ${this.currentPdfUserLabel()}`;
+        sheet.getCell('A2').font = { name: 'Calibri', size: 10 };
+        sheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left' };
+        sheet.mergeCells('D2:F2');
+        sheet.getCell('D2').value = `Fecha y hora: ${this.currentPdfTimestamp()}`;
+        sheet.getCell('D2').font = { name: 'Calibri', size: 10 };
+        sheet.getCell('D2').alignment = { vertical: 'middle', horizontal: 'right' };
+        sheet.getRow(2).height = 22;
+
+        sheet.mergeCells('A3:F3');
+        sheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Regional: ${this.filters.q || 'Todas las visibles'}  |  Estado de cierre: ${filterStatusLabel}  |  ${rows.length} registros`;
+        sheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
+        sheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        sheet.getRow(3).height = 24;
+
+        regionalGroups.forEach((group) => {
+          const regionalTitleRow = sheet.rowCount + 1;
+          sheet.mergeCells(regionalTitleRow, 1, regionalTitleRow, 6);
+          const regionalTitle = sheet.getCell(regionalTitleRow, 1);
+          regionalTitle.value = `${group.regional.toLocaleUpperCase('es-BO')}  ·  ${group.invoices.length} factura(s)`;
+          regionalTitle.font = { name: 'Calibri', size: 11, bold: true };
+          regionalTitle.fill = sectionFill;
+          regionalTitle.alignment = { vertical: 'middle', horizontal: 'left' };
+          for (let column = 1; column <= 6; column += 1) sheet.getCell(regionalTitleRow, column).border = border;
+          sheet.getRow(regionalTitleRow).height = 24;
+
+          const tableHeaderRow = sheet.rowCount + 1;
+          const headerRow = sheet.addRow(columnNames);
+          headerRow.height = 24;
+          headerRow.eachCell((cell) => {
+            cell.font = { name: 'Calibri', size: 10, bold: true };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.fill = headerFill;
+            cell.border = border;
+          });
+
+          group.invoices.forEach((invoice, index) => {
+            const row = sheet.addRow([
+              invoice.regional,
+              invoice.numeroFactura,
+              invoice.importe,
+              invoice.cajera,
+              invoice.medioPago,
+              invoice.estadoFactura
+            ]);
+            row.height = 20;
+            row.getCell(3).numFmt = '"Bs" #,##0.00';
+            row.eachCell((cell) => {
+              cell.font = { name: 'Calibri', size: 10 };
+              cell.alignment = { vertical: 'middle', horizontal: cell.col === 3 ? 'right' : 'left', wrapText: true };
+              cell.border = border;
+            });
+          });
+
+          const subtotalRow = sheet.addRow(['', `Total ${group.regional}`, group.total, '', '', '']);
+          subtotalRow.height = 22;
+          subtotalRow.getCell(3).numFmt = '"Bs" #,##0.00';
+          subtotalRow.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' };
+          subtotalRow.eachCell((cell) => {
+            cell.font = { name: 'Calibri', size: 10, bold: true };
+            cell.fill = sectionFill;
+            cell.border = border;
+          });
+        });
+
+        const filterSheet = workbook.addWorksheet('Filtro regional', {
+          views: [{ state: 'frozen', ySplit: 4 }]
+        });
+        filterSheet.columns = [
+          { width: 28 },
+          { width: 19 },
+          { width: 16 },
+          { width: 30 },
+          { width: 18 },
+          { width: 24 }
+        ];
+        filterSheet.pageSetup = {
+          paperSize: 1,
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
+        };
+        filterSheet.mergeCells('A1:F1');
+        filterSheet.getCell('A1').value = 'FACTURAS — FILTRO POR REGIONAL';
+        filterSheet.getCell('A1').font = { name: 'Calibri', size: 13, bold: true };
+        filterSheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
+        filterSheet.getCell('A1').fill = sectionFill;
+        for (let column = 1; column <= 6; column += 1) filterSheet.getCell(1, column).border = border;
+        filterSheet.getRow(1).height = 30;
+
+        filterSheet.mergeCells('A2:C2');
+        filterSheet.getCell('A2').value = `Emitido por: ${this.currentPdfUserLabel()}`;
+        filterSheet.getCell('A2').font = { name: 'Calibri', size: 10 };
+        filterSheet.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left' };
+        filterSheet.mergeCells('D2:F2');
+        filterSheet.getCell('D2').value = `Fecha y hora: ${this.currentPdfTimestamp()}`;
+        filterSheet.getCell('D2').font = { name: 'Calibri', size: 10 };
+        filterSheet.getCell('D2').alignment = { vertical: 'middle', horizontal: 'right' };
+        filterSheet.getRow(2).height = 22;
+
+        filterSheet.mergeCells('A3:F3');
+        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Regional exportada: ${this.filters.q || 'Todas las visibles'}  |  Estado de cierre: ${filterStatusLabel}  |  Usa el desplegable de Regional para filtrar`;
+        filterSheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
+        filterSheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        filterSheet.getRow(3).height = 24;
+
+        const filterTableHeaderRow = 4;
+        filterSheet.addTable({
+          name: 'FacturasFiltroRegional',
+          ref: `A${filterTableHeaderRow}`,
+          headerRow: true,
+          totalsRow: false,
+          style: { theme: 'TableStyleMedium2', showRowStripes: true, showColumnStripes: false },
+          columns: columnNames.map((name, index) => ({ name, filterButton: index === 0 })),
+          rows: regionalGroups.flatMap((group) => group.invoices.map((invoice) => [
+            invoice.regional,
+            invoice.numeroFactura,
+            invoice.importe,
+            invoice.cajera,
+            invoice.medioPago,
+            invoice.estadoFactura
+          ]))
+        });
+        const filterHeader = filterSheet.getRow(filterTableHeaderRow);
+        filterHeader.height = 24;
+        filterHeader.eachCell((cell) => {
+          cell.font = { name: 'Calibri', size: 10, bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          cell.fill = headerFill;
+          cell.border = border;
+        });
+        rows.forEach((row, index) => {
+          const excelRow = filterSheet.getRow(filterTableHeaderRow + index + 1);
+          excelRow.height = 20;
+          excelRow.getCell(3).numFmt = '"Bs" #,##0.00';
+          excelRow.eachCell((cell) => {
+            cell.font = { name: 'Calibri', size: 10 };
+            cell.alignment = { vertical: 'middle', horizontal: cell.col === 3 ? 'right' : 'left', wrapText: true };
+            cell.border = border;
+          });
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(
+          new Blob([buffer], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          }),
+          `facturas-por-regional-${exportStartDate}-${exportEndDate}.xlsx`
+        );
+        this.$swal.fire({
+          icon: 'success',
+          title: 'Excel generado',
+          text: `${rows.length} registros. Incluye el detalle agrupado y una hoja adicional con un único filtro por Regional.`
+        });
+      } catch (error) {
+        this.$swal.fire({
+          icon: 'error',
+          title: 'Exportación no disponible',
+          text: 'No se pudo generar el Excel de facturas para los filtros actuales.'
+        });
+      } finally {
+        this.exportInvoiceExcelLoading = false;
       }
     },
     async downloadResumenPdf() {
