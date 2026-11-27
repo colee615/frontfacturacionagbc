@@ -5698,22 +5698,12 @@ export default {
 
       try {
         const uniqueBranches = new Map();
-        this.filteredOperationalBranches.forEach((branch) => {
+        this.branchRows.forEach((branch) => {
           const key = this.branchKey(branch?.codigoSucursal, branch?.puntoVenta);
           if (!uniqueBranches.has(key)) {
             uniqueBranches.set(key, branch);
           }
         });
-        const branches = Array.from(uniqueBranches.values());
-
-        if (!branches.length) {
-          this.$swal.fire({
-            icon: 'warning',
-            title: 'Sin regionales para exportar',
-            text: 'No hay regionales visibles con los filtros actuales.'
-          });
-          return;
-        }
 
         const params = new URLSearchParams({
           fechaInicio: exportDateRange.startDate,
@@ -5727,9 +5717,6 @@ export default {
           const codigoSucursal = factura?.codigoSucursal ?? factura?.sucursal?.codigoSucursal ?? 0;
           const puntoVenta = factura?.puntoVenta ?? factura?.sucursal?.puntoVenta ?? 0;
           const branch = uniqueBranches.get(this.branchKey(codigoSucursal, puntoVenta));
-          if (!branch) {
-            return;
-          }
 
           const numeroFactura = String(factura?.numeroFactura || '-').trim() || '-';
           const esRegistroOficial = String(factura?.categoria || '').trim().toUpperCase() === 'OFICIAL'
