@@ -5779,6 +5779,25 @@ export default {
 
           return rightNumber.localeCompare(leftNumber, 'es-BO', { numeric: true });
         };
+        const invoiceStatusColors = (value) => {
+          const status = String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toUpperCase()
+            .replace(/[_-]+/g, ' ');
+
+          if (/ANULAD[AO]|RECHAZAD[AO]|ERROR|FALLID/.test(status)) {
+            return { fill: 'FFFEE2E2', font: 'FF991B1B' };
+          }
+          if (/PENDIENT|EMITIENDO|EMISION|OBSERVAD|ANULACION SOLICITADA/.test(status)) {
+            return { fill: 'FFFEF3C7', font: 'FF92400E' };
+          }
+          if (/FACTURAD|PROCESAD|EMITID|ACEPTAD|REGISTRADA/.test(status)) {
+            return { fill: 'FFDCFCE7', font: 'FF166534' };
+          }
+          return { fill: 'FFE5E7EB', font: 'FF374151' };
+        };
         const regionalGroups = Array.from(groupedRows.values())
           .map(({ regional, invoices }) => ({
             regional,
@@ -5885,6 +5904,11 @@ export default {
               cell.alignment = { vertical: 'middle', horizontal: cell.col === 3 ? 'right' : 'left', wrapText: true };
               cell.border = border;
             });
+            const statusCell = row.getCell(6);
+            const statusColors = invoiceStatusColors(invoice.estadoFactura);
+            statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColors.fill } };
+            statusCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: statusColors.font } };
+            statusCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
           });
 
           const subtotalRow = sheet.addRow(['', `Total ${group.regional}`, group.total, '', '', '']);
@@ -5936,27 +5960,28 @@ export default {
         filterSheet.getRow(2).height = 22;
 
         filterSheet.mergeCells('A3:F3');
-        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Todas las regionales  |  Orden: número de factura descendente  |  Usa el desplegable de Regional para filtrar`;
+        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Todas las regionales  |  Orden: número de factura descendente  |  Filtra por Regional o Estado de factura`;
         filterSheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
         filterSheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         filterSheet.getRow(3).height = 24;
 
         const filterTableHeaderRow = 4;
+        const filterTableRows = regionalGroups.flatMap((group) => group.invoices);
         filterSheet.addTable({
           name: 'FacturasFiltroRegional',
           ref: `A${filterTableHeaderRow}`,
           headerRow: true,
           totalsRow: false,
           style: { theme: 'TableStyleMedium2', showRowStripes: true, showColumnStripes: false },
-          columns: columnNames.map((name, index) => ({ name, filterButton: index === 0 })),
-          rows: regionalGroups.flatMap((group) => group.invoices.map((invoice) => [
+          columns: columnNames.map((name, index) => ({ name, filterButton: index === 0 || index === 5 })),
+          rows: filterTableRows.map((invoice) => [
             invoice.regional,
             invoice.numeroFactura,
             invoice.importe,
             invoice.cajera,
             invoice.medioPago,
             invoice.estadoFactura
-          ]))
+          ])
         });
         const filterHeader = filterSheet.getRow(filterTableHeaderRow);
         filterHeader.height = 24;
@@ -5966,7 +5991,7 @@ export default {
           cell.fill = headerFill;
           cell.border = border;
         });
-        rows.forEach((row, index) => {
+        filterTableRows.forEach((invoice, index) => {
           const excelRow = filterSheet.getRow(filterTableHeaderRow + index + 1);
           excelRow.height = 20;
           excelRow.getCell(3).numFmt = '"Bs" #,##0.00';
@@ -5975,6 +6000,11 @@ export default {
             cell.alignment = { vertical: 'middle', horizontal: cell.col === 3 ? 'right' : 'left', wrapText: true };
             cell.border = border;
           });
+          const statusCell = excelRow.getCell(6);
+          const statusColors = invoiceStatusColors(invoice?.estadoFactura);
+          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColors.fill } };
+          statusCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: statusColors.font } };
+          statusCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
 
         const buffer = await workbook.xlsx.writeBuffer();
@@ -5988,7 +6018,7 @@ export default {
         this.$swal.fire({
           icon: 'success',
           title: 'Excel generado',
-          text: `${rows.length} registros. Incluye el detalle agrupado y una hoja adicional con un único filtro por Regional.`
+          text: `${rows.length} registros. Incluye el detalle por regional y una hoja para filtrar por Regional o Estado de factura.`
         });
       } catch (error) {
         const errorDetail = error?.response?.data?.message || error?.message || 'Error inesperado';
