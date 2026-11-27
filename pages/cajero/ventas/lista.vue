@@ -5922,7 +5922,7 @@ export default {
           });
         });
 
-        const filterSheet = workbook.addWorksheet('Filtro regional', {
+        const filterSheet = workbook.addWorksheet('Filtrar facturas', {
           views: [{ state: 'frozen', ySplit: 4 }]
         });
         filterSheet.columns = [
@@ -5942,7 +5942,7 @@ export default {
           margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 }
         };
         filterSheet.mergeCells('A1:F1');
-        filterSheet.getCell('A1').value = 'FACTURAS — FILTRO POR REGIONAL';
+        filterSheet.getCell('A1').value = 'FACTURAS — FILTROS Y CONSULTA';
         filterSheet.getCell('A1').font = { name: 'Calibri', size: 13, bold: true };
         filterSheet.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left' };
         filterSheet.getCell('A1').fill = sectionFill;
@@ -5960,7 +5960,7 @@ export default {
         filterSheet.getRow(2).height = 22;
 
         filterSheet.mergeCells('A3:F3');
-        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Todas las regionales  |  Orden: número de factura descendente  |  Filtra por Regional o Estado de factura`;
+        filterSheet.getCell('A3').value = `Período: ${formatReportDate(exportStartDate)} al ${formatReportDate(exportEndDate)}  |  Todas las regionales  |  Orden: número de factura descendente  |  Usa los filtros de encabezado para combinar Regional, Estado, método de pago y otros campos`;
         filterSheet.getCell('A3').font = { name: 'Calibri', size: 10, italic: true };
         filterSheet.getCell('A3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
         filterSheet.getRow(3).height = 24;
@@ -5973,7 +5973,7 @@ export default {
           headerRow: true,
           totalsRow: false,
           style: { theme: 'TableStyleMedium2', showRowStripes: true, showColumnStripes: false },
-          columns: columnNames.map((name, index) => ({ name, filterButton: index === 0 || index === 5 })),
+          columns: columnNames.map((name) => ({ name, filterButton: true })),
           rows: filterTableRows.map((invoice) => [
             invoice.regional,
             invoice.numeroFactura,
@@ -6018,7 +6018,7 @@ export default {
         this.$swal.fire({
           icon: 'success',
           title: 'Excel generado',
-          text: `${rows.length} registros. Incluye el detalle por regional y una hoja para filtrar por Regional o Estado de factura.`
+          text: `${rows.length} registros. Incluye el detalle por regional y una hoja con filtros en todas las columnas.`
         });
       } catch (error) {
         const errorDetail = error?.response?.data?.message || error?.message || 'Error inesperado';
